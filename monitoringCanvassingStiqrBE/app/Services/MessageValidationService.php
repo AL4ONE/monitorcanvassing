@@ -224,15 +224,16 @@ class MessageValidationService
                 'ocr_usernames' => $allStaffMessages->pluck('ocr_instagram_username')->unique()->values()->toArray(),
             ]);
 
-            $matchingMessages = Message::whereHas('canvassingCycle', function($q) use ($staffId) {
+            // Try multiple matching strategies
+            $matchingMessages = collect();
+
+            // Strategy 1: Exact and partial matches
+            $strategy1 = Message::whereHas('canvassingCycle', function($q) use ($staffId) {
                 $q->where('staff_id', $staffId);
             })
-            ->where(function($q) use ($instagramUsername, $basePrefix, $hasSuffix, $suffixPrefix) {
-                // Exact match
+            ->where(function($q) use ($instagramUsername) {
                 $q->where('ocr_instagram_username', $instagramUsername)
-                // Partial match: stored OCR username starts with extracted
                 ->orWhere('ocr_instagram_username', 'like', $instagramUsername . '%')
-                // Partial match: extracted starts with stored OCR username
                 ->orWhere(function($q2) use ($instagramUsername) {
                     $dbDriver = DB::connection()->getDriverName();
                     if ($dbDriver === 'sqlite') {
@@ -241,36 +242,66 @@ class MessageValidationService
                         $q2->whereRaw('? LIKE CONCAT(ocr_instagram_username, \'%\')', [$instagramUsername]);
                     }
                 });
-
-                // More aggressive: match by prefix only (for heavily truncated usernames)
-                // e.g., "nasitimayamsizi_kedaihans" matches "nasitimayamsizi_kedaihans..."
-                if ($hasSuffix && strlen($basePrefix) >= 8) {
-                    // Match if stored OCR username starts with base prefix
-                    $q->orWhere('ocr_instagram_username', 'like', $basePrefix . '_%');
-                    // Match if stored OCR username has same prefix and suffix starts similarly
-                    if ($suffixPrefix && strlen($suffixPrefix) >= 3) {
-                        $q->orWhere('ocr_instagram_username', 'like', $basePrefix . '_' . $suffixPrefix . '%');
-                    }
-                }
-
-                // Even more aggressive: match if both have same prefix (ignore suffix completely)
-                if (strlen($basePrefix) >= 8) {
-                    $dbDriver = DB::connection()->getDriverName();
-                    if ($dbDriver === 'sqlite') {
-                        // SQLite: use SUBSTR and INSTR
-                        $q->orWhereRaw('SUBSTR(ocr_instagram_username, 1, INSTR(ocr_instagram_username || \'_\', \'_\') - 1) = ?', [$basePrefix]);
-                    } elseif ($dbDriver === 'pgsql') {
-                        // PostgreSQL: use SPLIT_PART
-                        $q->orWhereRaw('SPLIT_PART(ocr_instagram_username, \'_\', 1) = ?', [$basePrefix]);
-                    } else {
-                        // MySQL: use SUBSTRING_INDEX
-                        $q->orWhereRaw('SUBSTRING_INDEX(ocr_instagram_username, \'_\', 1) = ?', [$basePrefix]);
-                    }
-                }
             })
             ->with('canvassingCycle.prospect')
-            ->orderBy('submitted_at', 'desc') // Get most recent first
+            ->orderBy('submitted_at', 'desc')
             ->get();
+
+            if ($strategy1->isNotEmpty()) {
+                $matchingMessages = $strategy1;
+            } else {
+                // Strategy 2: Prefix matching (for truncated usernames)
+                if ($hasSuffix && strlen($basePrefix) >= 8) {
+                    $strategy2 = Message::whereHas('canvassingCycle', function($q) use ($staffId) {
+                        $q->where('staff_id', $staffId);
+                    })
+                    ->where('ocr_instagram_username', 'like', $basePrefix . '_%')
+                    ->with('canvassingCycle.prospect')
+                    ->orderBy('submitted_at', 'desc')
+                    ->get();
+
+                    if ($strategy2->isNotEmpty()) {
+                        $matchingMessages = $strategy2;
+                    }
+                }
+
+                // Strategy 3: Prefix + suffix prefix matching
+                if ($matchingMessages->isEmpty() && $hasSuffix && strlen($basePrefix) >= 8 && strlen($suffixPrefix) >= 3) {
+                    $strategy3 = Message::whereHas('canvassingCycle', function($q) use ($staffId) {
+                        $q->where('staff_id', $staffId);
+                    })
+                    ->where('ocr_instagram_username', 'like', $basePrefix . '_' . $suffixPrefix . '%')
+                    ->with('canvassingCycle.prospect')
+                    ->orderBy('submitted_at', 'desc')
+                    ->get();
+
+                    if ($strategy3->isNotEmpty()) {
+                        $matchingMessages = $strategy3;
+                    }
+                }
+
+                // Strategy 4: Extract prefix from stored OCR username and compare
+                if ($matchingMessages->isEmpty() && strlen($basePrefix) >= 8) {
+                    // Get all messages and filter in PHP (more reliable across databases)
+                    $allMessages = Message::whereHas('canvassingCycle', function($q) use ($staffId) {
+                        $q->where('staff_id', $staffId);
+                    })
+                    ->with('canvassingCycle.prospect')
+                    ->get();
+
+                    $strategy4 = $allMessages->filter(function($msg) use ($basePrefix) {
+                        if (!$msg->ocr_instagram_username) {
+                            return false;
+                        }
+                        $storedParts = explode('_', $msg->ocr_instagram_username);
+                        return isset($storedParts[0]) && $storedParts[0] === $basePrefix;
+                    });
+
+                    if ($strategy4->isNotEmpty()) {
+                        $matchingMessages = $strategy4;
+                    }
+                }
+            }
 
             \Illuminate\Support\Facades\Log::info('OCR username search results', [
                 'found_messages' => $matchingMessages->count(),
