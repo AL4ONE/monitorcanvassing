@@ -142,7 +142,8 @@ class OcrService
     /**
      * Parse OCR result to extract Instagram username, message, and date
      * @param string $ocrText Raw OCR text
-     * @param int|null $expectedStage Expected stage (for logging only - NO DIFFERENCE in username extraction)
+     * @param int|null $expectedStage Expected stage (ONLY used for message filtering, NOT for username extraction)
+     * IMPORTANT: Username extraction is IDENTICAL for canvassing and follow-up - no differences!
      */
     private function parseOcrResult(string $ocrText, ?int $expectedStage = null): array
     {
@@ -163,9 +164,12 @@ class OcrService
 
         // Log header area for debugging
         Log::info('Header area extracted', [
+            'expected_stage' => $expectedStage,
+            'is_followup' => $expectedStage > 0,
             'header_length' => strlen($headerText),
             'header_preview' => substr($headerText, 0, 400),
             'full_text_length' => strlen($normalizedText),
+            'note' => 'Username extraction is IDENTICAL for canvassing and follow-up',
         ]);
 
         // Common words that appear in messages (NOT usernames) - MUST filter these out
@@ -515,9 +519,11 @@ class OcrService
         Log::info('OCR Result', [
             'username_found' => $result['instagram_username'],
             'expected_stage' => $expectedStage,
+            'is_followup' => $expectedStage > 0,
             'header_preview' => isset($headerText) ? substr($headerText, 0, 400) : '', // First 400 chars of header
             'ocr_preview' => substr($normalizedText, 0, 500),
             'all_patterns_tried' => !$result['instagram_username'] ? 'No username found after trying all patterns' : 'Username found',
+            'note' => 'Username extraction is IDENTICAL for canvassing and follow-up - if canvassing works, follow-up should work too',
         ]);
 
         // If no username found, log more details for debugging
@@ -535,11 +541,13 @@ class OcrService
 
             Log::warning('OCR failed to extract username', [
                 'expected_stage' => $expectedStage,
+                'is_followup' => $expectedStage > 0,
                 'header_length' => strlen($headerText ?? ''),
                 'header_first_500_chars' => substr($headerText ?? '', 0, 500),
                 'normalized_text_length' => strlen($normalizedText),
                 'potential_usernames_found' => array_unique($potentialUsernames),
                 'common_words_filtered' => count($commonWords),
+                'note' => 'Username extraction is IDENTICAL for canvassing and follow-up - check why pattern matching failed',
             ]);
         }
 
