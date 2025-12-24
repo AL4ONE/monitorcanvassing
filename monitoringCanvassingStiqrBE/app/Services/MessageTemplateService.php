@@ -41,12 +41,26 @@ class MessageTemplateService
             'phrases' => ['jali-jali festival', 'exposure event', 'buka peluang baru', 'balas "info event"'],
         ],
         6 => [ // Day 6
-            'keywords' => ['day 6', '*day 6*', 'pindah ke sistem', 'pos lama', '2025–2026', 'fokus bantu umkm'],
-            'phrases' => ['pindah ke sistem yang lebih efisien', 'biaya pos lama', '2025–2026', 'fokus bantu umkm'],
+            'keywords' => ['day 6', '*day 6*', 'pindah ke sistem', 'pos lama', '2025–2026', '2025-2026', 'fokus bantu umkm', 'biaya pos'],
+            'phrases' => [
+                'pindah ke sistem yang lebih efisien',
+                'biaya pos lama',
+                '2025–2026',
+                '2025-2026',
+                'fokus bantu umkm',
+                'pos lama itu sudah nggak cocok',
+                'biaya pos lama itu',
+            ],
         ],
         7 => [ // Day 7
-            'keywords' => ['day 7', '*day 7*', 'ekosistem umkm', 'bergerak cepat', 'digital yang lebih murah', 'tetap berkembang', 'ready'],
-            'phrases' => ['ekosistem umkm lagi bergerak cepat', 'digital yang lebih murah dan simpel', 'tetap berkembang', 'balas "ready"'],
+            'keywords' => ['day 7', '*day 7*', 'ekosistem umkm', 'bergerak cepat', 'digital yang lebih murah', 'tetap berkembang', 'ready', 'ekosistem'],
+            'phrases' => [
+                'ekosistem umkm lagi bergerak cepat',
+                'digital yang lebih murah dan simpel',
+                'tetap berkembang',
+                'balas "ready"',
+                'ekosistem umkm',
+            ],
         ],
     ];
 
@@ -140,13 +154,24 @@ class MessageTemplateService
             $score += 10;
         }
         
-        // Valid if score is high enough 
-        // Lower threshold to 3 points (at least one keyword match) since messages may contain multiple days
-        // This allows validation to pass if Day 1 template is found, even if Day 0 is also present
-        $isValid = $score >= 3;
-        
         // Also detect what stage was detected (for info)
         $detectedStage = $this->detectStageFromMessage($messageText);
+        
+        // Valid if score is high enough 
+        // For FU-6 and FU-7, require higher score (at least 5 points) to avoid false positives
+        // This ensures messages are clearly matching the expected stage
+        $minScore = ($expectedStage >= 6) ? 5 : 3;
+        $isValid = $score >= $minScore;
+        
+        // Additional check: if detected stage is different from expected stage and score is close,
+        // be more strict - require higher score or specific phrases
+        // This prevents FU-6 messages from being accepted when they match FU-7 better
+        if ($detectedStage !== null && $detectedStage !== $expectedStage && $detectedStage >= 6 && $expectedStage >= 6) {
+            // If system detected FU-7 but user selected FU-6 (or vice versa), require higher score
+            if ($score < 7) {
+                $isValid = false;
+            }
+        }
         
         return [
             'valid' => $isValid,
@@ -155,6 +180,7 @@ class MessageTemplateService
             'match_score' => $score,
             'found_keywords' => $foundKeywords,
             'found_phrases' => $foundPhrases,
+            'min_score_required' => $minScore,
         ];
     }
 
