@@ -8,3 +8,6 @@ healthcheckTimeout = 100
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10
 
+[build.variables]
+PHP_VERSION = "8.3"
+
