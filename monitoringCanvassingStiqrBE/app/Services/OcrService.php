@@ -237,25 +237,45 @@ class OcrService
                     ]);
                 }
             }
-            // Alternative: Look for standalone lowercase username in first 200 chars (very likely to be username)
+            // Alternative: Look for standalone lowercase username in first 250 chars (very likely to be username)
             // MUST search ONLY in header area
-            if (!$username && preg_match('/\b([a-z0-9_]{8,30})\b/', substr($headerText, 0, 200), $matches)) {
-                $potentialUsername = strtolower(trim($matches[1]));
-                // Use the same commonWords array defined at the top
-                if (!in_array($potentialUsername, $commonWords) && strlen($potentialUsername) >= 8) {
-                    // Check if it's not part of a sentence (should be standalone)
-                    // MUST search ONLY in header area
-                    $pos = stripos(substr($headerText, 0, 200), $potentialUsername);
-                    if ($pos !== false) {
-                        $contextBefore = substr($headerText, max(0, $pos - 10), 10);
-                        $contextAfter = substr($headerText, $pos + strlen($potentialUsername), 10);
-                        // If surrounded by spaces or at start/end, likely a username
-                        if (preg_match('/^[\s]*$/', $contextBefore . $contextAfter) || $pos < 50) {
-                            $username = $potentialUsername;
-                            Log::info('Found username via Pattern 3b (standalone in header)', [
-                                'username' => $username,
-                                'position' => $pos,
-                            ]);
+            if (!$username) {
+                $headerTop250 = substr($headerText, 0, 250);
+                // Try to find any word that looks like a username (8+ chars, alphanumeric + underscore)
+                if (preg_match_all('/\b([a-z0-9_]{8,30})\b/i', $headerTop250, $allMatches, PREG_SET_ORDER)) {
+                    foreach ($allMatches as $match) {
+                        $potentialUsername = strtolower(trim($match[1]));
+                        // Use the same commonWords array defined at the top
+                        if (!in_array($potentialUsername, $commonWords) && strlen($potentialUsername) >= 8) {
+                            // Check if it's not part of a sentence (should be standalone)
+                            $pos = stripos($headerTop250, $potentialUsername);
+                            if ($pos !== false) {
+                                $contextBefore = substr($headerTop250, max(0, $pos - 15), 15);
+                                $contextAfter = substr($headerTop250, $pos + strlen($potentialUsername), 15);
+                                $context = $contextBefore . ' ' . $contextAfter;
+
+                                // Check if it's NOT near message keywords
+                                $hasMessageKeywords = preg_match('/(perkenalkan|halo\s+kak|kirim|pesan|balas|terima|kasih|langganan|gratis|aplikasi|qris|kasir)/i', $context);
+
+                                // Accept if:
+                                // 1. Not near message keywords AND
+                                // 2. (Appears early in header OR surrounded by spaces OR near header keywords)
+                                $isEarly = $pos < 150;
+                                $isSurroundedBySpaces = preg_match('/^[\s]*$/', trim($contextBefore) . trim($contextAfter));
+                                $hasHeaderKeywords = preg_match('/(obrolan|bisnis|chat|bergabung|joined|profil|profile|memulai|dengan|pengikut|followers)/i', $context);
+
+                                if (!$hasMessageKeywords && ($isEarly || $isSurroundedBySpaces || $hasHeaderKeywords)) {
+                                    $username = $potentialUsername;
+                                    Log::info('Found username via Pattern 3b (standalone in header)', [
+                                        'username' => $username,
+                                        'position' => $pos,
+                                        'is_early' => $isEarly,
+                                        'is_surrounded' => $isSurroundedBySpaces,
+                                        'has_header_keywords' => $hasHeaderKeywords,
+                                    ]);
+                                    break;
+                                }
+                            }
                         }
                     }
                 }
@@ -312,10 +332,10 @@ class OcrService
         }
 
         // Pattern 6: Fallback - username in header area near "obrolan" or "bisnis" or profile keywords
-        // CRITICAL: Only search in first 400 chars of header (very top area) to avoid message area
+        // CRITICAL: Only search in first 500 chars of header (very top area) to avoid message area
         // More lenient: accept if it's in header area and not a common word, even without header keywords
         if (!$username) {
-            $headerTopOnly = substr($headerText, 0, 400); // Extended to 400 chars for better coverage
+            $headerTopOnly = substr($headerText, 0, 500); // Extended to 500 chars for better coverage
             if (preg_match_all('/\b([a-z0-9_]{8,30})\b/i', $headerTopOnly, $allMatches, PREG_SET_ORDER)) {
                 foreach ($allMatches as $match) {
                     $potentialUsername = strtolower(trim($match[1]));
@@ -327,21 +347,22 @@ class OcrService
                     if ($isValidLength) {
                         // Use the same commonWords array defined at the top
                         if (!in_array($potentialUsername, $commonWords)) {
-                            // Check position - must be in first 400 chars (header area)
+                            // Check position - must be in first 500 chars (header area)
                             $pos = stripos($headerTopOnly, $potentialUsername);
-                            if ($pos !== false && $pos < 400) {
-                                $contextBefore = substr($headerTopOnly, max(0, $pos - 50), 50);
-                                $contextAfter = substr($headerTopOnly, $pos + strlen($potentialUsername), 50);
+                            if ($pos !== false && $pos < 500) {
+                                $contextBefore = substr($headerTopOnly, max(0, $pos - 60), 60);
+                                $contextAfter = substr($headerTopOnly, $pos + strlen($potentialUsername), 60);
                                 $context = $contextBefore . ' ' . $contextAfter;
 
                                 // Check if it's NOT near message keywords (more important than header keywords)
                                 $hasMessageKeywords = preg_match('/(perkenalkan|halo\s+kak|kirim\s+pesan|balas|terima\s+kasih|langganan|gratis|aplikasi|qris|kasir|halo\s+kakak)/i', $context);
 
                                 // If it's in header area and NOT near message keywords, accept it
-                                // Also check if it's near header keywords OR appears early in header (first 200 chars)
+                                // Also check if it's near header keywords OR appears early in header (first 300 chars)
                                 $hasHeaderKeywords = preg_match('/(obrolan|bisnis|chat|bergabung|joined|profil|profile|memulai|dengan|pengikut|followers)/i', $context);
-                                $isEarlyInHeader = $pos < 200; // First 200 chars = very top header
+                                $isEarlyInHeader = $pos < 300; // First 300 chars = very top header
 
+                                // More lenient: accept if not near message keywords and appears in first 300 chars
                                 if (!$hasMessageKeywords && ($hasHeaderKeywords || $isEarlyInHeader)) {
                                     $username = $potentialUsername;
                                     Log::info('Found username via Pattern 6 (fallback)', [
