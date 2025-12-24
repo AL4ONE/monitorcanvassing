@@ -8,6 +8,13 @@ healthcheckTimeout = 100
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10
 
+[deploy.preDeploy]
+commands = [
+  "php artisan migrate --force",
+  "php artisan db:seed --force",
+  "php artisan storage:link || true"
+]
+
 [build.variables]
 PHP_VERSION = "8.3"
 
