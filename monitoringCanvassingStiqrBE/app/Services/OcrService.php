@@ -183,7 +183,7 @@ class OcrService
         // Common words that appear in messages (NOT usernames) - MUST filter these out
         $commonWords = [
             'lihat', 'profil', 'tanyakan', 'instagram', 'bazar', 'event', 'bazaar', 'kasir', 'qris',
-            'aplikasi', 'gratis', 'mdr', 'umkm', 'stiqr', 'bhanu', 'transaksi', 'whatsapp', 'nomor',
+            'aplikasi', 'gratis', 'mdr', 'umkm', 'stiqr', 'bhanu', 'transaksi', 'transaks', 'whatsapp', 'nomor',
             'nama', 'usaha', 'langganan', 'biaya', 'operasional', 'masuk', 'nanti', 'tau', 'nggak',
             'kakak', 'kak', 'halo', 'terima', 'kasih', 'kirim', 'pesan', 'balas', 'membalas', 'coba',
             'demo', 'info', 'ready', 'david', 'kopi', 'kedai', 'bergabung', 'joined', 'pengikut',
@@ -296,7 +296,8 @@ class OcrService
                                 $context = $contextBefore . ' ' . $contextAfter;
 
                                 // Check if it's NOT near message keywords
-                                $hasMessageKeywords = preg_match('/(perkenalkan|halo\s+kak|kirim|pesan|balas|terima|kasih|langganan|gratis|aplikasi|qris|kasir)/i', $context);
+                                // Expanded to include FU-7 keywords to prevent "transaks" from being accepted
+                                $hasMessageKeywords = preg_match('/(perkenalkan|halo\s+kak|kirim|pesan|balas|terima|kasih|langganan|gratis|aplikasi|qris|kasir|transaksi|transaks|ekosistem|umkm|bergerak|digital|murah|simpel|tetap|berkembang|ready|stiqr|bhanu)/i', $context);
 
                                 // Accept if:
                                 // 1. Not near message keywords AND
@@ -414,7 +415,8 @@ class OcrService
                                 $context = $contextBefore . ' ' . $contextAfter;
 
                                 // Check if it's NOT near message keywords (more important than header keywords)
-                                $hasMessageKeywords = preg_match('/(perkenalkan|halo\s+kak|kirim\s+pesan|balas|terima\s+kasih|langganan|gratis|aplikasi|qris|kasir|halo\s+kakak)/i', $context);
+                                // Expanded to include FU-7 keywords to prevent "transaks" from being accepted
+                                $hasMessageKeywords = preg_match('/(perkenalkan|halo\s+kak|kirim\s+pesan|balas|terima\s+kasih|langganan|gratis|aplikasi|qris|kasir|halo\s+kakak|transaksi|transaks|ekosistem|umkm|bergerak|digital|murah|simpel|tetap|berkembang|ready|stiqr|bhanu)/i', $context);
 
                                 // If it's in header area and NOT near message keywords, accept it
                                 // Also check if it's near header keywords OR appears early in header (first 300 chars)
@@ -461,7 +463,8 @@ class OcrService
                             $contextAfter = substr($headerVeryTop, $pos + strlen($potentialUsername), 30);
                             $context = $contextBefore . ' ' . $contextAfter;
 
-                            $hasMessageKeywords = preg_match('/(perkenalkan|halo\s+kak|kirim|pesan|balas|terima|kasih|langganan|gratis|aplikasi|qris|kasir)/i', $context);
+                            // Expanded to include FU-7 keywords to prevent "transaks" from being accepted
+                            $hasMessageKeywords = preg_match('/(perkenalkan|halo\s+kak|kirim|pesan|balas|terima|kasih|langganan|gratis|aplikasi|qris|kasir|transaksi|transaks|ekosistem|umkm|bergerak|digital|murah|simpel|tetap|berkembang|ready|stiqr|bhanu)/i', $context);
 
                             // Accept if NOT near message keywords and in first 200 chars
                             if (!$hasMessageKeywords) {
@@ -499,7 +502,8 @@ class OcrService
                             $context = $contextBefore . ' ' . $contextAfter;
 
                             // Only reject if it's clearly part of a message sentence
-                            $isMessageSentence = preg_match('/(perkenalkan|halo\s+kak|kirim\s+pesan|balas|terima\s+kasih|langganan|gratis|aplikasi|qris|kasir|halo\s+kakak)/i', $context);
+                            // Expanded to include FU-7 keywords to prevent "transaks" from being accepted
+                            $isMessageSentence = preg_match('/(perkenalkan|halo\s+kak|kirim\s+pesan|balas|terima\s+kasih|langganan|gratis|aplikasi|qris|kasir|halo\s+kakak|transaksi|transaks|ekosistem|umkm|bergerak|digital|murah|simpel|tetap|berkembang|ready|stiqr|bhanu)/i', $context);
 
                             // Accept if NOT clearly a message sentence and in first 150 chars
                             if (!$isMessageSentence) {
