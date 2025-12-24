@@ -36,7 +36,17 @@ class OcrService
                     'date' => $parsed['date'],
                     'expected_stage' => $expectedStage,
                     'ocr_preview' => substr($result, 0, 500), // First 500 chars for debugging
+                    'username_found' => !empty($parsed['instagram_username']),
                 ]);
+
+                // If username not found and this is a follow-up, log more details
+                if (empty($parsed['instagram_username']) && $expectedStage > 0) {
+                    Log::warning('Follow-up OCR failed to extract username', [
+                        'expected_stage' => $expectedStage,
+                        'ocr_text_preview' => substr($result, 0, 800),
+                    ]);
+                }
+
                 return $parsed;
             }
 
@@ -436,21 +446,10 @@ class OcrService
             $username = preg_replace('/\.{2,}$/', '', $username);
             $username = rtrim($username, '.');
 
-            // Final validation:
-            // - For canvassing (stage 0): be lenient, just check it's not too short (min 8 chars)
-            // - For follow-ups: be more flexible - check length (min 8 chars) OR has underscore with min 10 chars
-            //   This handles cases where canvassing username doesn't have underscore (e.g., "kedaikopidavid")
-            $isValid = false;
-            if ($expectedStage === 0) {
-                // Canvassing: more lenient - just check minimum length
-                $isValid = strlen($username) >= 8;
-            } else {
-                // Follow-up: more flexible - accept if:
-                // 1. Has underscore and min 10 chars (strict), OR
-                // 2. Min 8 chars (lenient, for usernames without underscore that were canvassed)
-                $isValid = (strpos($username, '_') !== false && strlen($username) >= 10) ||
-                          (strlen($username) >= 8);
-            }
+            // Final validation: SAME for both canvassing and follow-up
+            // Just check minimum length (8 chars) - no difference between canvassing and follow-up
+            // This ensures consistency - if username was detected, it should be accepted regardless of stage
+            $isValid = strlen($username) >= 8;
 
             if ($isValid) {
                 $result['instagram_username'] = $username;
@@ -466,7 +465,7 @@ class OcrService
                     'has_underscore' => strpos($username, '_') !== false,
                     'length' => strlen($username),
                     'expected_stage' => $expectedStage,
-                    'validation_rule' => $expectedStage === 0 ? 'min_8_chars' : 'min_8_chars_or_underscore_with_min_10_chars',
+                    'validation_rule' => 'min_8_chars',
                 ]);
                 $result['instagram_username'] = null;
             }
