@@ -122,9 +122,24 @@ class MessageValidationService
     public function findOrCreateCycle(string $instagramUsername, int $staffId, int $stage): array
     {
         $instagramUsername = strtolower(trim($instagramUsername));
+        // Remove trailing dots/underscores that might indicate truncation
+        $instagramUsername = rtrim($instagramUsername, '._');
+
+        \Illuminate\Support\Facades\Log::info('findOrCreateCycle called', [
+            'instagram_username' => $instagramUsername,
+            'staff_id' => $staffId,
+            'stage' => $stage,
+        ]);
 
         // First try exact match
         $prospect = Prospect::where('instagram_username', $instagramUsername)->first();
+
+        if ($prospect) {
+            \Illuminate\Support\Facades\Log::info('Found prospect by exact match', [
+                'prospect_id' => $prospect->id,
+                'stored_username' => $prospect->instagram_username,
+            ]);
+        }
 
         // If not found, try partial matching (handle truncated usernames)
         // e.g., "bebekcaberawit_grandwis" should match "bebekcaberawit_grandwisata"
@@ -135,6 +150,11 @@ class MessageValidationService
             $baseParts = explode('_', $instagramUsername);
             $basePrefix = $baseParts[0]; // e.g., "bebekcaberawit"
             $hasSuffix = count($baseParts) > 1;
+
+            \Illuminate\Support\Facades\Log::info('Trying partial matching', [
+                'base_prefix' => $basePrefix,
+                'has_suffix' => $hasSuffix,
+            ]);
 
             // Try to find prospect where:
             // 1. Stored username starts with extracted username (extracted is truncated)
@@ -165,6 +185,70 @@ class MessageValidationService
                     $query->orWhere('instagram_username', 'like', $basePrefix . '_%');
                 }
             })->first();
+
+            if ($prospect) {
+                \Illuminate\Support\Facades\Log::info('Found prospect by partial match', [
+                    'prospect_id' => $prospect->id,
+                    'stored_username' => $prospect->instagram_username,
+                    'extracted_username' => $instagramUsername,
+                ]);
+            }
+        }
+
+        // If still not found and this is a follow-up, try searching by ocr_instagram_username from previous messages
+        // This handles cases where OCR extracts different usernames but they're actually the same prospect
+        if (!$prospect && $stage > 0) {
+            \Illuminate\Support\Facades\Log::info('Trying to find by OCR username from previous messages', [
+                'extracted_username' => $instagramUsername,
+                'staff_id' => $staffId,
+            ]);
+
+            // Find messages from this staff with matching OCR username (with partial matching)
+            $matchingMessages = Message::whereHas('canvassingCycle', function($q) use ($staffId) {
+                $q->where('staff_id', $staffId);
+            })
+            ->where(function($q) use ($instagramUsername) {
+                // Exact match
+                $q->where('ocr_instagram_username', $instagramUsername)
+                // Partial match: stored OCR username starts with extracted
+                ->orWhere('ocr_instagram_username', 'like', $instagramUsername . '%')
+                // Partial match: extracted starts with stored OCR username
+                ->orWhere(function($q2) use ($instagramUsername) {
+                    $dbDriver = DB::connection()->getDriverName();
+                    if ($dbDriver === 'sqlite') {
+                        $q2->whereRaw('? LIKE (ocr_instagram_username || \'%\')', [$instagramUsername]);
+                    } else {
+                        $q2->whereRaw('? LIKE CONCAT(ocr_instagram_username, \'%\')', [$instagramUsername]);
+                    }
+                });
+            })
+            ->with('canvassingCycle.prospect')
+            ->get();
+
+            if ($matchingMessages->isNotEmpty()) {
+                // Get the prospect from the first matching message
+                $firstMessage = $matchingMessages->first();
+                if ($firstMessage->canvassingCycle && $firstMessage->canvassingCycle->prospect) {
+                    $prospect = $firstMessage->canvassingCycle->prospect;
+
+                    // Update prospect username if extracted username is longer (less truncated)
+                    if (strlen($instagramUsername) > strlen($prospect->instagram_username)) {
+                        $prospect->update(['instagram_username' => $instagramUsername]);
+                        \Illuminate\Support\Facades\Log::info('Updated prospect username to longer version', [
+                            'prospect_id' => $prospect->id,
+                            'old_username' => $prospect->getOriginal('instagram_username'),
+                            'new_username' => $instagramUsername,
+                        ]);
+                    }
+
+                    \Illuminate\Support\Facades\Log::info('Found prospect via OCR username from previous message', [
+                        'prospect_id' => $prospect->id,
+                        'stored_username' => $prospect->instagram_username,
+                        'previous_ocr_username' => $firstMessage->ocr_instagram_username,
+                        'current_ocr_username' => $instagramUsername,
+                    ]);
+                }
+            }
         }
 
         if ($stage == 0) {
