@@ -150,12 +150,10 @@ class OcrService
             $potentialUsername = strtolower(trim($matches[1]));
             // Filter out common false positives (words that appear in messages)
             $commonWords = ['lihat', 'profil', 'tanyakan', 'instagram', 'bazar', 'event', 'bazaar', 'kasir', 'qris', 'aplikasi', 'gratis', 'mdr', 'umkm', 'stiqr', 'bhanu', 'transaksi', 'whatsapp', 'nomor', 'nama', 'usaha'];
-            // For canvassing (stage 0), be more lenient - just check it's not a common word
-            // For follow-ups, require underscore
+            // For both canvassing and follow-up: be lenient - just check it's not a common word
+            // This handles usernames without underscore (e.g., "kedaikopidavid")
             if (!in_array($potentialUsername, $commonWords)) {
-                if ($expectedStage === 0 || strpos($potentialUsername, '_') !== false) {
-                    $username = $potentialUsername;
-                }
+                $username = $potentialUsername;
             }
         }
         // Pattern 2: "obrolan dengan username" or "chat with username" (from header/top)
@@ -163,12 +161,10 @@ class OcrService
         elseif (preg_match('/(?:obrolan|chat)\s+(?:dengan|with|bisnis|business)\s+([a-zA-Z0-9._]{5,30})/i', $normalizedText, $matches)) {
             $potentialUsername = strtolower(trim($matches[1]));
             $commonWords = ['lihat', 'profil', 'tanyakan', 'instagram', 'bazar', 'event', 'bazaar', 'kasir', 'qris', 'aplikasi', 'gratis', 'mdr', 'umkm', 'stiqr', 'bhanu', 'transaksi', 'whatsapp', 'nomor', 'nama', 'usaha'];
-            // For canvassing (stage 0), be more lenient - just check it's not a common word
-            // For follow-ups, require underscore
+            // For both canvassing and follow-up: be lenient - just check it's not a common word
+            // This handles usernames without underscore (e.g., "kedaikopidavid")
             if (!in_array($potentialUsername, $commonWords)) {
-                if ($expectedStage === 0 || strpos($potentialUsername, '_') !== false) {
-                    $username = $potentialUsername;
-                }
+                $username = $potentialUsername;
             }
         }
         // Pattern 3: @username format (usually in header) - MUST be in header area only
@@ -177,12 +173,10 @@ class OcrService
         if (!$username && preg_match('/@([a-zA-Z0-9._]{5,30})/', $headerText, $matches)) {
             $potentialUsername = strtolower(trim($matches[1]));
             $commonWords = ['lihat', 'profil', 'tanyakan', 'instagram', 'bazar', 'event', 'bazaar', 'kasir', 'qris', 'aplikasi', 'gratis', 'mdr', 'umkm', 'stiqr', 'bhanu', 'transaksi', 'whatsapp', 'nomor', 'nama', 'usaha'];
-            // For canvassing (stage 0), be more lenient - just check it's not a common word
-            // For follow-ups, require underscore
+            // For both canvassing and follow-up: be lenient - just check it's not a common word
+            // This handles usernames without underscore (e.g., "kedaikopidavid")
             if (!in_array($potentialUsername, $commonWords)) {
-                if ($expectedStage === 0 || strpos($potentialUsername, '_') !== false) {
-                    $username = $potentialUsername;
-                }
+                $username = $potentialUsername;
             }
         }
 
@@ -196,20 +190,10 @@ class OcrService
             if (preg_match('/([a-z0-9_]{8,30})\s*(?:pengikut|followers)/i', $headerText, $matches)) {
                 $potentialUsername = strtolower(trim($matches[1]));
                 $commonWords = ['instagram', 'pengikut', 'followers', 'postingan', 'posts', 'hari', 'today', 'obrolan', 'chat', 'bisnis', 'business', 'memulai', 'dengan', 'bhanu', 'stiqr', 'lihat', 'profil', 'tanyakan', 'bazar', 'event', 'bazaar', 'kasir', 'qris', 'aplikasi', 'gratis', 'mdr', 'umkm', 'transaksi', 'whatsapp', 'nomor', 'nama', 'usaha'];
-                // For canvassing (stage 0), be more lenient - just check it's not a common word and min 8 chars
-                // For follow-ups, require underscore and min 10 chars
-                if (!in_array($potentialUsername, $commonWords)) {
-                    if ($expectedStage === 0) {
-                        // Canvassing: just check minimum length
-                        if (strlen($potentialUsername) >= 8) {
-                            $username = $potentialUsername;
-                        }
-                    } else {
-                        // Follow-up: require underscore and min 10 chars
-                        if (strpos($potentialUsername, '_') !== false && strlen($potentialUsername) >= 10) {
-                            $username = $potentialUsername;
-                        }
-                    }
+                // For both canvassing and follow-up: be lenient - just check it's not a common word and min 8 chars
+                // This handles usernames without underscore (e.g., "kedaikopidavid")
+                if (!in_array($potentialUsername, $commonWords) && strlen($potentialUsername) >= 8) {
+                    $username = $potentialUsername;
                 }
             }
         }
@@ -230,25 +214,15 @@ class OcrService
                     $commonWords = ['instagram', 'pengikut', 'followers', 'postingan', 'posts', 'hari', 'today', 'obrolan', 'chat', 'bisnis', 'business', 'memulai', 'dengan', 'bhanu', 'stiqr', 'lihat', 'profil', 'tanyakan', 'bazar', 'event', 'bazaar', 'kasir', 'qris', 'aplikasi', 'gratis', 'mdr', 'umkm', 'transaksi', 'whatsapp', 'nomor', 'nama', 'usaha'];
                     if (!in_array($potentialUsername, $commonWords)) {
                         // For canvassing (stage 0), be more lenient - just check minimum length
-                        // For follow-ups, require underscore and min 10 chars
-                        if ($expectedStage === 0) {
-                            if (strlen($potentialUsername) >= 8) {
-                                $username = $potentialUsername;
-                                Log::info('Found username via Pattern 5 (Bergabung)', [
-                                    'username' => $username,
-                                    'pattern' => $pattern,
-                                ]);
-                                break;
-                            }
-                        } else {
-                            if (strpos($potentialUsername, '_') !== false && strlen($potentialUsername) >= 10) {
-                                $username = $potentialUsername;
-                                Log::info('Found username via Pattern 5 (Bergabung)', [
-                                    'username' => $username,
-                                    'pattern' => $pattern,
-                                ]);
-                                break;
-                            }
+                        // For follow-ups: also be lenient (min 8 chars) to handle usernames without underscore
+                        if (strlen($potentialUsername) >= 8) {
+                            $username = $potentialUsername;
+                            Log::info('Found username via Pattern 5 (Bergabung)', [
+                                'username' => $username,
+                                'pattern' => $pattern,
+                                'expected_stage' => $expectedStage,
+                            ]);
+                            break;
                         }
                     }
                 }
@@ -261,10 +235,9 @@ class OcrService
                 foreach ($allMatches as $match) {
                     $potentialUsername = strtolower(trim($match[1]));
 
-                    // For canvassing (stage 0), be more lenient
-                    // For follow-ups, require underscore and min 10 chars
-                    $isValidLength = ($expectedStage === 0 && strlen($potentialUsername) >= 8) ||
-                                     ($expectedStage !== 0 && strpos($potentialUsername, '_') !== false && strlen($potentialUsername) >= 10);
+                    // For both canvassing and follow-up: be lenient (min 8 chars)
+                    // This handles usernames without underscore that were canvassed
+                    $isValidLength = strlen($potentialUsername) >= 8;
 
                     if ($isValidLength) {
                         $commonWords = ['instagram', 'pengikut', 'followers', 'postingan', 'posts', 'hari', 'today', 'obrolan', 'chat', 'bisnis', 'business', 'memulai', 'dengan', 'bhanu', 'stiqr', 'lihat', 'profil', 'tanyakan', 'bazar', 'event', 'bazaar', 'kasir', 'qris', 'aplikasi', 'gratis', 'mdr', 'umkm', 'transaksi', 'whatsapp', 'nomor', 'nama', 'usaha'];
@@ -296,25 +269,35 @@ class OcrService
 
             // Final validation:
             // - For canvassing (stage 0): be lenient, just check it's not too short (min 8 chars)
-            // - For follow-ups: require underscore and min 10 chars to avoid false positives
+            // - For follow-ups: be more flexible - check length (min 8 chars) OR has underscore with min 10 chars
+            //   This handles cases where canvassing username doesn't have underscore (e.g., "kedaikopidavid")
             $isValid = false;
             if ($expectedStage === 0) {
                 // Canvassing: more lenient - just check minimum length
                 $isValid = strlen($username) >= 8;
             } else {
-                // Follow-up: stricter - must have underscore and be at least 10 chars
-                $isValid = strpos($username, '_') !== false && strlen($username) >= 10;
+                // Follow-up: more flexible - accept if:
+                // 1. Has underscore and min 10 chars (strict), OR
+                // 2. Min 8 chars (lenient, for usernames without underscore that were canvassed)
+                $isValid = (strpos($username, '_') !== false && strlen($username) >= 10) ||
+                          (strlen($username) >= 8);
             }
 
             if ($isValid) {
                 $result['instagram_username'] = $username;
+                Log::info('Username extracted successfully', [
+                    'username' => $username,
+                    'length' => strlen($username),
+                    'has_underscore' => strpos($username, '_') !== false,
+                    'expected_stage' => $expectedStage,
+                ]);
             } else {
                 Log::warning('Extracted username failed validation', [
                     'extracted' => $username,
                     'has_underscore' => strpos($username, '_') !== false,
                     'length' => strlen($username),
                     'expected_stage' => $expectedStage,
-                    'validation_rule' => $expectedStage === 0 ? 'min_8_chars' : 'underscore_and_min_10_chars',
+                    'validation_rule' => $expectedStage === 0 ? 'min_8_chars' : 'min_8_chars_or_underscore_with_min_10_chars',
                 ]);
                 $result['instagram_username'] = null;
             }
