@@ -150,8 +150,12 @@ class OcrService
             $potentialUsername = strtolower(trim($matches[1]));
             // Filter out common false positives (words that appear in messages)
             $commonWords = ['lihat', 'profil', 'tanyakan', 'instagram', 'bazar', 'event', 'bazaar', 'kasir', 'qris', 'aplikasi', 'gratis', 'mdr', 'umkm', 'stiqr', 'bhanu', 'transaksi', 'whatsapp', 'nomor', 'nama', 'usaha'];
-            if (!in_array($potentialUsername, $commonWords) && strpos($potentialUsername, '_') !== false) {
-                $username = $potentialUsername;
+            // For canvassing (stage 0), be more lenient - just check it's not a common word
+            // For follow-ups, require underscore
+            if (!in_array($potentialUsername, $commonWords)) {
+                if ($expectedStage === 0 || strpos($potentialUsername, '_') !== false) {
+                    $username = $potentialUsername;
+                }
             }
         }
         // Pattern 2: "obrolan dengan username" or "chat with username" (from header/top)
@@ -159,12 +163,17 @@ class OcrService
         elseif (preg_match('/(?:obrolan|chat)\s+(?:dengan|with|bisnis|business)\s+([a-zA-Z0-9._]{5,30})/i', $normalizedText, $matches)) {
             $potentialUsername = strtolower(trim($matches[1]));
             $commonWords = ['lihat', 'profil', 'tanyakan', 'instagram', 'bazar', 'event', 'bazaar', 'kasir', 'qris', 'aplikasi', 'gratis', 'mdr', 'umkm', 'stiqr', 'bhanu', 'transaksi', 'whatsapp', 'nomor', 'nama', 'usaha'];
-            if (!in_array($potentialUsername, $commonWords) && strpos($potentialUsername, '_') !== false) {
-                $username = $potentialUsername;
+            // For canvassing (stage 0), be more lenient - just check it's not a common word
+            // For follow-ups, require underscore
+            if (!in_array($potentialUsername, $commonWords)) {
+                if ($expectedStage === 0 || strpos($potentialUsername, '_') !== false) {
+                    $username = $potentialUsername;
+                }
             }
         }
         // Pattern 3: @username format (usually in header) - MUST be in header area only
-        $headerText = substr($normalizedText, 0, 500); // Only check header area
+        // Increase header area to 800 chars to capture profile section (username before "Bergabung")
+        $headerText = substr($normalizedText, 0, 800); // Extended header area to capture profile section
         if (!$username && preg_match('/@([a-zA-Z0-9._]{5,30})/', $headerText, $matches)) {
             $potentialUsername = strtolower(trim($matches[1]));
             $commonWords = ['lihat', 'profil', 'tanyakan', 'instagram', 'bazar', 'event', 'bazaar', 'kasir', 'qris', 'aplikasi', 'gratis', 'mdr', 'umkm', 'stiqr', 'bhanu', 'transaksi', 'whatsapp', 'nomor', 'nama', 'usaha'];
@@ -205,7 +214,48 @@ class OcrService
             }
         }
 
-        // Pattern 5: Fallback - username with underscore in header area near "obrolan" or "bisnis"
+        // Pattern 5: Username before "Bergabung" or join date (common in Instagram profile header)
+        // e.g., "kedaikopidavid • Bergabung Mei 2014" or "username Bergabung"
+        if (!$username) {
+            // Try multiple patterns for "Bergabung" format
+            $patterns = [
+                '/([a-z0-9_]{8,30})\s*[•·]\s*(?:Bergabung|Joined)/i',  // "username • Bergabung"
+                '/([a-z0-9_]{8,30})\s+(?:Bergabung|Joined)/i',         // "username Bergabung"
+                '/([a-z0-9_]{8,30})\s*[•·]\s*(?:pengikut|followers)/i', // "username • pengikut"
+            ];
+
+            foreach ($patterns as $pattern) {
+                if (preg_match($pattern, $headerText, $matches)) {
+                    $potentialUsername = strtolower(trim($matches[1]));
+                    $commonWords = ['instagram', 'pengikut', 'followers', 'postingan', 'posts', 'hari', 'today', 'obrolan', 'chat', 'bisnis', 'business', 'memulai', 'dengan', 'bhanu', 'stiqr', 'lihat', 'profil', 'tanyakan', 'bazar', 'event', 'bazaar', 'kasir', 'qris', 'aplikasi', 'gratis', 'mdr', 'umkm', 'transaksi', 'whatsapp', 'nomor', 'nama', 'usaha'];
+                    if (!in_array($potentialUsername, $commonWords)) {
+                        // For canvassing (stage 0), be more lenient - just check minimum length
+                        // For follow-ups, require underscore and min 10 chars
+                        if ($expectedStage === 0) {
+                            if (strlen($potentialUsername) >= 8) {
+                                $username = $potentialUsername;
+                                Log::info('Found username via Pattern 5 (Bergabung)', [
+                                    'username' => $username,
+                                    'pattern' => $pattern,
+                                ]);
+                                break;
+                            }
+                        } else {
+                            if (strpos($potentialUsername, '_') !== false && strlen($potentialUsername) >= 10) {
+                                $username = $potentialUsername;
+                                Log::info('Found username via Pattern 5 (Bergabung)', [
+                                    'username' => $username,
+                                    'pattern' => $pattern,
+                                ]);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Pattern 6: Fallback - username in header area near "obrolan" or "bisnis" or profile keywords
         if (!$username) {
             if (preg_match_all('/\b([a-z0-9_]{8,30})\b/i', $headerText, $allMatches, PREG_SET_ORDER)) {
                 foreach ($allMatches as $match) {
@@ -219,13 +269,13 @@ class OcrService
                     if ($isValidLength) {
                         $commonWords = ['instagram', 'pengikut', 'followers', 'postingan', 'posts', 'hari', 'today', 'obrolan', 'chat', 'bisnis', 'business', 'memulai', 'dengan', 'bhanu', 'stiqr', 'lihat', 'profil', 'tanyakan', 'bazar', 'event', 'bazaar', 'kasir', 'qris', 'aplikasi', 'gratis', 'mdr', 'umkm', 'transaksi', 'whatsapp', 'nomor', 'nama', 'usaha'];
                         if (!in_array($potentialUsername, $commonWords)) {
-                            // Check if it appears near header keywords (obrolan, bisnis)
+                            // Check if it appears near header keywords (obrolan, bisnis, bergabung, profil)
                             $pos = stripos($headerText, $potentialUsername);
                             if ($pos !== false) {
-                                $contextBefore = substr($headerText, max(0, $pos - 30), 30);
-                                $contextAfter = substr($headerText, $pos + strlen($potentialUsername), 30);
-                                // If it appears near "obrolan", "bisnis" in header area
-                                if (preg_match('/(obrolan|bisnis|chat)/i', $contextBefore . ' ' . $contextAfter)) {
+                                $contextBefore = substr($headerText, max(0, $pos - 40), 40);
+                                $contextAfter = substr($headerText, $pos + strlen($potentialUsername), 40);
+                                // If it appears near "obrolan", "bisnis", "bergabung", "profil" in header area
+                                if (preg_match('/(obrolan|bisnis|chat|bergabung|joined|profil|profile)/i', $contextBefore . ' ' . $contextAfter)) {
                                     $username = $potentialUsername;
                                     break;
                                 }
