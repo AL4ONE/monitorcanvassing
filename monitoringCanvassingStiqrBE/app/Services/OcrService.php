@@ -257,16 +257,25 @@ class OcrService
             $headerTop = substr($headerText, 0, 300); // First 300 chars = header area (from headerText, not normalizedText)
             // More flexible pattern: match any sequence of capitalized words, then lowercase username
             // Also handle cases where username might be on next line (separated by space/newline)
-            if (preg_match('/(?:[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+([a-z0-9_]{8,30})(?:\s|$)/i', $headerTop, $matches)) {
+            // Updated regex to handle cases like "Kedai Kopi David kedaikopidavid langganan..."
+            // Match capitalized name followed by lowercase username (username can be followed by anything)
+            if (preg_match('/(?:[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+([a-z0-9_]{8,30})(?=\s|$|[A-Z])/i', $headerTop, $matches)) {
                 $potentialUsername = strtolower(trim($matches[1]));
                 // Use the same commonWords array defined at the top
                 if (!in_array($potentialUsername, $commonWords) && strlen($potentialUsername) >= 8) {
-                    $username = $potentialUsername;
-                    Log::info('Found username via Pattern 3b (after capitalized name)', [
-                        'username' => $username,
-                        'match' => $matches[0],
-                        'full_match' => $matches[0],
-                    ]);
+                    // Check position - if very early (first 150 chars), accept regardless of what comes after
+                    // This handles cases like "Kedai Kopi David kedaikopidavid langganan..." where
+                    // username is in header but immediately followed by message text
+                    $matchPos = strpos($headerTop, $matches[0]);
+                    if ($matchPos !== false && $matchPos < 150) {
+                        $username = $potentialUsername;
+                        Log::info('Found username via Pattern 3b (after capitalized name)', [
+                            'username' => $username,
+                            'match' => $matches[0],
+                            'position' => $matchPos,
+                            'note' => 'Accepted because appears early in header (first 150 chars)',
+                        ]);
+                    }
                 }
             }
             // Alternative: Look for standalone lowercase username in first 250 chars (very likely to be username)
@@ -292,10 +301,28 @@ class OcrService
                                 // Accept if:
                                 // 1. Not near message keywords AND
                                 // 2. (Appears early in header OR surrounded by spaces OR near header keywords)
+                                // OR
+                                // 3. Appears VERY early in header (first 100 chars) - definitely header area, ignore message keywords
                                 $isEarly = $pos < 150;
+                                $isVeryEarly = $pos < 100; // First 100 chars = definitely header, ignore message keywords
                                 $isSurroundedBySpaces = preg_match('/^[\s]*$/', trim($contextBefore) . trim($contextAfter));
                                 $hasHeaderKeywords = preg_match('/(obrolan|bisnis|chat|bergabung|joined|profil|profile|memulai|dengan|pengikut|followers)/i', $context);
 
+                                // If very early (first 100 chars), accept regardless of message keywords
+                                // This handles cases like "Kedai Kopi David kedaikopidavid langganan..."
+                                // where username is in header but followed by message text
+                                if ($isVeryEarly) {
+                                    $username = $potentialUsername;
+                                    Log::info('Found username via Pattern 3b (standalone in header - VERY EARLY)', [
+                                        'username' => $username,
+                                        'position' => $pos,
+                                        'is_very_early' => true,
+                                        'context' => substr($context, 0, 40),
+                                    ]);
+                                    break;
+                                }
+
+                                // Otherwise, check normal conditions
                                 if (!$hasMessageKeywords && ($isEarly || $isSurroundedBySpaces || $hasHeaderKeywords)) {
                                     $username = $potentialUsername;
                                     Log::info('Found username via Pattern 3b (standalone in header)', [
