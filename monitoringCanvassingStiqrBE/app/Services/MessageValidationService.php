@@ -201,13 +201,20 @@ class MessageValidationService
             \Illuminate\Support\Facades\Log::info('Trying to find by OCR username from previous messages', [
                 'extracted_username' => $instagramUsername,
                 'staff_id' => $staffId,
+                'stage' => $stage,
             ]);
 
-            // Find messages from this staff with matching OCR username (with partial matching)
+            // Get base prefix for more aggressive matching
+            $baseParts = explode('_', $instagramUsername);
+            $basePrefix = $baseParts[0]; // e.g., "nasitimayamsizi"
+            $hasSuffix = count($baseParts) > 1;
+            $suffixPrefix = $hasSuffix ? substr($baseParts[1], 0, 5) : ''; // First 5 chars of suffix
+
+            // Find messages from this staff with matching OCR username (with aggressive partial matching)
             $matchingMessages = Message::whereHas('canvassingCycle', function($q) use ($staffId) {
                 $q->where('staff_id', $staffId);
             })
-            ->where(function($q) use ($instagramUsername) {
+            ->where(function($q) use ($instagramUsername, $basePrefix, $hasSuffix, $suffixPrefix) {
                 // Exact match
                 $q->where('ocr_instagram_username', $instagramUsername)
                 // Partial match: stored OCR username starts with extracted
@@ -221,9 +228,27 @@ class MessageValidationService
                         $q2->whereRaw('? LIKE CONCAT(ocr_instagram_username, \'%\')', [$instagramUsername]);
                     }
                 });
+
+                // More aggressive: match by prefix only (for heavily truncated usernames)
+                // e.g., "nasitimayamsizi_kedaihans" matches "nasitimayamsizi_kedaihans..."
+                if ($hasSuffix && strlen($basePrefix) >= 8) {
+                    // Match if stored OCR username starts with base prefix
+                    $q->orWhere('ocr_instagram_username', 'like', $basePrefix . '_%');
+                    // Match if stored OCR username has same prefix and suffix starts similarly
+                    if ($suffixPrefix) {
+                        $q->orWhere('ocr_instagram_username', 'like', $basePrefix . '_' . $suffixPrefix . '%');
+                    }
+                }
             })
             ->with('canvassingCycle.prospect')
+            ->orderBy('submitted_at', 'desc') // Get most recent first
             ->get();
+
+            \Illuminate\Support\Facades\Log::info('OCR username search results', [
+                'found_messages' => $matchingMessages->count(),
+                'searched_prefix' => $basePrefix,
+                'searched_suffix_prefix' => $suffixPrefix,
+            ]);
 
             if ($matchingMessages->isNotEmpty()) {
                 // Get the prospect from the first matching message
@@ -246,7 +271,31 @@ class MessageValidationService
                         'stored_username' => $prospect->instagram_username,
                         'previous_ocr_username' => $firstMessage->ocr_instagram_username,
                         'current_ocr_username' => $instagramUsername,
+                        'match_method' => 'OCR fallback',
                     ]);
+                }
+            } else {
+                // Last resort: find by prefix match in prospects table (very aggressive)
+                \Illuminate\Support\Facades\Log::info('Trying last resort: prefix match in prospects', [
+                    'base_prefix' => $basePrefix,
+                    'min_length' => 8,
+                ]);
+
+                if (strlen($basePrefix) >= 8) {
+                    $prospect = Prospect::where('instagram_username', 'like', $basePrefix . '_%')
+                        ->whereHas('canvassingCycles', function($q) use ($staffId) {
+                            $q->where('staff_id', $staffId)
+                              ->where('status', 'active');
+                        })
+                        ->first();
+
+                    if ($prospect) {
+                        \Illuminate\Support\Facades\Log::info('Found prospect via last resort prefix match', [
+                            'prospect_id' => $prospect->id,
+                            'stored_username' => $prospect->instagram_username,
+                            'searched_prefix' => $basePrefix,
+                        ]);
+                    }
                 }
             }
         }
