@@ -24,7 +24,8 @@ class OcrService
             Log::info('OCR API Response', [
                 'has_result' => !empty($result),
                 'result_length' => $result ? strlen($result) : 0,
-                'result_preview' => $result ? substr($result, 0, 200) : 'null',
+                'result_preview' => $result ? substr($result, 0, 500) : 'null', // Extended preview
+                'expected_stage' => $expectedStage,
             ]);
 
             if ($result && trim($result) !== '') {
@@ -147,6 +148,13 @@ class OcrService
         // CRITICAL: Extract header area FIRST (first 1000 chars) - this is where username ALWAYS appears
         // NEVER search in message area - messages contain words like "langganan", "gratis", etc. that are NOT usernames
         $headerText = substr($normalizedText, 0, 1000); // Header area = first 1000 chars
+
+        // Log header area for debugging
+        Log::info('Header area extracted', [
+            'header_length' => strlen($headerText),
+            'header_preview' => substr($headerText, 0, 400),
+            'full_text_length' => strlen($normalizedText),
+        ]);
 
         // Common words that appear in messages (NOT usernames) - MUST filter these out
         $commonWords = [
@@ -363,17 +371,56 @@ class OcrService
                                 $isEarlyInHeader = $pos < 300; // First 300 chars = very top header
 
                                 // More lenient: accept if not near message keywords and appears in first 300 chars
-                                if (!$hasMessageKeywords && ($hasHeaderKeywords || $isEarlyInHeader)) {
+                                // OR if it's in first 200 chars (very early = definitely header)
+                                $isVeryEarly = $pos < 200;
+
+                                if (!$hasMessageKeywords && ($hasHeaderKeywords || $isEarlyInHeader || $isVeryEarly)) {
                                     $username = $potentialUsername;
                                     Log::info('Found username via Pattern 6 (fallback)', [
                                         'username' => $username,
                                         'position' => $pos,
                                         'has_header_keywords' => $hasHeaderKeywords,
                                         'is_early' => $isEarlyInHeader,
+                                        'is_very_early' => $isVeryEarly,
                                         'has_message_keywords' => $hasMessageKeywords,
+                                        'context' => substr($context, 0, 100),
                                     ]);
                                     break;
                                 }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Pattern 7: Last resort - any valid username in first 200 chars that's not a common word
+        // This is the most aggressive pattern, only used if all others fail
+        if (!$username) {
+            $headerVeryTop = substr($headerText, 0, 200);
+            if (preg_match_all('/\b([a-z0-9_]{8,30})\b/i', $headerVeryTop, $allMatches, PREG_SET_ORDER)) {
+                foreach ($allMatches as $match) {
+                    $potentialUsername = strtolower(trim($match[1]));
+
+                    if (strlen($potentialUsername) >= 8 && !in_array($potentialUsername, $commonWords)) {
+                        $pos = stripos($headerVeryTop, $potentialUsername);
+                        if ($pos !== false && $pos < 200) {
+                            // Check context - must NOT be near message keywords
+                            $contextBefore = substr($headerVeryTop, max(0, $pos - 30), 30);
+                            $contextAfter = substr($headerVeryTop, $pos + strlen($potentialUsername), 30);
+                            $context = $contextBefore . ' ' . $contextAfter;
+
+                            $hasMessageKeywords = preg_match('/(perkenalkan|halo\s+kak|kirim|pesan|balas|terima|kasih|langganan|gratis|aplikasi|qris|kasir)/i', $context);
+
+                            // Accept if NOT near message keywords and in first 200 chars
+                            if (!$hasMessageKeywords) {
+                                $username = $potentialUsername;
+                                Log::info('Found username via Pattern 7 (last resort)', [
+                                    'username' => $username,
+                                    'position' => $pos,
+                                    'context' => substr($context, 0, 80),
+                                ]);
+                                break;
                             }
                         }
                     }
@@ -436,11 +483,24 @@ class OcrService
 
         // If no username found, log more details for debugging
         if (!$result['instagram_username']) {
+            // Try to find any potential username candidates in header
+            $potentialUsernames = [];
+            if (preg_match_all('/\b([a-z0-9_]{8,30})\b/i', substr($headerText ?? '', 0, 500), $matches)) {
+                foreach ($matches[1] as $match) {
+                    $potential = strtolower(trim($match));
+                    if (strlen($potential) >= 8 && !in_array($potential, $commonWords)) {
+                        $potentialUsernames[] = $potential;
+                    }
+                }
+            }
+
             Log::warning('OCR failed to extract username', [
                 'expected_stage' => $expectedStage,
                 'header_length' => strlen($headerText ?? ''),
-                'header_first_400_chars' => substr($headerText ?? '', 0, 400),
+                'header_first_500_chars' => substr($headerText ?? '', 0, 500),
                 'normalized_text_length' => strlen($normalizedText),
+                'potential_usernames_found' => array_unique($potentialUsernames),
+                'common_words_filtered' => count($commonWords),
             ]);
         }
 
