@@ -96,98 +96,111 @@ class DashboardController extends Controller
      */
     private function supervisorDashboard(string $date)
     {
-        // Parse date to ensure correct format
         try {
-            $dateObj = \Carbon\Carbon::parse($date);
-            $date = $dateObj->format('Y-m-d');
-        } catch (\Exception $e) {
-            $date = Carbon::today()->format('Y-m-d');
-        }
-
-        // Get all staff
-        $staffs = User::where('role', 'staff')->get();
-        
-        Log::info('Supervisor dashboard', [
-            'date' => $date,
-            'staff_count' => $staffs->count(),
-        ]);
-
-        $staffStats = [];
-        foreach ($staffs as $staff) {
-            // Get targets per stage
-            $targetsPerStage = [];
-            $target = 50;
-            
-            for ($stage = 0; $stage <= 7; $stage++) {
-                $count = Message::whereHas('canvassingCycle', function($q) use ($staff) {
-                    $q->where('staff_id', $staff->id);
-                })
-                ->where('stage', $stage)
-                ->whereDate('submitted_at', $date)
-                ->count();
-                
-                // Convert stage to string key for frontend compatibility
-                $targetsPerStage[(string)$stage] = [
-                    'count' => $count,
-                    'target' => $target,
-                    'met' => $count >= $target,
-                ];
+            // Parse date to ensure correct format
+            try {
+                $dateObj = \Carbon\Carbon::parse($date);
+                $date = $dateObj->format('Y-m-d');
+            } catch (\Exception $e) {
+                $date = Carbon::today()->format('Y-m-d');
             }
 
-            // Get red flags
-            $redFlags = $this->getRedFlags($staff->id, $date);
-
-            // Calculate total messages for this staff on this date
-            $totalMessages = 0;
-            foreach ($targetsPerStage as $stageData) {
-                $totalMessages += $stageData['count'] ?? 0;
-            }
+            // Get all staff
+            $staffs = User::where('role', 'staff')->get();
             
-            Log::info('Staff stats', [
-                'staff_id' => $staff->id,
-                'staff_name' => $staff->name,
+            Log::info('Supervisor dashboard', [
                 'date' => $date,
-                'total_messages' => $totalMessages,
-                'targets_per_stage' => $targetsPerStage,
+                'staff_count' => $staffs->count(),
             ]);
 
-            $staffStats[] = [
-                'staff' => [
-                    'id' => $staff->id,
-                    'name' => $staff->name,
-                    'email' => $staff->email,
+            $staffStats = [];
+            foreach ($staffs as $staff) {
+                // Get targets per stage
+                $targetsPerStage = [];
+                $target = 50;
+                
+                for ($stage = 0; $stage <= 7; $stage++) {
+                    $count = Message::whereHas('canvassingCycle', function($q) use ($staff) {
+                        $q->where('staff_id', $staff->id);
+                    })
+                    ->where('stage', $stage)
+                    ->whereDate('submitted_at', $date)
+                    ->count();
+                    
+                    // Convert stage to string key for frontend compatibility
+                    $targetsPerStage[(string)$stage] = [
+                        'count' => $count,
+                        'target' => $target,
+                        'met' => $count >= $target,
+                    ];
+                }
+
+                // Get red flags
+                $redFlags = $this->getRedFlags($staff->id, $date);
+
+                // Calculate total messages for this staff on this date
+                $totalMessages = 0;
+                foreach ($targetsPerStage as $stageData) {
+                    $totalMessages += $stageData['count'] ?? 0;
+                }
+                
+                Log::info('Staff stats', [
+                    'staff_id' => $staff->id,
+                    'staff_name' => $staff->name,
+                    'date' => $date,
+                    'total_messages' => $totalMessages,
+                    'targets_per_stage' => $targetsPerStage,
+                ]);
+
+                $staffStats[] = [
+                    'staff' => [
+                        'id' => $staff->id,
+                        'name' => $staff->name,
+                        'email' => $staff->email,
+                    ],
+                    'targets_per_stage' => $targetsPerStage,
+                    'red_flags' => $redFlags,
+                ];
+                }
+            
+            // Overall stats - don't filter by date for pending_quality_checks (show all pending)
+            $totalCanvassing = Message::where('stage', 0)->whereDate('submitted_at', $date)->count();
+            $totalFollowUp = Message::where('stage', '>', 0)->whereDate('submitted_at', $date)->count();
+            
+            Log::info('Supervisor dashboard response', [
+                'date' => $date,
+                'staff_stats_count' => count($staffStats),
+                'overall_stats' => [
+                    'total_staff' => $staffs->count(),
+                    'total_canvassing' => $totalCanvassing,
+                    'total_follow_up' => $totalFollowUp,
                 ],
-                'targets_per_stage' => $targetsPerStage,
-                'red_flags' => $redFlags,
-            ];
-        }
-        
-        // Overall stats - don't filter by date for pending_quality_checks (show all pending)
-        $totalCanvassing = Message::where('stage', 0)->whereDate('submitted_at', $date)->count();
-        $totalFollowUp = Message::where('stage', '>', 0)->whereDate('submitted_at', $date)->count();
-        
-        Log::info('Supervisor dashboard response', [
-            'date' => $date,
-            'staff_stats_count' => count($staffStats),
-            'overall_stats' => [
+            ]);
+
+            $overallStats = [
                 'total_staff' => $staffs->count(),
                 'total_canvassing' => $totalCanvassing,
                 'total_follow_up' => $totalFollowUp,
-            ],
-        ]);
+                'pending_quality_checks' => Message::where('validation_status', 'pending')
+                    ->count(), // All pending, not filtered by date
+            ];
 
-        $overallStats = [
-            'total_staff' => $staffs->count(),
-            'total_canvassing' => $totalCanvassing,
-            'total_follow_up' => $totalFollowUp,
-            'pending_quality_checks' => Message::where('validation_status', 'pending')
-                ->count(), // All pending, not filtered by date
-        ];
-
-        return response()->json([
-            'staff_stats' => $staffStats,
-            'overall_stats' => $overallStats,
-        ]);
+            return response()->json([
+                'staff_stats' => $staffStats,
+                'overall_stats' => $overallStats,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Supervisor dashboard error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'date' => $date ?? 'unknown',
+            ]);
+            
+            return response()->json([
+                'error' => 'Server Error',
+                'message' => config('app.debug') ? $e->getMessage() : 'An error occurred while fetching dashboard data',
+            ], 500);
+        }
     }
 
     /**
@@ -238,14 +251,20 @@ class DashboardController extends Controller
         }
 
         // Check for OCR username mismatch (use partial matching to handle truncated usernames)
-        $mismatchedUsernames = Message::whereHas('canvassingCycle', function($q) use ($staffId) {
-            $q->where('staff_id', $staffId);
-        })
-        ->whereDate('submitted_at', $date)
-        ->get()
-        ->filter(function($message) {
-            $prospectUsername = strtolower(trim($message->canvassingCycle->prospect->instagram_username));
-            $ocrUsername = strtolower(trim($message->ocr_instagram_username ?? ''));
+        $mismatchedUsernames = Message::with(['canvassingCycle.prospect'])
+            ->whereHas('canvassingCycle', function($q) use ($staffId) {
+                $q->where('staff_id', $staffId);
+            })
+            ->whereDate('submitted_at', $date)
+            ->get()
+            ->filter(function($message) {
+                // Add null check to prevent errors
+                if (!$message->canvassingCycle || !$message->canvassingCycle->prospect) {
+                    return false; // Skip if relationship is missing
+                }
+                
+                $prospectUsername = strtolower(trim($message->canvassingCycle->prospect->instagram_username ?? ''));
+                $ocrUsername = strtolower(trim($message->ocr_instagram_username ?? ''));
             
             if (empty($ocrUsername)) {
                 return true; // Missing OCR username is a mismatch
