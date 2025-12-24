@@ -148,9 +148,9 @@ class OcrService
         // This appears at the top of the chat, ensuring consistency
         if (preg_match('/memulai\s+obrolan\s+dengan\s+([a-zA-Z0-9._]{5,30})/i', $normalizedText, $matches)) {
             $potentialUsername = strtolower(trim($matches[1]));
-            // Filter out common false positives
-            $commonWords = ['lihat', 'profil', 'tanyakan', 'instagram'];
-            if (!in_array($potentialUsername, $commonWords)) {
+            // Filter out common false positives (words that appear in messages)
+            $commonWords = ['lihat', 'profil', 'tanyakan', 'instagram', 'bazar', 'event', 'bazaar', 'kasir', 'qris', 'aplikasi', 'gratis', 'mdr', 'umkm', 'stiqr', 'bhanu', 'transaksi', 'whatsapp', 'nomor', 'nama', 'usaha'];
+            if (!in_array($potentialUsername, $commonWords) && strpos($potentialUsername, '_') !== false) {
                 $username = $potentialUsername;
             }
         }
@@ -158,14 +158,19 @@ class OcrService
         // This appears in the header area: "obrolan bisnis" or "obrolan dengan username"
         elseif (preg_match('/(?:obrolan|chat)\s+(?:dengan|with|bisnis|business)\s+([a-zA-Z0-9._]{5,30})/i', $normalizedText, $matches)) {
             $potentialUsername = strtolower(trim($matches[1]));
-            $commonWords = ['lihat', 'profil', 'tanyakan', 'instagram'];
-            if (!in_array($potentialUsername, $commonWords)) {
+            $commonWords = ['lihat', 'profil', 'tanyakan', 'instagram', 'bazar', 'event', 'bazaar', 'kasir', 'qris', 'aplikasi', 'gratis', 'mdr', 'umkm', 'stiqr', 'bhanu', 'transaksi', 'whatsapp', 'nomor', 'nama', 'usaha'];
+            if (!in_array($potentialUsername, $commonWords) && strpos($potentialUsername, '_') !== false) {
                 $username = $potentialUsername;
             }
         }
-        // Pattern 3: @username format (usually in header)
-        elseif (preg_match('/@([a-zA-Z0-9._]{5,30})/', $normalizedText, $matches)) {
-            $username = strtolower(trim($matches[1]));
+        // Pattern 3: @username format (usually in header) - MUST be in header area only
+        $headerText = substr($normalizedText, 0, 500); // Only check header area
+        if (!$username && preg_match('/@([a-zA-Z0-9._]{5,30})/', $headerText, $matches)) {
+            $potentialUsername = strtolower(trim($matches[1]));
+            $commonWords = ['lihat', 'profil', 'tanyakan', 'instagram', 'bazar', 'event', 'bazaar', 'kasir', 'qris', 'aplikasi', 'gratis', 'mdr', 'umkm', 'stiqr', 'bhanu', 'transaksi', 'whatsapp', 'nomor', 'nama', 'usaha'];
+            if (!in_array($potentialUsername, $commonWords) && strpos($potentialUsername, '_') !== false) {
+                $username = $potentialUsername;
+            }
         }
 
         // Pattern 4: Username in header area ONLY (first 500 chars = header/top area)
@@ -177,8 +182,8 @@ class OcrService
             // Look for username before "pengikut" in header area (not middle)
             if (preg_match('/([a-z0-9_]{8,30})\s*(?:pengikut|followers)/i', $headerText, $matches)) {
                 $potentialUsername = strtolower(trim($matches[1]));
-                $commonWords = ['instagram', 'pengikut', 'followers', 'postingan', 'posts', 'hari', 'today', 'obrolan', 'chat', 'bisnis', 'business', 'memulai', 'dengan', 'bhanu', 'stiqr', 'lihat', 'profil', 'tanyakan'];
-                if (!in_array($potentialUsername, $commonWords) && strpos($potentialUsername, '_') !== false) {
+                $commonWords = ['instagram', 'pengikut', 'followers', 'postingan', 'posts', 'hari', 'today', 'obrolan', 'chat', 'bisnis', 'business', 'memulai', 'dengan', 'bhanu', 'stiqr', 'lihat', 'profil', 'tanyakan', 'bazar', 'event', 'bazaar', 'kasir', 'qris', 'aplikasi', 'gratis', 'mdr', 'umkm', 'transaksi', 'whatsapp', 'nomor', 'nama', 'usaha'];
+                if (!in_array($potentialUsername, $commonWords) && strpos($potentialUsername, '_') !== false && strlen($potentialUsername) >= 10) {
                     $username = $potentialUsername;
                 }
             }
@@ -191,8 +196,9 @@ class OcrService
                     $potentialUsername = strtolower(trim($match[1]));
 
                     // Must have underscore (Instagram usernames usually have underscores)
-                    if (strpos($potentialUsername, '_') !== false) {
-                        $commonWords = ['instagram', 'pengikut', 'followers', 'postingan', 'posts', 'hari', 'today', 'obrolan', 'chat', 'bisnis', 'business', 'memulai', 'dengan', 'bhanu', 'stiqr', 'lihat', 'profil', 'tanyakan'];
+                    // Must be at least 10 characters (to avoid short words like "bazar")
+                    if (strpos($potentialUsername, '_') !== false && strlen($potentialUsername) >= 10) {
+                        $commonWords = ['instagram', 'pengikut', 'followers', 'postingan', 'posts', 'hari', 'today', 'obrolan', 'chat', 'bisnis', 'business', 'memulai', 'dengan', 'bhanu', 'stiqr', 'lihat', 'profil', 'tanyakan', 'bazar', 'event', 'bazaar', 'kasir', 'qris', 'aplikasi', 'gratis', 'mdr', 'umkm', 'transaksi', 'whatsapp', 'nomor', 'nama', 'usaha'];
                         if (!in_array($potentialUsername, $commonWords)) {
                             // Check if it appears near header keywords (obrolan, bisnis)
                             $pos = stripos($headerText, $potentialUsername);
@@ -218,7 +224,19 @@ class OcrService
             // Remove trailing dots that indicate truncation (e.g., "grandwis..." -> "grandwis")
             $username = preg_replace('/\.{2,}$/', '', $username);
             $username = rtrim($username, '.');
-            $result['instagram_username'] = $username;
+
+            // Final validation: username must have underscore and be at least 10 characters
+            // This filters out false positives like "bazar", "event", etc.
+            if (strpos($username, '_') !== false && strlen($username) >= 10) {
+                $result['instagram_username'] = $username;
+            } else {
+                Log::warning('Extracted username failed validation', [
+                    'extracted' => $username,
+                    'has_underscore' => strpos($username, '_') !== false,
+                    'length' => strlen($username),
+                ]);
+                $result['instagram_username'] = null;
+            }
         }
 
         // Log OCR result for debugging (only first 500 chars to avoid log spam)
