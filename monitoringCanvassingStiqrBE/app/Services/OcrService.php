@@ -123,7 +123,7 @@ class OcrService
     /**
      * Parse OCR result to extract Instagram username, message, and date
      * @param string $ocrText Raw OCR text
-     * @param int|null $expectedStage Expected stage to filter messages
+     * @param int|null $expectedStage Expected stage to filter messages (0 = canvassing, more lenient)
      */
     private function parseOcrResult(string $ocrText, ?int $expectedStage = null): array
     {
@@ -168,8 +168,12 @@ class OcrService
         if (!$username && preg_match('/@([a-zA-Z0-9._]{5,30})/', $headerText, $matches)) {
             $potentialUsername = strtolower(trim($matches[1]));
             $commonWords = ['lihat', 'profil', 'tanyakan', 'instagram', 'bazar', 'event', 'bazaar', 'kasir', 'qris', 'aplikasi', 'gratis', 'mdr', 'umkm', 'stiqr', 'bhanu', 'transaksi', 'whatsapp', 'nomor', 'nama', 'usaha'];
-            if (!in_array($potentialUsername, $commonWords) && strpos($potentialUsername, '_') !== false) {
-                $username = $potentialUsername;
+            // For canvassing (stage 0), be more lenient - just check it's not a common word
+            // For follow-ups, require underscore
+            if (!in_array($potentialUsername, $commonWords)) {
+                if ($expectedStage === 0 || strpos($potentialUsername, '_') !== false) {
+                    $username = $potentialUsername;
+                }
             }
         }
 
@@ -183,8 +187,20 @@ class OcrService
             if (preg_match('/([a-z0-9_]{8,30})\s*(?:pengikut|followers)/i', $headerText, $matches)) {
                 $potentialUsername = strtolower(trim($matches[1]));
                 $commonWords = ['instagram', 'pengikut', 'followers', 'postingan', 'posts', 'hari', 'today', 'obrolan', 'chat', 'bisnis', 'business', 'memulai', 'dengan', 'bhanu', 'stiqr', 'lihat', 'profil', 'tanyakan', 'bazar', 'event', 'bazaar', 'kasir', 'qris', 'aplikasi', 'gratis', 'mdr', 'umkm', 'transaksi', 'whatsapp', 'nomor', 'nama', 'usaha'];
-                if (!in_array($potentialUsername, $commonWords) && strpos($potentialUsername, '_') !== false && strlen($potentialUsername) >= 10) {
-                    $username = $potentialUsername;
+                // For canvassing (stage 0), be more lenient - just check it's not a common word and min 8 chars
+                // For follow-ups, require underscore and min 10 chars
+                if (!in_array($potentialUsername, $commonWords)) {
+                    if ($expectedStage === 0) {
+                        // Canvassing: just check minimum length
+                        if (strlen($potentialUsername) >= 8) {
+                            $username = $potentialUsername;
+                        }
+                    } else {
+                        // Follow-up: require underscore and min 10 chars
+                        if (strpos($potentialUsername, '_') !== false && strlen($potentialUsername) >= 10) {
+                            $username = $potentialUsername;
+                        }
+                    }
                 }
             }
         }
@@ -195,9 +211,12 @@ class OcrService
                 foreach ($allMatches as $match) {
                     $potentialUsername = strtolower(trim($match[1]));
 
-                    // Must have underscore (Instagram usernames usually have underscores)
-                    // Must be at least 10 characters (to avoid short words like "bazar")
-                    if (strpos($potentialUsername, '_') !== false && strlen($potentialUsername) >= 10) {
+                    // For canvassing (stage 0), be more lenient
+                    // For follow-ups, require underscore and min 10 chars
+                    $isValidLength = ($expectedStage === 0 && strlen($potentialUsername) >= 8) ||
+                                     ($expectedStage !== 0 && strpos($potentialUsername, '_') !== false && strlen($potentialUsername) >= 10);
+
+                    if ($isValidLength) {
                         $commonWords = ['instagram', 'pengikut', 'followers', 'postingan', 'posts', 'hari', 'today', 'obrolan', 'chat', 'bisnis', 'business', 'memulai', 'dengan', 'bhanu', 'stiqr', 'lihat', 'profil', 'tanyakan', 'bazar', 'event', 'bazaar', 'kasir', 'qris', 'aplikasi', 'gratis', 'mdr', 'umkm', 'transaksi', 'whatsapp', 'nomor', 'nama', 'usaha'];
                         if (!in_array($potentialUsername, $commonWords)) {
                             // Check if it appears near header keywords (obrolan, bisnis)
@@ -225,15 +244,27 @@ class OcrService
             $username = preg_replace('/\.{2,}$/', '', $username);
             $username = rtrim($username, '.');
 
-            // Final validation: username must have underscore and be at least 10 characters
-            // This filters out false positives like "bazar", "event", etc.
-            if (strpos($username, '_') !== false && strlen($username) >= 10) {
+            // Final validation:
+            // - For canvassing (stage 0): be lenient, just check it's not too short (min 8 chars)
+            // - For follow-ups: require underscore and min 10 chars to avoid false positives
+            $isValid = false;
+            if ($expectedStage === 0) {
+                // Canvassing: more lenient - just check minimum length
+                $isValid = strlen($username) >= 8;
+            } else {
+                // Follow-up: stricter - must have underscore and be at least 10 chars
+                $isValid = strpos($username, '_') !== false && strlen($username) >= 10;
+            }
+
+            if ($isValid) {
                 $result['instagram_username'] = $username;
             } else {
                 Log::warning('Extracted username failed validation', [
                     'extracted' => $username,
                     'has_underscore' => strpos($username, '_') !== false,
                     'length' => strlen($username),
+                    'expected_stage' => $expectedStage,
+                    'validation_rule' => $expectedStage === 0 ? 'min_8_chars' : 'underscore_and_min_10_chars',
                 ]);
                 $result['instagram_username'] = null;
             }
