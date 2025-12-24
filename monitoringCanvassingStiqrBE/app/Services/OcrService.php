@@ -29,7 +29,13 @@ class OcrService
 
             if ($result && trim($result) !== '') {
                 $parsed = $this->parseOcrResult($result, $expectedStage);
-                Log::info('OCR Parsed Result', $parsed);
+                Log::info('OCR Parsed Result', [
+                    'instagram_username' => $parsed['instagram_username'],
+                    'message_length' => strlen($parsed['message_snippet'] ?? ''),
+                    'date' => $parsed['date'],
+                    'expected_stage' => $expectedStage,
+                    'ocr_preview' => substr($result, 0, 500), // First 500 chars for debugging
+                ]);
                 return $parsed;
             }
 
@@ -168,8 +174,8 @@ class OcrService
             }
         }
         // Pattern 3: @username format (usually in header) - MUST be in header area only
-        // Increase header area to 800 chars to capture profile section (username before "Bergabung")
-        $headerText = substr($normalizedText, 0, 800); // Extended header area to capture profile section
+        // Increase header area to 1000 chars to capture profile section (username before "Bergabung")
+        $headerText = substr($normalizedText, 0, 1000); // Extended header area to capture profile section
         if (!$username && preg_match('/@([a-zA-Z0-9._]{5,30})/', $headerText, $matches)) {
             $potentialUsername = strtolower(trim($matches[1]));
             $commonWords = ['lihat', 'profil', 'tanyakan', 'instagram', 'bazar', 'event', 'bazaar', 'kasir', 'qris', 'aplikasi', 'gratis', 'mdr', 'umkm', 'stiqr', 'bhanu', 'transaksi', 'whatsapp', 'nomor', 'nama', 'usaha'];
@@ -180,7 +186,55 @@ class OcrService
             }
         }
 
-        // Pattern 4: Username in header area ONLY (first 500 chars = header/top area)
+        // Pattern 3b: Username in lowercase after capitalized name (e.g., "Kedai Kopi David" followed by "kedaikopidavid")
+        // This pattern matches usernames that appear directly below the contact name in header
+        if (!$username) {
+            // Look for pattern: capitalized words followed by lowercase username (common in Instagram chat header)
+            // e.g., "Kedai Kopi David" followed by "kedaikopidavid"
+            // Match: [Capitalized Name] followed by [lowercase username] in first 300 chars
+            $headerTop = substr($normalizedText, 0, 300); // First 300 chars = header area
+            // More flexible pattern: match any sequence of capitalized words, then lowercase username
+            // Also handle cases where username might be on next line (separated by space/newline)
+            if (preg_match('/(?:[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+([a-z0-9_]{8,30})(?:\s|$)/i', $headerTop, $matches)) {
+                $potentialUsername = strtolower(trim($matches[1]));
+                $commonWords = ['lihat', 'profil', 'tanyakan', 'instagram', 'bazar', 'event', 'bazaar', 'kasir', 'qris', 'aplikasi', 'gratis', 'mdr', 'umkm', 'stiqr', 'bhanu', 'transaksi', 'whatsapp', 'nomor', 'nama', 'usaha', 'obrolan', 'bisnis', 'chat', 'bergabung', 'joined', 'pengikut', 'followers', 'david', 'kopi', 'kedai'];
+                if (!in_array($potentialUsername, $commonWords) && strlen($potentialUsername) >= 8) {
+                    $username = $potentialUsername;
+                    Log::info('Found username via Pattern 3b (after capitalized name)', [
+                        'username' => $username,
+                        'match' => $matches[0],
+                        'full_match' => $matches[0],
+                    ]);
+                }
+            }
+            // Alternative: Look for standalone lowercase username in first 200 chars (very likely to be username)
+            if (!$username && preg_match('/\b([a-z0-9_]{8,30})\b/', substr($normalizedText, 0, 200), $matches)) {
+                $potentialUsername = strtolower(trim($matches[1]));
+                $commonWords = ['lihat', 'profil', 'tanyakan', 'instagram', 'bazar', 'event', 'bazaar', 'kasir', 'qris', 'aplikasi', 'gratis', 'mdr', 'umkm', 'stiqr', 'bhanu', 'transaksi', 'whatsapp', 'nomor', 'nama', 'usaha', 'obrolan', 'bisnis', 'chat', 'bergabung', 'joined', 'pengikut', 'followers', 'david', 'kopi', 'kedai'];
+                if (!in_array($potentialUsername, $commonWords) && strlen($potentialUsername) >= 8) {
+                    // Check if it's not part of a sentence (should be standalone)
+                    $pos = stripos(substr($normalizedText, 0, 200), $potentialUsername);
+                    if ($pos !== false) {
+                        $contextBefore = substr($normalizedText, max(0, $pos - 10), 10);
+                        $contextAfter = substr($normalizedText, $pos + strlen($potentialUsername), 10);
+                        // If surrounded by spaces or at start/end, likely a username
+                        if (preg_match('/^[\s]*$/', $contextBefore . $contextAfter) || $pos < 50) {
+                            $username = $potentialUsername;
+                            Log::info('Found username via Pattern 3b (standalone in header)', [
+                                'username' => $username,
+                                'position' => $pos,
+                            ]);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Pattern 4: Username in header area ONLY (first 1000 chars = header/top area)
+        // Ensure headerText is at least 1000 chars
+        if (strlen($headerText) < 1000) {
+            $headerText = substr($normalizedText, 0, 1000);
+        }
         // CRITICAL: Always get username from header, never from middle/profile section
         // This ensures consistency - same username format between canvassing and follow-up
         $headerText = substr($normalizedText, 0, 500); // Only check header area
@@ -306,6 +360,8 @@ class OcrService
         // Log OCR result for debugging (only first 500 chars to avoid log spam)
         Log::info('OCR Result', [
             'username_found' => $result['instagram_username'],
+            'expected_stage' => $expectedStage,
+            'header_preview' => isset($headerText) ? substr($headerText, 0, 300) : '', // First 300 chars of header
             'ocr_preview' => substr($normalizedText, 0, 500),
         ]);
 
