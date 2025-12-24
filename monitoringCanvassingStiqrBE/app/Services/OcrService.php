@@ -25,7 +25,9 @@ class OcrService
                 'has_result' => !empty($result),
                 'result_length' => $result ? strlen($result) : 0,
                 'result_preview' => $result ? substr($result, 0, 500) : 'null', // Extended preview
+                'result_first_200_chars' => $result ? substr($result, 0, 200) : 'null', // First 200 chars (header area)
                 'expected_stage' => $expectedStage,
+                'is_followup' => $expectedStage > 0,
             ]);
 
             if ($result && trim($result) !== '') {
@@ -35,17 +37,23 @@ class OcrService
                     'message_length' => strlen($parsed['message_snippet'] ?? ''),
                     'date' => $parsed['date'],
                     'expected_stage' => $expectedStage,
+                    'is_followup' => $expectedStage > 0,
                     'ocr_preview' => substr($result, 0, 500), // First 500 chars for debugging
+                    'ocr_first_200_chars' => substr($result, 0, 200), // First 200 chars (header area)
                     'username_found' => !empty($parsed['instagram_username']),
                 ]);
 
                 // If username not found, log more details (for both canvassing and follow-up)
                 if (empty($parsed['instagram_username'])) {
-                    Log::warning('OCR failed to extract username', [
+                    Log::error('OCR failed to extract username - DETAILED DEBUG INFO', [
                         'expected_stage' => $expectedStage,
                         'is_followup' => $expectedStage > 0,
-                        'ocr_text_preview' => substr($result, 0, 800),
+                        'ocr_text_preview' => substr($result, 0, 1000), // Extended to 1000 chars
                         'ocr_text_length' => strlen($result),
+                        'ocr_text_first_200_chars' => substr($result, 0, 200), // First 200 chars (header area)
+                        'message_snippet' => substr($parsed['message_snippet'] ?? '', 0, 200),
+                        'date_found' => $parsed['date'],
+                        'note' => 'Check parseOcrResult logs below for header extraction and pattern matching details',
                     ]);
                 }
 

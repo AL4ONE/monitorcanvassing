@@ -132,10 +132,17 @@ class MessageController extends Controller
                 Storage::disk('public')->delete($filePath);
                 DB::rollBack();
 
-                // Log OCR result for debugging
-                \Illuminate\Support\Facades\Log::warning('OCR failed to extract username', [
+                // Log OCR result for debugging with extensive details
+                \Illuminate\Support\Facades\Log::error('OCR failed to extract username - returning error to user', [
+                    'user_id' => $user->id,
+                    'user_name' => $user->name,
+                    'expected_stage' => $expectedStage,
+                    'is_followup' => $expectedStage > 0,
                     'ocr_result' => $ocrResult,
+                    'ocr_message_length' => strlen($ocrResult['message_snippet'] ?? ''),
+                    'ocr_date' => $ocrResult['date'],
                     'file_path' => $filePath,
+                    'note' => 'Check Railway logs for detailed OCR parsing logs (header area, patterns tried, potential usernames)',
                 ]);
 
                 return response()->json([
@@ -144,6 +151,8 @@ class MessageController extends Controller
                     'debug' => config('app.debug') ? [
                         'ocr_message' => substr($ocrResult['message_snippet'] ?? '', 0, 100),
                         'ocr_date' => $ocrResult['date'],
+                        'expected_stage' => $expectedStage,
+                        'is_followup' => $expectedStage > 0,
                     ] : null,
                 ], 422);
             }
