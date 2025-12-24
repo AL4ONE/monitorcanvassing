@@ -54,7 +54,9 @@ return [
 
         'stack' => [
             'driver' => 'stack',
-            'channels' => explode(',', (string) env('LOG_STACK', 'single')),
+            // For Railway: use stderr to see logs in Railway dashboard
+            // For local: use single to write to file
+            'channels' => explode(',', (string) env('LOG_STACK', env('APP_ENV') === 'production' ? 'stderr' : 'single')),
             'ignore_exceptions' => false,
         ],
 
