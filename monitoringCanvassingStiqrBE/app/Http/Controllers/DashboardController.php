@@ -9,6 +9,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class DashboardController extends Controller
 {
@@ -28,7 +29,7 @@ class DashboardController extends Controller
         $date = $request->get('date', Carbon::today()->format('Y-m-d'));
         
         // Log for debugging
-        \Log::info('Dashboard request', [
+        Log::info('Dashboard request', [
             'user_id' => $user->id,
             'role' => $user->role,
             'date' => $date,
@@ -106,7 +107,7 @@ class DashboardController extends Controller
         // Get all staff
         $staffs = User::where('role', 'staff')->get();
         
-        \Log::info('Supervisor dashboard', [
+        Log::info('Supervisor dashboard', [
             'date' => $date,
             'staff_count' => $staffs->count(),
         ]);
@@ -137,9 +138,12 @@ class DashboardController extends Controller
             $redFlags = $this->getRedFlags($staff->id, $date);
 
             // Calculate total messages for this staff on this date
-            $totalMessages = array_sum(array_column($targetsPerStage, 'count'));
+            $totalMessages = 0;
+            foreach ($targetsPerStage as $stageData) {
+                $totalMessages += $stageData['count'] ?? 0;
+            }
             
-            \Log::info('Staff stats', [
+            Log::info('Staff stats', [
                 'staff_id' => $staff->id,
                 'staff_name' => $staff->name,
                 'date' => $date,
@@ -162,7 +166,7 @@ class DashboardController extends Controller
         $totalCanvassing = Message::where('stage', 0)->whereDate('submitted_at', $date)->count();
         $totalFollowUp = Message::where('stage', '>', 0)->whereDate('submitted_at', $date)->count();
         
-        \Log::info('Supervisor dashboard response', [
+        Log::info('Supervisor dashboard response', [
             'date' => $date,
             'staff_stats_count' => count($staffStats),
             'overall_stats' => [
