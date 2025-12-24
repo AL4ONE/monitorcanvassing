@@ -39,11 +39,13 @@ class OcrService
                     'username_found' => !empty($parsed['instagram_username']),
                 ]);
 
-                // If username not found and this is a follow-up, log more details
-                if (empty($parsed['instagram_username']) && $expectedStage > 0) {
-                    Log::warning('Follow-up OCR failed to extract username', [
+                // If username not found, log more details (for both canvassing and follow-up)
+                if (empty($parsed['instagram_username'])) {
+                    Log::warning('OCR failed to extract username', [
                         'expected_stage' => $expectedStage,
+                        'is_followup' => $expectedStage > 0,
                         'ocr_text_preview' => substr($result, 0, 800),
+                        'ocr_text_length' => strlen($result),
                     ]);
                 }
 
@@ -140,7 +142,7 @@ class OcrService
     /**
      * Parse OCR result to extract Instagram username, message, and date
      * @param string $ocrText Raw OCR text
-     * @param int|null $expectedStage Expected stage to filter messages (0 = canvassing, more lenient)
+     * @param int|null $expectedStage Expected stage (for logging only - NO DIFFERENCE in username extraction)
      */
     private function parseOcrResult(string $ocrText, ?int $expectedStage = null): array
     {
@@ -429,6 +431,44 @@ class OcrService
                                     'username' => $username,
                                     'position' => $pos,
                                     'context' => substr($context, 0, 80),
+                                ]);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Pattern 8: Ultra last resort - find ANY username-like string in first 150 chars
+        // This is the most aggressive pattern - accept any valid username format if it's very early in header
+        if (!$username) {
+            $headerUltraTop = substr($headerText, 0, 150);
+            // Look for username patterns: alphanumeric + underscore, 8-30 chars
+            if (preg_match_all('/([a-z0-9_]{8,30})/i', $headerUltraTop, $allMatches, PREG_SET_ORDER)) {
+                foreach ($allMatches as $match) {
+                    $potentialUsername = strtolower(trim($match[1]));
+
+                    // Must be at least 8 chars and not a common word
+                    if (strlen($potentialUsername) >= 8 && !in_array($potentialUsername, $commonWords)) {
+                        $pos = stripos($headerUltraTop, $potentialUsername);
+                        if ($pos !== false && $pos < 150) {
+                            // Very early in header (first 150 chars) = definitely header area
+                            // Only reject if it's clearly a message keyword
+                            $contextBefore = substr($headerUltraTop, max(0, $pos - 20), 20);
+                            $contextAfter = substr($headerUltraTop, $pos + strlen($potentialUsername), 20);
+                            $context = $contextBefore . ' ' . $contextAfter;
+
+                            // Only reject if it's clearly part of a message sentence
+                            $isMessageSentence = preg_match('/(perkenalkan|halo\s+kak|kirim\s+pesan|balas|terima\s+kasih|langganan|gratis|aplikasi|qris|kasir|halo\s+kakak)/i', $context);
+
+                            // Accept if NOT clearly a message sentence and in first 150 chars
+                            if (!$isMessageSentence) {
+                                $username = $potentialUsername;
+                                Log::info('Found username via Pattern 8 (ultra last resort)', [
+                                    'username' => $username,
+                                    'position' => $pos,
+                                    'context' => substr($context, 0, 60),
                                 ]);
                                 break;
                             }
