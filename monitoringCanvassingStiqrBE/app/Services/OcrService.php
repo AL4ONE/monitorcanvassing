@@ -537,6 +537,9 @@ class OcrService
                     'length' => strlen($username),
                     'has_underscore' => strpos($username, '_') !== false,
                     'expected_stage' => $expectedStage,
+                    'is_followup' => $expectedStage > 0,
+                    'is_fu7' => $expectedStage === 7,
+                    'note' => 'Username extraction is IDENTICAL for all stages including FU-7',
                 ]);
             } else {
                 Log::warning('Extracted username failed validation', [
