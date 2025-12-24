@@ -1,5 +1,16 @@
 # Railway Configuration Guide
 
+## Important: Remove Dockerfile
+
+**CRITICAL**: Jika ada file `Dockerfile` di root directory, **HAPUS** atau **RENAME** file tersebut.
+
+Railway akan otomatis detect Dockerfile dan mencoba menggunakannya, yang akan menyebabkan error karena image tidak valid.
+
+**Solution**: 
+- Hapus `Dockerfile` jika ada
+- Biarkan Railway menggunakan **Nixpacks builder** (default)
+- Konfigurasi sudah ada di `nixpacks.toml`
+
 ## Current Setup Issues & Fixes
 
 ### 1. Port Configuration
