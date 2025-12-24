@@ -211,6 +211,19 @@ class MessageValidationService
             $suffixPrefix = $hasSuffix ? substr($baseParts[1], 0, 5) : ''; // First 5 chars of suffix
 
             // Find messages from this staff with matching OCR username (with aggressive partial matching)
+            // First, get all messages from this staff to see what we have
+            $allStaffMessages = Message::whereHas('canvassingCycle', function($q) use ($staffId) {
+                $q->where('staff_id', $staffId);
+            })
+            ->with('canvassingCycle.prospect')
+            ->get();
+
+            \Illuminate\Support\Facades\Log::info('All messages for staff', [
+                'staff_id' => $staffId,
+                'total_messages' => $allStaffMessages->count(),
+                'ocr_usernames' => $allStaffMessages->pluck('ocr_instagram_username')->unique()->values()->toArray(),
+            ]);
+
             $matchingMessages = Message::whereHas('canvassingCycle', function($q) use ($staffId) {
                 $q->where('staff_id', $staffId);
             })
@@ -235,8 +248,23 @@ class MessageValidationService
                     // Match if stored OCR username starts with base prefix
                     $q->orWhere('ocr_instagram_username', 'like', $basePrefix . '_%');
                     // Match if stored OCR username has same prefix and suffix starts similarly
-                    if ($suffixPrefix) {
+                    if ($suffixPrefix && strlen($suffixPrefix) >= 3) {
                         $q->orWhere('ocr_instagram_username', 'like', $basePrefix . '_' . $suffixPrefix . '%');
+                    }
+                }
+
+                // Even more aggressive: match if both have same prefix (ignore suffix completely)
+                if (strlen($basePrefix) >= 8) {
+                    $dbDriver = DB::connection()->getDriverName();
+                    if ($dbDriver === 'sqlite') {
+                        // SQLite: use SUBSTR and INSTR
+                        $q->orWhereRaw('SUBSTR(ocr_instagram_username, 1, INSTR(ocr_instagram_username || \'_\', \'_\') - 1) = ?', [$basePrefix]);
+                    } elseif ($dbDriver === 'pgsql') {
+                        // PostgreSQL: use SPLIT_PART
+                        $q->orWhereRaw('SPLIT_PART(ocr_instagram_username, \'_\', 1) = ?', [$basePrefix]);
+                    } else {
+                        // MySQL: use SUBSTRING_INDEX
+                        $q->orWhereRaw('SUBSTRING_INDEX(ocr_instagram_username, \'_\', 1) = ?', [$basePrefix]);
                     }
                 }
             })
@@ -344,9 +372,24 @@ class MessageValidationService
         } else {
             // Follow-up - must find existing cycle
             if (!$prospect) {
+                // Log all prospects for this staff to help debug
+                $allProspects = Prospect::whereHas('canvassingCycles', function($q) use ($staffId) {
+                    $q->where('staff_id', $staffId)
+                      ->where('status', 'active');
+                })->get(['id', 'instagram_username']);
+
+                \Illuminate\Support\Facades\Log::error('Prospect not found for follow-up', [
+                    'extracted_username' => $instagramUsername,
+                    'staff_id' => $staffId,
+                    'stage' => $stage,
+                    'all_prospects_for_staff' => $allProspects->map(function($p) {
+                        return ['id' => $p->id, 'username' => $p->instagram_username];
+                    })->toArray(),
+                ]);
+
                 return [
                     'valid' => false,
-                    'error' => 'Prospect tidak ditemukan. Follow-up harus untuk prospect yang sudah di-canvassing.',
+                    'error' => 'Prospect tidak ditemukan. Follow-up harus untuk prospect yang sudah di-canvassing. Username yang dicari: ' . $instagramUsername,
                     'cycle' => null,
                 ];
             }
