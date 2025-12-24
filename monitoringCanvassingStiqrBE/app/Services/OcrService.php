@@ -155,7 +155,24 @@ class OcrService
             'nama', 'usaha', 'langganan', 'biaya', 'operasional', 'masuk', 'nanti', 'tau', 'nggak',
             'kakak', 'kak', 'halo', 'terima', 'kasih', 'kirim', 'pesan', 'balas', 'membalas', 'coba',
             'demo', 'info', 'ready', 'david', 'kopi', 'kedai', 'bergabung', 'joined', 'pengikut',
-            'followers', 'obrolan', 'bisnis', 'chat', 'memulai', 'dengan'
+            'followers', 'obrolan', 'bisnis', 'chat', 'memulai', 'dengan', 'perkenalkan', 'perkenalan',
+            'dari', 'menawarkan', 'pembuatan', 'sudah', 'include', 'untuk', 'kebutuhan', 'harian',
+            'maupun', 'penggunaan', 'tanpa', 'biaya', 'jadi', 'cocok', 'banget', 'selain', 'itu',
+            'juga', 'dapet', 'terkait', 'yang', 'cocok', 'jika', 'tertarik', 'jelaskan', 'detail',
+            'fiturnya', 'lebih', 'lanjut', 'terima', 'kasih', 'udah', 'belum', 'kalau', 'memasuki',
+            'makin', 'naik', 'karena', 'inflasi', 'bahan', 'pokok', 'harus', 'efisien', 'supaya',
+            'tetap', 'untung', 'kami', 'bisa', 'bantu', 'rapiin', 'simpel', 'mau', 'buatkan',
+            'akunnya', 'silakan', 'membalas', 'sekarang', 'banyak', 'yang', 'bayar', 'jutaan',
+            'tahun', 'cuma', 'buat', 'pakai', 'padahal', 'eranya', 'ekosistem', 'digital', 'ringan',
+            'dibuat', 'khusus', 'biar', 'nggak', 'kebebanan', 'pembeli', 'percaya', 'kalau', 'dapat',
+            'struk', 'otomatis', 'bikin', 'balik', 'lagi', 'sudah', 'support', 'ribet', 'mau', 'lihat',
+            'contoh', 'membalas', 'siapin', 'bisa', 'dipakai', 'barengan', 'sama', 'atau', 'pos',
+            'bandingkan', 'terlebih', 'dahulu', 'aktifkan', 'hari', 'ini', 'merchant', 'kemarin',
+            'ikut', 'festival', 'jualannya', 'exposure', 'memang', 'bukan', 'cuma', 'transaksi',
+            'tapi', 'buka', 'peluang', 'baru', 'ingin', 'selanjutnya', 'makin', 'pindah', 'sistem',
+            'sadar', 'lama', 'sudah', 'cocok', 'kondisi', 'pilihan', 'fokus', 'ekosistem', 'lagi',
+            'bergerak', 'cepat', 'arah', 'murah', 'dibangun', 'seperti', 'tetap', 'berkembang',
+            'buatin', 'langsung', 'jalan', 'fiturnya'
         ];
 
         // Extract Instagram username with multiple patterns (ordered by priority)
@@ -295,8 +312,10 @@ class OcrService
         }
 
         // Pattern 6: Fallback - username in header area near "obrolan" or "bisnis" or profile keywords
+        // CRITICAL: Only search in first 300 chars of header (very top area) to avoid message area
         if (!$username) {
-            if (preg_match_all('/\b([a-z0-9_]{8,30})\b/i', $headerText, $allMatches, PREG_SET_ORDER)) {
+            $headerTopOnly = substr($headerText, 0, 300); // Only first 300 chars = very top header area
+            if (preg_match_all('/\b([a-z0-9_]{8,30})\b/i', $headerTopOnly, $allMatches, PREG_SET_ORDER)) {
                 foreach ($allMatches as $match) {
                     $potentialUsername = strtolower(trim($match[1]));
 
@@ -308,13 +327,24 @@ class OcrService
                         // Use the same commonWords array defined at the top
                         if (!in_array($potentialUsername, $commonWords)) {
                             // Check if it appears near header keywords (obrolan, bisnis, bergabung, profil)
-                            $pos = stripos($headerText, $potentialUsername);
-                            if ($pos !== false) {
-                                $contextBefore = substr($headerText, max(0, $pos - 40), 40);
-                                $contextAfter = substr($headerText, $pos + strlen($potentialUsername), 40);
+                            // MUST be in first 300 chars only
+                            $pos = stripos($headerTopOnly, $potentialUsername);
+                            if ($pos !== false && $pos < 300) {
+                                $contextBefore = substr($headerTopOnly, max(0, $pos - 40), 40);
+                                $contextAfter = substr($headerTopOnly, $pos + strlen($potentialUsername), 40);
                                 // If it appears near "obrolan", "bisnis", "bergabung", "profil" in header area
-                                if (preg_match('/(obrolan|bisnis|chat|bergabung|joined|profil|profile)/i', $contextBefore . ' ' . $contextAfter)) {
+                                // Also check it's NOT near message keywords
+                                $context = $contextBefore . ' ' . $contextAfter;
+                                $hasHeaderKeywords = preg_match('/(obrolan|bisnis|chat|bergabung|joined|profil|profile|memulai|dengan)/i', $context);
+                                $hasMessageKeywords = preg_match('/(perkenalkan|halo|kak|kirim|pesan|balas|terima|kasih|langganan|gratis|aplikasi|qris|kasir)/i', $context);
+
+                                if ($hasHeaderKeywords && !$hasMessageKeywords) {
                                     $username = $potentialUsername;
+                                    Log::info('Found username via Pattern 6 (fallback)', [
+                                        'username' => $username,
+                                        'position' => $pos,
+                                        'context' => $context,
+                                    ]);
                                     break;
                                 }
                             }
