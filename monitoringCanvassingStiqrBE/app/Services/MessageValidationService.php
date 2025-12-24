@@ -227,6 +227,13 @@ class MessageValidationService
             // Try multiple matching strategies
             $matchingMessages = collect();
 
+            \Illuminate\Support\Facades\Log::info('Starting OCR username search with multiple strategies', [
+                'extracted_username' => $instagramUsername,
+                'base_prefix' => $basePrefix,
+                'has_suffix' => $hasSuffix,
+                'suffix_prefix' => $suffixPrefix,
+            ]);
+
             // Strategy 1: Exact and partial matches
             $strategy1 = Message::whereHas('canvassingCycle', function($q) use ($staffId) {
                 $q->where('staff_id', $staffId);
@@ -247,8 +254,13 @@ class MessageValidationService
             ->orderBy('submitted_at', 'desc')
             ->get();
 
+            \Illuminate\Support\Facades\Log::info('Strategy 1 results', [
+                'found' => $strategy1->count(),
+            ]);
+
             if ($strategy1->isNotEmpty()) {
                 $matchingMessages = $strategy1;
+                \Illuminate\Support\Facades\Log::info('Using Strategy 1 - found matches');
             } else {
                 // Strategy 2: Prefix matching (for truncated usernames)
                 if ($hasSuffix && strlen($basePrefix) >= 8) {
@@ -260,8 +272,14 @@ class MessageValidationService
                     ->orderBy('submitted_at', 'desc')
                     ->get();
 
+                    \Illuminate\Support\Facades\Log::info('Strategy 2 results', [
+                        'found' => $strategy2->count(),
+                        'pattern' => $basePrefix . '_%',
+                    ]);
+
                     if ($strategy2->isNotEmpty()) {
                         $matchingMessages = $strategy2;
+                        \Illuminate\Support\Facades\Log::info('Using Strategy 2 - found matches');
                     }
                 }
 
@@ -275,12 +293,18 @@ class MessageValidationService
                     ->orderBy('submitted_at', 'desc')
                     ->get();
 
+                    \Illuminate\Support\Facades\Log::info('Strategy 3 results', [
+                        'found' => $strategy3->count(),
+                        'pattern' => $basePrefix . '_' . $suffixPrefix . '%',
+                    ]);
+
                     if ($strategy3->isNotEmpty()) {
                         $matchingMessages = $strategy3;
+                        \Illuminate\Support\Facades\Log::info('Using Strategy 3 - found matches');
                     }
                 }
 
-                // Strategy 4: Extract prefix from stored OCR username and compare
+                // Strategy 4: Extract prefix from stored OCR username and compare (PHP filter)
                 if ($matchingMessages->isEmpty() && strlen($basePrefix) >= 8) {
                     // Get all messages and filter in PHP (more reliable across databases)
                     $allMessages = Message::whereHas('canvassingCycle', function($q) use ($staffId) {
@@ -297,8 +321,15 @@ class MessageValidationService
                         return isset($storedParts[0]) && $storedParts[0] === $basePrefix;
                     });
 
+                    \Illuminate\Support\Facades\Log::info('Strategy 4 results', [
+                        'found' => $strategy4->count(),
+                        'total_messages_checked' => $allMessages->count(),
+                        'base_prefix' => $basePrefix,
+                    ]);
+
                     if ($strategy4->isNotEmpty()) {
                         $matchingMessages = $strategy4;
+                        \Illuminate\Support\Facades\Log::info('Using Strategy 4 - found matches');
                     }
                 }
             }
@@ -409,18 +440,40 @@ class MessageValidationService
                       ->where('status', 'active');
                 })->get(['id', 'instagram_username']);
 
+                // Get all OCR usernames from messages for this staff
+                $allOcrUsernames = Message::whereHas('canvassingCycle', function($q) use ($staffId) {
+                    $q->where('staff_id', $staffId);
+                })
+                ->whereNotNull('ocr_instagram_username')
+                ->distinct()
+                ->pluck('ocr_instagram_username')
+                ->toArray();
+
                 \Illuminate\Support\Facades\Log::error('Prospect not found for follow-up', [
                     'extracted_username' => $instagramUsername,
                     'staff_id' => $staffId,
                     'stage' => $stage,
+                    'base_prefix' => $basePrefix ?? 'N/A',
                     'all_prospects_for_staff' => $allProspects->map(function($p) {
                         return ['id' => $p->id, 'username' => $p->instagram_username];
                     })->toArray(),
+                    'all_ocr_usernames_for_staff' => $allOcrUsernames,
+                    'total_prospects' => $allProspects->count(),
+                    'total_ocr_usernames' => count($allOcrUsernames),
                 ]);
+
+                $errorMessage = 'Prospect tidak ditemukan. Follow-up harus untuk prospect yang sudah di-canvassing. ';
+                $errorMessage .= 'Username yang dicari: ' . $instagramUsername . '. ';
+                if ($allProspects->isNotEmpty()) {
+                    $errorMessage .= 'Prospects yang ada: ' . $allProspects->pluck('instagram_username')->implode(', ') . '. ';
+                }
+                if (!empty($allOcrUsernames)) {
+                    $errorMessage .= 'OCR usernames yang tersimpan: ' . implode(', ', array_slice($allOcrUsernames, 0, 5)) . (count($allOcrUsernames) > 5 ? '...' : '') . '.';
+                }
 
                 return [
                     'valid' => false,
-                    'error' => 'Prospect tidak ditemukan. Follow-up harus untuk prospect yang sudah di-canvassing. Username yang dicari: ' . $instagramUsername,
+                    'error' => $errorMessage,
                     'cycle' => null,
                 ];
             }
