@@ -312,9 +312,10 @@ class OcrService
         }
 
         // Pattern 6: Fallback - username in header area near "obrolan" or "bisnis" or profile keywords
-        // CRITICAL: Only search in first 300 chars of header (very top area) to avoid message area
+        // CRITICAL: Only search in first 400 chars of header (very top area) to avoid message area
+        // More lenient: accept if it's in header area and not a common word, even without header keywords
         if (!$username) {
-            $headerTopOnly = substr($headerText, 0, 300); // Only first 300 chars = very top header area
+            $headerTopOnly = substr($headerText, 0, 400); // Extended to 400 chars for better coverage
             if (preg_match_all('/\b([a-z0-9_]{8,30})\b/i', $headerTopOnly, $allMatches, PREG_SET_ORDER)) {
                 foreach ($allMatches as $match) {
                     $potentialUsername = strtolower(trim($match[1]));
@@ -326,24 +327,29 @@ class OcrService
                     if ($isValidLength) {
                         // Use the same commonWords array defined at the top
                         if (!in_array($potentialUsername, $commonWords)) {
-                            // Check if it appears near header keywords (obrolan, bisnis, bergabung, profil)
-                            // MUST be in first 300 chars only
+                            // Check position - must be in first 400 chars (header area)
                             $pos = stripos($headerTopOnly, $potentialUsername);
-                            if ($pos !== false && $pos < 300) {
-                                $contextBefore = substr($headerTopOnly, max(0, $pos - 40), 40);
-                                $contextAfter = substr($headerTopOnly, $pos + strlen($potentialUsername), 40);
-                                // If it appears near "obrolan", "bisnis", "bergabung", "profil" in header area
-                                // Also check it's NOT near message keywords
+                            if ($pos !== false && $pos < 400) {
+                                $contextBefore = substr($headerTopOnly, max(0, $pos - 50), 50);
+                                $contextAfter = substr($headerTopOnly, $pos + strlen($potentialUsername), 50);
                                 $context = $contextBefore . ' ' . $contextAfter;
-                                $hasHeaderKeywords = preg_match('/(obrolan|bisnis|chat|bergabung|joined|profil|profile|memulai|dengan)/i', $context);
-                                $hasMessageKeywords = preg_match('/(perkenalkan|halo|kak|kirim|pesan|balas|terima|kasih|langganan|gratis|aplikasi|qris|kasir)/i', $context);
 
-                                if ($hasHeaderKeywords && !$hasMessageKeywords) {
+                                // Check if it's NOT near message keywords (more important than header keywords)
+                                $hasMessageKeywords = preg_match('/(perkenalkan|halo\s+kak|kirim\s+pesan|balas|terima\s+kasih|langganan|gratis|aplikasi|qris|kasir|halo\s+kakak)/i', $context);
+
+                                // If it's in header area and NOT near message keywords, accept it
+                                // Also check if it's near header keywords OR appears early in header (first 200 chars)
+                                $hasHeaderKeywords = preg_match('/(obrolan|bisnis|chat|bergabung|joined|profil|profile|memulai|dengan|pengikut|followers)/i', $context);
+                                $isEarlyInHeader = $pos < 200; // First 200 chars = very top header
+
+                                if (!$hasMessageKeywords && ($hasHeaderKeywords || $isEarlyInHeader)) {
                                     $username = $potentialUsername;
                                     Log::info('Found username via Pattern 6 (fallback)', [
                                         'username' => $username,
                                         'position' => $pos,
-                                        'context' => $context,
+                                        'has_header_keywords' => $hasHeaderKeywords,
+                                        'is_early' => $isEarlyInHeader,
+                                        'has_message_keywords' => $hasMessageKeywords,
                                     ]);
                                     break;
                                 }
@@ -402,9 +408,20 @@ class OcrService
         Log::info('OCR Result', [
             'username_found' => $result['instagram_username'],
             'expected_stage' => $expectedStage,
-            'header_preview' => isset($headerText) ? substr($headerText, 0, 300) : '', // First 300 chars of header
+            'header_preview' => isset($headerText) ? substr($headerText, 0, 400) : '', // First 400 chars of header
             'ocr_preview' => substr($normalizedText, 0, 500),
+            'all_patterns_tried' => !$result['instagram_username'] ? 'No username found after trying all patterns' : 'Username found',
         ]);
+
+        // If no username found, log more details for debugging
+        if (!$result['instagram_username']) {
+            Log::warning('OCR failed to extract username', [
+                'expected_stage' => $expectedStage,
+                'header_length' => strlen($headerText ?? ''),
+                'header_first_400_chars' => substr($headerText ?? '', 0, 400),
+                'normalized_text_length' => strlen($normalizedText),
+            ]);
+        }
 
         // Extract date (Indonesian format: DD/MM/YYYY or DD-MM-YYYY, or "Hari ini HH.MM")
         if (preg_match('/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/', $normalizedText, $matches)) {
