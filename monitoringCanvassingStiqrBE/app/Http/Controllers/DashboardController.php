@@ -26,6 +26,13 @@ class DashboardController extends Controller
     {
         $user = Auth::user();
         $date = $request->get('date', Carbon::today()->format('Y-m-d'));
+        
+        // Log for debugging
+        \Log::info('Dashboard request', [
+            'user_id' => $user->id,
+            'role' => $user->role,
+            'date' => $date,
+        ]);
 
         if ($user->role === 'supervisor') {
             return $this->supervisorDashboard($date);
@@ -51,11 +58,12 @@ class DashboardController extends Controller
             ->whereDate('submitted_at', $date)
             ->count();
             
-            $targetsPerStage[$stage] = [
-                'count' => $count,
-                'target' => $target,
-                'met' => $count >= $target,
-            ];
+                // Convert stage to string key for frontend compatibility (Object.entries needs string keys)
+                $targetsPerStage[(string)$stage] = [
+                    'count' => $count,
+                    'target' => $target,
+                    'met' => $count >= $target,
+                ];
         }
 
         // Get recent messages
@@ -87,8 +95,21 @@ class DashboardController extends Controller
      */
     private function supervisorDashboard(string $date)
     {
+        // Parse date to ensure correct format
+        try {
+            $dateObj = \Carbon\Carbon::parse($date);
+            $date = $dateObj->format('Y-m-d');
+        } catch (\Exception $e) {
+            $date = Carbon::today()->format('Y-m-d');
+        }
+
         // Get all staff
         $staffs = User::where('role', 'staff')->get();
+        
+        \Log::info('Supervisor dashboard', [
+            'date' => $date,
+            'staff_count' => $staffs->count(),
+        ]);
 
         $staffStats = [];
         foreach ($staffs as $staff) {
@@ -104,7 +125,8 @@ class DashboardController extends Controller
                 ->whereDate('submitted_at', $date)
                 ->count();
                 
-                $targetsPerStage[$stage] = [
+                // Convert stage to string key for frontend compatibility
+                $targetsPerStage[(string)$stage] = [
                     'count' => $count,
                     'target' => $target,
                     'met' => $count >= $target,
@@ -113,6 +135,17 @@ class DashboardController extends Controller
 
             // Get red flags
             $redFlags = $this->getRedFlags($staff->id, $date);
+
+            // Calculate total messages for this staff on this date
+            $totalMessages = array_sum(array_column($targetsPerStage, 'count'));
+            
+            \Log::info('Staff stats', [
+                'staff_id' => $staff->id,
+                'staff_name' => $staff->name,
+                'date' => $date,
+                'total_messages' => $totalMessages,
+                'targets_per_stage' => $targetsPerStage,
+            ]);
 
             $staffStats[] = [
                 'staff' => [
@@ -124,18 +157,27 @@ class DashboardController extends Controller
                 'red_flags' => $redFlags,
             ];
         }
+        
+        // Overall stats - don't filter by date for pending_quality_checks (show all pending)
+        $totalCanvassing = Message::where('stage', 0)->whereDate('submitted_at', $date)->count();
+        $totalFollowUp = Message::where('stage', '>', 0)->whereDate('submitted_at', $date)->count();
+        
+        \Log::info('Supervisor dashboard response', [
+            'date' => $date,
+            'staff_stats_count' => count($staffStats),
+            'overall_stats' => [
+                'total_staff' => $staffs->count(),
+                'total_canvassing' => $totalCanvassing,
+                'total_follow_up' => $totalFollowUp,
+            ],
+        ]);
 
-        // Overall stats
         $overallStats = [
             'total_staff' => $staffs->count(),
-            'total_canvassing' => Message::where('stage', 0)
-                ->whereDate('submitted_at', $date)
-                ->count(),
-            'total_follow_up' => Message::where('stage', '>', 0)
-                ->whereDate('submitted_at', $date)
-                ->count(),
+            'total_canvassing' => $totalCanvassing,
+            'total_follow_up' => $totalFollowUp,
             'pending_quality_checks' => Message::where('validation_status', 'pending')
-                ->count(),
+                ->count(), // All pending, not filtered by date
         ];
 
         return response()->json([
