@@ -24,7 +24,7 @@ class AppServiceProvider extends ServiceProvider
         // This will automatically create the symlink when the app starts
         $linkPath = public_path('storage');
         $targetPath = storage_path('app/public');
-        
+
         // Check if storage link doesn't exist or is broken
         if (!File::exists($linkPath) || (!is_link($linkPath) && File::isDirectory($linkPath))) {
             try {
@@ -38,12 +38,12 @@ class AppServiceProvider extends ServiceProvider
                         File::delete($linkPath);
                     }
                 }
-                
+
                 // Ensure target directory exists
                 if (!File::exists($targetPath)) {
                     File::makeDirectory($targetPath, 0755, true);
                 }
-                
+
                 // Create symlink
                 if (PHP_OS_FAMILY === 'Windows') {
                     // Windows doesn't support symlinks easily, use junction or copy

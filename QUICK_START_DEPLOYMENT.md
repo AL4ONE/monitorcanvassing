@@ -148,3 +148,5 @@ railway run php artisan migrate
 - Backup database secara berkala
 - Monitor logs di Railway & Vercel dashboard
 
+
+

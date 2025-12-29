@@ -29,23 +29,7 @@ export default function SupervisorDashboard() {
     }
   };
 
-  const handleBulkDelete = async () => {
-    if (!window.confirm('Apakah Anda yakin ingin menghapus SEMUA data canvassing yang SUKSES? Tindakan ini tidak dapat dibatalkan.')) {
-      return;
-    }
 
-    try {
-      setLoading(true);
-      const response = await api.delete('/canvassing/cleanup');
-      alert(response.data.message);
-      fetchDashboard();
-    } catch (error) {
-      console.error('Error bulk delete:', error);
-      alert('Gagal menghapus data: ' + (error.response?.data?.message || error.message));
-    } finally {
-      setLoading(false);
-    }
-  };
 
   if (loading) {
     return <div className="p-6">Memuat...</div>;
@@ -62,12 +46,13 @@ export default function SupervisorDashboard() {
             onChange={(e) => setSelectedDate(e.target.value)}
             className="border border-gray-300 rounded-md px-3 py-2"
           />
-          <button
-            onClick={handleBulkDelete}
-            className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
+
+          <Link
+            to="/report"
+            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
           >
-            Hapus Data Success
-          </button>
+            Laporan
+          </Link>
           <Link
             to="/quality-check"
             className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"

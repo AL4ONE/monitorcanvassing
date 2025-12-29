@@ -29,6 +29,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Canvassing Data Management
         Route::delete('/canvassing/cleanup', [\App\Http\Controllers\CanvassingController::class, 'cleanupSuccess']);
+        Route::get('/canvassing/report', [\App\Http\Controllers\CanvassingController::class, 'report']);
     });
 });
 

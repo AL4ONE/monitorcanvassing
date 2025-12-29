@@ -3,8 +3,10 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Login from './pages/Login';
 import StaffDashboard from './pages/StaffDashboard';
 import StaffUpload from './pages/StaffUpload';
+import StaffUpload from './pages/StaffUpload';
 import SupervisorDashboard from './pages/SupervisorDashboard';
 import QualityCheck from './pages/QualityCheck';
+import Report from './pages/Report';
 import Layout from './components/Layout';
 
 function PrivateRoute({ children, requiredRole }) {
@@ -31,7 +33,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Login />} />
-      
+
       <Route
         path="/dashboard"
         element={
@@ -46,7 +48,7 @@ function AppRoutes() {
           </PrivateRoute>
         }
       />
-      
+
       <Route
         path="/upload"
         element={
@@ -57,7 +59,7 @@ function AppRoutes() {
           </PrivateRoute>
         }
       />
-      
+
       <Route
         path="/quality-check"
         element={
@@ -68,7 +70,18 @@ function AppRoutes() {
           </PrivateRoute>
         }
       />
-      
+
+      <Route
+        path="/report"
+        element={
+          <PrivateRoute requiredRole="supervisor">
+            <Layout>
+              <Report />
+            </Layout>
+          </PrivateRoute>
+        }
+      />
+
       <Route path="/" element={<Navigate to="/dashboard" />} />
     </Routes>
   );

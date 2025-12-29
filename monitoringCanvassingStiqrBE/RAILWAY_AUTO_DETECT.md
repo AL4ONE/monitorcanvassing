@@ -51,3 +51,5 @@ php artisan migrate --force && php artisan db:seed --force && php artisan storag
 
 Atau jalankan manual setelah deploy pertama.
 
+
+

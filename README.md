@@ -230,3 +230,5 @@ php artisan view:cache
 - OCR result disimpan sebagai suggestion, supervisor tetap perlu review
 - Semua upload status awal adalah `pending`, perlu approval dari supervisor
 
+
+

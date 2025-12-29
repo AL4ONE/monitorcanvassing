@@ -49,3 +49,5 @@ Railway biasanya sudah include composer di PHP package, jadi tidak perlu specify
 
 Coba hapus `nixpacks.toml` dan biarkan Railway auto-detect. Railway sangat baik dalam auto-detecting Laravel projects.
 
+
+

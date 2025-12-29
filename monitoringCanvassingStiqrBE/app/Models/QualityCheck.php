@@ -28,3 +28,5 @@ class QualityCheck extends Model
     }
 }
 
+
+

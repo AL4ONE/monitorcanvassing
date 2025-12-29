@@ -111,3 +111,5 @@ Pastikan `config/cors.php` sudah dikonfigurasi dengan benar untuk development.
 - Pastikan API key sudah di-set di `.env`
 - Atau biarkan kosong, sistem tetap berjalan tapi OCR result akan kosong
 
+
+

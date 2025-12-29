@@ -62,3 +62,5 @@ Jika Railway masih menggunakan Dockerfile:
 2. Pastikan pilih "Nixpacks" bukan "Dockerfile"
 3. Redeploy service
 
+
+
