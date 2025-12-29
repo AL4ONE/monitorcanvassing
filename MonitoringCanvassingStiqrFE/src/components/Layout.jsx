@@ -36,7 +36,6 @@ export default function Layout({ children }) {
                     Upload
                   </Link>
                 )}
-                )}
                 {user?.role === 'supervisor' && (
                   <>
                     <Link
