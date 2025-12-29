@@ -7,6 +7,11 @@ use Illuminate\Support\Facades\DB;
 
 return new class extends Migration {
     /**
+     * Disable transaction wrapping for this migration to allow try-catch of DB statements on Postgres
+     */
+    public $withinTransaction = false;
+
+    /**
      * Run the migrations.
      */
     public function up(): void
