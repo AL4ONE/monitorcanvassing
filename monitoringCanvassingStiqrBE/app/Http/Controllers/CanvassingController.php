@@ -13,33 +13,50 @@ class CanvassingController extends Controller
     /**
      * Delete all canvassing cycles with status 'success'
      */
-    public function cleanupSuccess()
+    /**
+     * Delete all messages with status 'valid' and their images
+     */
+    public function cleanupValid()
     {
         try {
             DB::beginTransaction();
 
-            // Count records to be deleted for logging
-            $count = CanvassingCycle::where('status', 'success')->count();
+            // Get valid messages
+            $validMessages = Message::where('validation_status', 'valid')->get();
+            $count = $validMessages->count();
 
-            // Delete records
-            // Note: Cascade delete on messages table will handle the related messages
-            CanvassingCycle::where('status', 'success')->delete();
+            if ($count === 0) {
+                DB::commit();
+                return response()->json([
+                    'message' => 'Tidak ada data valid yang perlu dihapus',
+                    'deleted_count' => 0
+                ]);
+            }
+
+            foreach ($validMessages as $message) {
+                // Delete image file file if exists
+                if ($message->screenshot_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($message->screenshot_path)) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($message->screenshot_path);
+                }
+
+                $message->delete();
+            }
 
             DB::commit();
 
-            Log::info('Bulk delete success canvassing data', [
+            Log::info('Bulk cleanup valid messages', [
                 'deleted_count' => $count,
                 'user_id' => auth()->id()
             ]);
 
             return response()->json([
-                'message' => 'Berhasil menghapus data canvassing yang sukses',
+                'message' => 'Berhasil menghapus data valid',
                 'deleted_count' => $count
             ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Cleanup success error', [
+            Log::error('Cleanup valid error', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
