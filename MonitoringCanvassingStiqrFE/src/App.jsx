@@ -3,7 +3,6 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Login from './pages/Login';
 import StaffDashboard from './pages/StaffDashboard';
 import StaffUpload from './pages/StaffUpload';
-import StaffUpload from './pages/StaffUpload';
 import SupervisorDashboard from './pages/SupervisorDashboard';
 import QualityCheck from './pages/QualityCheck';
 import Report from './pages/Report';
