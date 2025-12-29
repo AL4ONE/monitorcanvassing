@@ -24,11 +24,19 @@ return new class extends Migration {
         });
 
         // 3. Modify status enum (make it string to support new values flexibly)
-        // Since doctrine/dbal might not be present, we try a raw statement or just leave it if it works as string.
-        // But changing enum to string usually requires explicit change.
-        // Let's try raw SQL for MySQL which is likely used here.
+        $driver = DB::getDriverName();
+
         try {
-            DB::statement("ALTER TABLE canvassing_cycles MODIFY COLUMN status VARCHAR(50) DEFAULT 'active'");
+            if ($driver === 'pgsql') {
+                // Postgres syntax
+                // Depending on Postgres version and current type, we might need USING.
+                // Assuming it was limited set, casting to text then varchar is safe.
+                DB::statement("ALTER TABLE canvassing_cycles ALTER COLUMN status TYPE VARCHAR(50) USING status::text");
+                DB::statement("ALTER TABLE canvassing_cycles ALTER COLUMN status SET DEFAULT 'active'");
+            } else {
+                // MySQL syntax
+                DB::statement("ALTER TABLE canvassing_cycles MODIFY COLUMN status VARCHAR(50) DEFAULT 'active'");
+            }
 
             // Update existing values to new terminology
             DB::table('canvassing_cycles')->where('status', 'active')->update(['status' => 'ongoing']);
@@ -36,8 +44,7 @@ return new class extends Migration {
             DB::table('canvassing_cycles')->where('status', 'invalid')->update(['status' => 'rejected']);
 
         } catch (\Exception $e) {
-            // Fallback or ignore if not MySQL or rights issue
-            // We'll trust the user has ability to handle this or we can add a new column if this fails.
+            // Log error but continue
         }
 
         // 4. Create cycle_status_logs table
