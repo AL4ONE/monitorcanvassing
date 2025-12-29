@@ -27,7 +27,7 @@ class DashboardController extends Controller
     {
         $user = Auth::user();
         $date = $request->get('date', Carbon::today()->format('Y-m-d'));
-        
+
         // Log for debugging
         Log::info('Dashboard request', [
             'user_id' => $user->id,
@@ -50,26 +50,26 @@ class DashboardController extends Controller
         // Get targets per stage
         $targetsPerStage = [];
         $target = 50;
-        
+
         for ($stage = 0; $stage <= 7; $stage++) {
-            $count = Message::whereHas('canvassingCycle', function($q) use ($staffId) {
+            $count = Message::whereHas('canvassingCycle', function ($q) use ($staffId) {
                 $q->where('staff_id', $staffId);
             })
-            ->where('stage', $stage)
-            ->whereDate('submitted_at', $date)
-            ->count();
-            
-                // Convert stage to string key for frontend compatibility (Object.entries needs string keys)
-                $targetsPerStage[(string)$stage] = [
-                    'count' => $count,
-                    'target' => $target,
-                    'met' => $count >= $target,
-                ];
+                ->where('stage', $stage)
+                ->whereDate('submitted_at', $date)
+                ->count();
+
+            // Convert stage to string key for frontend compatibility (Object.entries needs string keys)
+            $targetsPerStage[(string) $stage] = [
+                'count' => $count,
+                'target' => $target,
+                'met' => $count >= $target,
+            ];
         }
 
         // Get recent messages
         $recentMessages = Message::with(['canvassingCycle.prospect'])
-            ->whereHas('canvassingCycle', function($q) use ($staffId) {
+            ->whereHas('canvassingCycle', function ($q) use ($staffId) {
                 $q->where('staff_id', $staffId);
             })
             ->whereDate('submitted_at', $date)
@@ -78,11 +78,11 @@ class DashboardController extends Controller
             ->get();
 
         // Get pending messages count
-        $pendingCount = Message::whereHas('canvassingCycle', function($q) use ($staffId) {
+        $pendingCount = Message::whereHas('canvassingCycle', function ($q) use ($staffId) {
             $q->where('staff_id', $staffId);
         })
-        ->where('validation_status', 'pending')
-        ->count();
+            ->where('validation_status', 'pending')
+            ->count();
 
         return response()->json([
             'targets_per_stage' => $targetsPerStage,
@@ -107,7 +107,7 @@ class DashboardController extends Controller
 
             // Get all staff
             $staffs = User::where('role', 'staff')->get();
-            
+
             Log::info('Supervisor dashboard', [
                 'date' => $date,
                 'staff_count' => $staffs->count(),
@@ -118,17 +118,17 @@ class DashboardController extends Controller
                 // Get targets per stage
                 $targetsPerStage = [];
                 $target = 50;
-                
+
                 for ($stage = 0; $stage <= 7; $stage++) {
-                    $count = Message::whereHas('canvassingCycle', function($q) use ($staff) {
+                    $count = Message::whereHas('canvassingCycle', function ($q) use ($staff) {
                         $q->where('staff_id', $staff->id);
                     })
-                    ->where('stage', $stage)
-                    ->whereDate('submitted_at', $date)
-                    ->count();
-                    
+                        ->where('stage', $stage)
+                        ->whereDate('submitted_at', $date)
+                        ->count();
+
                     // Convert stage to string key for frontend compatibility
-                    $targetsPerStage[(string)$stage] = [
+                    $targetsPerStage[(string) $stage] = [
                         'count' => $count,
                         'target' => $target,
                         'met' => $count >= $target,
@@ -143,7 +143,7 @@ class DashboardController extends Controller
                 foreach ($targetsPerStage as $stageData) {
                     $totalMessages += $stageData['count'] ?? 0;
                 }
-                
+
                 Log::info('Staff stats', [
                     'staff_id' => $staff->id,
                     'staff_name' => $staff->name,
@@ -162,11 +162,11 @@ class DashboardController extends Controller
                     'red_flags' => $redFlags,
                 ];
             }
-            
+
             // Overall stats - don't filter by date for pending_quality_checks (show all pending)
             $totalCanvassing = Message::where('stage', 0)->whereDate('submitted_at', $date)->count();
             $totalFollowUp = Message::where('stage', '>', 0)->whereDate('submitted_at', $date)->count();
-            
+
             Log::info('Supervisor dashboard response', [
                 'date' => $date,
                 'staff_stats_count' => count($staffStats),
@@ -185,9 +185,34 @@ class DashboardController extends Controller
                     ->count(), // All pending, not filtered by date
             ];
 
+            // Chart Data (Last 7 days)
+            $chartData = [];
+            $startDate = Carbon::parse($date)->subDays(6);
+
+            for ($i = 0; $i < 7; $i++) {
+                $currentDate = $startDate->copy()->addDays($i);
+                $dateString = $currentDate->format('Y-m-d');
+                $displayDate = $currentDate->format('d M'); // e.g. "12 Dec"
+
+                $dailyTotal = Message::whereDate('submitted_at', $dateString)->count();
+                $dailySuccess = \App\Models\CanvassingCycle::where('status', 'success')
+                    ->whereDate('updated_at', $dateString) // Assuming updated_at reflects when it became success
+                    ->count();
+
+                // If updated_at isn't reliable for success date, we might query messages where stage reached final
+                // But for now let's use updated_at of cycle for "success" event
+
+                $chartData[] = [
+                    'date' => $displayDate,
+                    'total_messages' => $dailyTotal,
+                    'success_cycles' => $dailySuccess,
+                ];
+            }
+
             return response()->json([
                 'staff_stats' => $staffStats,
                 'overall_stats' => $overallStats,
+                'chart_data' => $chartData,
             ]);
         } catch (\Exception $e) {
             Log::error('Supervisor dashboard error', [
@@ -195,7 +220,7 @@ class DashboardController extends Controller
                 'trace' => $e->getTraceAsString(),
                 'date' => $date ?? 'unknown',
             ]);
-            
+
             return response()->json([
                 'error' => 'Server Error',
                 'message' => config('app.debug') ? $e->getMessage() : 'An error occurred while fetching dashboard data',
@@ -212,13 +237,13 @@ class DashboardController extends Controller
             $flags = [];
 
             // Check for duplicate hashes
-            $duplicateHashes = Message::whereHas('canvassingCycle', function($q) use ($staffId) {
+            $duplicateHashes = Message::whereHas('canvassingCycle', function ($q) use ($staffId) {
                 $q->where('staff_id', $staffId);
             })
-            ->select('screenshot_hash', DB::raw('count(*) as count'))
-            ->groupBy('screenshot_hash')
-            ->having('count', '>', 1)
-            ->count();
+                ->select('screenshot_hash', DB::raw('count(*) as count'))
+                ->groupBy('screenshot_hash')
+                ->having('count', '>', 1)
+                ->count();
 
             if ($duplicateHashes > 0) {
                 $flags[] = [
@@ -230,13 +255,13 @@ class DashboardController extends Controller
 
             // Check for invalid follow-ups (missing previous stage)
             $invalidFollowUps = Message::with(['canvassingCycle'])
-                ->whereHas('canvassingCycle', function($q) use ($staffId) {
+                ->whereHas('canvassingCycle', function ($q) use ($staffId) {
                     $q->where('staff_id', $staffId);
                 })
                 ->where('stage', '>', 0)
                 ->whereDate('submitted_at', $date)
                 ->get()
-                ->filter(function($message) {
+                ->filter(function ($message) {
                     if (!$message->canvassing_cycle_id) {
                         return false; // Skip if no cycle ID
                     }
@@ -257,30 +282,30 @@ class DashboardController extends Controller
 
             // Check for OCR username mismatch (use partial matching to handle truncated usernames)
             $mismatchedUsernames = Message::with(['canvassingCycle.prospect'])
-                ->whereHas('canvassingCycle', function($q) use ($staffId) {
+                ->whereHas('canvassingCycle', function ($q) use ($staffId) {
                     $q->where('staff_id', $staffId);
                 })
                 ->whereDate('submitted_at', $date)
                 ->get()
-                ->filter(function($message) {
+                ->filter(function ($message) {
                     // Add null check to prevent errors
                     if (!$message->canvassingCycle || !$message->canvassingCycle->prospect) {
                         return false; // Skip if relationship is missing
                     }
-                    
+
                     $prospectUsername = strtolower(trim($message->canvassingCycle->prospect->instagram_username ?? ''));
                     $ocrUsername = strtolower(trim($message->ocr_instagram_username ?? ''));
-                
+
                     if (empty($ocrUsername)) {
                         return true; // Missing OCR username is a mismatch
                     }
-                    
+
                     // Use partial matching (same logic as findOrCreateCycle)
                     // Check if they match exactly or one is a prefix of the other
                     if ($ocrUsername === $prospectUsername) {
                         return false; // Match
                     }
-                    
+
                     // Check if one starts with the other (handle truncation)
                     $minLength = min(strlen($ocrUsername), strlen($prospectUsername));
                     if ($minLength >= 10) {
@@ -291,7 +316,7 @@ class DashboardController extends Controller
                             return false; // Match (one is truncated version of the other)
                         }
                     }
-                    
+
                     // Check prefix matching (for usernames with underscore)
                     $ocrParts = explode('_', $ocrUsername);
                     $prospectParts = explode('_', $prospectUsername);
@@ -300,7 +325,7 @@ class DashboardController extends Controller
                             return false; // Match (same prefix, different suffix length)
                         }
                     }
-                    
+
                     return true; // Mismatch
                 })
                 ->count();

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import api from '../api';
 
 export default function SupervisorDashboard() {
@@ -28,6 +29,24 @@ export default function SupervisorDashboard() {
     }
   };
 
+  const handleBulkDelete = async () => {
+    if (!window.confirm('Apakah Anda yakin ingin menghapus SEMUA data canvassing yang SUKSES? Tindakan ini tidak dapat dibatalkan.')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await api.delete('/canvassing/cleanup');
+      alert(response.data.message);
+      fetchDashboard();
+    } catch (error) {
+      console.error('Error bulk delete:', error);
+      alert('Gagal menghapus data: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading) {
     return <div className="p-6">Memuat...</div>;
   }
@@ -43,6 +62,12 @@ export default function SupervisorDashboard() {
             onChange={(e) => setSelectedDate(e.target.value)}
             className="border border-gray-300 rounded-md px-3 py-2"
           />
+          <button
+            onClick={handleBulkDelete}
+            className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
+          >
+            Hapus Data Success
+          </button>
           <Link
             to="/quality-check"
             className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
@@ -51,6 +76,35 @@ export default function SupervisorDashboard() {
           </Link>
         </div>
       </div>
+
+      {/* Charts */}
+      {data?.chart_data && (
+        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+          <h2 className="text-lg font-semibold mb-4">Statistik 7 Hari Terakhir</h2>
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={data.chart_data}
+                margin={{
+                  top: 20,
+                  right: 30,
+                  left: 20,
+                  bottom: 5,
+                }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="total_messages" name="Total Pesan" fill="#4F46E5" />
+                <Bar dataKey="success_cycles" name="Success Cycle" fill="#10B981" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )
+      }
 
       {/* Overall Stats */}
       {data?.overall_stats ? (
@@ -96,50 +150,49 @@ export default function SupervisorDashboard() {
       {data?.staff_stats && data.staff_stats.length > 0 ? (
         <div className="space-y-6">
           {data.staff_stats.map((staffStat) => (
-          <div key={staffStat.staff.id} className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <h2 className="text-xl font-semibold">{staffStat.staff.name}</h2>
-                <p className="text-sm text-gray-600">{staffStat.staff.email}</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2 mb-4">
-              {staffStat.targets_per_stage && Object.entries(staffStat.targets_per_stage).map(([stage, targetData]) => (
-                <div key={stage} className="border rounded-lg p-3">
-                  <h3 className="text-xs font-medium text-gray-600 mb-1">
-                    {stage === '0' ? 'Canvassing' : `FU-${stage}`}
-                  </h3>
-                  <div className="flex items-center justify-between">
-                    <span className="text-lg font-bold">
-                      {targetData.count || 0}/{targetData.target || 50}
-                    </span>
-                    <span
-                      className={`text-sm ${
-                        targetData.met ? 'text-green-500' : 'text-red-500'
-                      }`}
-                    >
-                      {targetData.met ? '✓' : '✗'}
-                    </span>
-                  </div>
+            <div key={staffStat.staff.id} className="bg-white rounded-lg shadow-md p-6">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h2 className="text-xl font-semibold">{staffStat.staff.name}</h2>
+                  <p className="text-sm text-gray-600">{staffStat.staff.email}</p>
                 </div>
-              ))}
-            </div>
-
-            {/* Red Flags */}
-            {staffStat.red_flags && staffStat.red_flags.length > 0 && (
-              <div className="mt-4">
-                <h3 className="text-sm font-medium text-red-600 mb-2">Red Flags:</h3>
-                <ul className="list-disc list-inside space-y-1">
-                  {staffStat.red_flags.map((flag, index) => (
-                    <li key={index} className="text-sm text-red-600">
-                      {flag.message}
-                    </li>
-                  ))}
-                </ul>
               </div>
-            )}
-          </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2 mb-4">
+                {staffStat.targets_per_stage && Object.entries(staffStat.targets_per_stage).map(([stage, targetData]) => (
+                  <div key={stage} className="border rounded-lg p-3">
+                    <h3 className="text-xs font-medium text-gray-600 mb-1">
+                      {stage === '0' ? 'Canvassing' : `FU-${stage}`}
+                    </h3>
+                    <div className="flex items-center justify-between">
+                      <span className="text-lg font-bold">
+                        {targetData.count || 0}/{targetData.target || 50}
+                      </span>
+                      <span
+                        className={`text-sm ${targetData.met ? 'text-green-500' : 'text-red-500'
+                          }`}
+                      >
+                        {targetData.met ? '✓' : '✗'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Red Flags */}
+              {staffStat.red_flags && staffStat.red_flags.length > 0 && (
+                <div className="mt-4">
+                  <h3 className="text-sm font-medium text-red-600 mb-2">Red Flags:</h3>
+                  <ul className="list-disc list-inside space-y-1">
+                    {staffStat.red_flags.map((flag, index) => (
+                      <li key={index} className="text-sm text-red-600">
+                        {flag.message}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
           ))}
         </div>
       ) : (

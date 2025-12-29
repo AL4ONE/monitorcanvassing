@@ -26,6 +26,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/quality-checks', [QualityCheckController::class, 'index']);
         Route::get('/quality-checks/{id}', [QualityCheckController::class, 'show']);
         Route::post('/quality-checks/{id}/review', [QualityCheckController::class, 'review']);
+
+        // Canvassing Data Management
+        Route::delete('/canvassing/cleanup', [\App\Http\Controllers\CanvassingController::class, 'cleanupSuccess']);
     });
 });
 
