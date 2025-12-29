@@ -11,37 +11,36 @@ export default function Report() {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
 
-    // View state for specific image
+    // View state
     const [previewImage, setPreviewImage] = useState(null);
+    const [historyModal, setHistoryModal] = useState(null); // cycle id or null
+    const [logs, setLogs] = useState([]);
+
+    // Editing state
+    const [editingId, setEditingId] = useState(null);
+    const [editForm, setEditForm] = useState({
+        status: '',
+        next_followup_date: '',
+        next_action: ''
+    });
 
     useEffect(() => {
-        fetchUsers();
+        loadStaffList();
         fetchReport();
-    }, []); // Initial load
+    }, []);
 
     useEffect(() => {
         fetchReport();
     }, [selectedStaff, startDate, endDate]);
 
-    const fetchUsers = async () => {
+    const loadStaffList = async () => {
         try {
-            // Assuming we can get staff list from existing endpoint or we might need a new one
-            // For now let's hope existing endpoint structure supports relevant user listing or just rely on IDs
-            // Actually we know there is no specific "get all staff" public endpoint easily accessible without auth, 
-            // but SupervisorDashboard uses logic inside DashboardController to get stats.
-            // Let's create a simple staff fetch or just hardcode if needed, but better to fetch.
-            // Wait, we don't have a clean "get all staff" endpoint yet? 
-            // SupervisorDashboard uses `dashboard` endpoint to get staff stats. We can reuse that or add one.
-            // For now, let's just fetch report data and extract unique staff from it if we want to be lazy, 
-            // OR better, let's implement a proper fetch if needed. 
-            // Actually, let's look at `DashboardController` - `supervisorDashboard` returns staff list in `staff_stats`.
-            // We can use that if we want.
-            // Or just try to hit an endpoint.
-            // We will skip filling the dropdown for now or try to mock it.
-            // *Correction*: We can just fetch report and populate filter? No, we need filter to fetch.
-            // Let's assume we can fetch report without filters first.
-        } catch (error) {
-            console.error("Error fetching users", error);
+            const res = await api.get('/dashboard');
+            if (res.data.staff_stats) {
+                setUsers(res.data.staff_stats.map(s => s.staff));
+            }
+        } catch (e) {
+            console.error(e);
         }
     };
 
@@ -81,24 +80,39 @@ export default function Report() {
         }
     };
 
-    // Extract unique staff for filter from loaded data if we don't have a dedicated endpoint yet
-    // This is a bit chicken-and-egg if we filter on backend.
-    // Ideally we should add a Reference API. For now, let's just use text input or simple ID?
-    // Let's try to get staff list from dashboard endpoint just once.
-    const loadStaffList = async () => {
+    const handleEditClick = (cycle) => {
+        setEditingId(cycle.id);
+        setEditForm({
+            status: cycle.status,
+            next_followup_date: cycle.next_followup_date !== '-' ? cycle.next_followup_date : '',
+            next_action: cycle.next_action !== '-' ? cycle.next_action : ''
+        });
+    };
+
+    const handleCancelEdit = () => {
+        setEditingId(null);
+        setEditForm({ status: '', next_followup_date: '', next_action: '' });
+    };
+
+    const handleSaveEdit = async (id) => {
         try {
-            const res = await api.get('/dashboard'); // This returns staff_stats
-            if (res.data.staff_stats) {
-                setUsers(res.data.staff_stats.map(s => s.staff));
-            }
-        } catch (e) {
-            console.error(e);
+            setLoading(true);
+            const response = await api.patch(`/canvassing/${id}/status`, editForm);
+            alert('Berhasil memperbarui data');
+            setEditingId(null);
+            fetchReport(); // Refresh data
+        } catch (error) {
+            console.error('Error saving edit:', error);
+            alert('Gagal menyimpan: ' + (error.response?.data?.message || error.message));
+        } finally {
+            setLoading(false);
         }
     };
 
-    useEffect(() => {
-        loadStaffList();
-    }, []);
+    const handleShowHistory = (cycle) => {
+        setLogs(cycle.logs || []);
+        setHistoryModal(cycle.id);
+    };
 
     return (
         <div className="max-w-full mx-auto p-4">
@@ -149,17 +163,17 @@ export default function Report() {
 
             {/* Table */}
             <div className="bg-white rounded-lg shadow overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
+                <table className="min-w-full divide-y divide-gray-200 text-sm">
                     <thead className="bg-gray-50">
                         <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50 z-10">Nama Merchant</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Staff</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kategori</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-
+                            <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50 z-10">Merchant</th>
+                            <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Kontak</th>
+                            <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Staff / Kategori</th>
+                            <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Status & Action</th>
+                            <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Dates</th>
                             {/* Dynamic Columns for Stages */}
                             {[...Array(8)].map((_, i) => (
-                                <th key={i} className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-l">
+                                <th key={i} className="px-2 py-3 text-center font-medium text-gray-500 uppercase tracking-wider border-l min-w-[100px]">
                                     {i === 0 ? 'Canvassing' : `FU ${i}`}
                                 </th>
                             ))}
@@ -167,34 +181,98 @@ export default function Report() {
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                         {loading ? (
-                            <tr><td colSpan="12" className="text-center py-4">Memuat data...</td></tr>
+                            <tr><td colSpan="13" className="text-center py-4">Memuat data...</td></tr>
                         ) : reportData.length === 0 ? (
-                            <tr><td colSpan="12" className="text-center py-4">Tidak ada data</td></tr>
+                            <tr><td colSpan="13" className="text-center py-4">Tidak ada data</td></tr>
                         ) : (
                             reportData.map((row) => (
-                                <tr key={row.id}>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 sticky left-0 bg-white z-10 shadow-sm md:shadow-none">
-                                        {row.merchant_name}
+                                <tr key={row.id} className="hover:bg-gray-50">
+                                    <td className="px-4 py-4 whitespace-normal font-medium text-gray-900 sticky left-0 bg-white z-10 shadow-sm">
+                                        <div>{row.merchant_name}</div>
+                                        <button
+                                            onClick={() => handleShowHistory(row)}
+                                            className="text-xs text-blue-600 hover:text-blue-800 mt-1 underline"
+                                        >
+                                            Lihat History
+                                        </button>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{row.staff_name}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{row.category}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                ${row.status === 'success' ? 'bg-green-100 text-green-800' :
-                                                row.status === 'failed' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                                            {row.status}
-                                        </span>
+                                    <td className="px-4 py-4 whitespace-nowrap text-gray-500">
+                                        {row.contact_number}
+                                    </td>
+                                    <td className="px-4 py-4 whitespace-nowrap text-gray-500">
+                                        <div className="font-medium">{row.staff_name}</div>
+                                        <div className="text-xs text-gray-400">{row.category}</div>
+                                    </td>
+                                    <td className="px-4 py-4 whitespace-nowrap align-top">
+                                        {editingId === row.id ? (
+                                            <div className="flex flex-col gap-2 min-w-[160px]">
+                                                <select
+                                                    value={editForm.status}
+                                                    onChange={e => setEditForm({ ...editForm, status: e.target.value })}
+                                                    className="text-xs border rounded p-1"
+                                                >
+                                                    <option value="active">Active</option>
+                                                    <option value="ongoing">Ongoing</option>
+                                                    <option value="converted">Converted</option>
+                                                    <option value="rejected">Rejected</option>
+                                                </select>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Next Action..."
+                                                    value={editForm.next_action}
+                                                    onChange={e => setEditForm({ ...editForm, next_action: e.target.value })}
+                                                    className="text-xs border rounded p-1"
+                                                />
+                                                <div className="flex gap-1 justify-end mt-1">
+                                                    <button onClick={handleCancelEdit} className="text-xs text-gray-500 hover:text-gray-700">Cancel</button>
+                                                    <button onClick={() => handleSaveEdit(row.id)} className="text-xs bg-blue-600 text-white px-2 py-1 rounded">Save</button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col gap-1 items-start">
+                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                                    ${['converted', 'success'].includes(row.status) ? 'bg-green-100 text-green-800' :
+                                                        ['rejected', 'failed', 'invalid'].includes(row.status) ? 'bg-red-100 text-red-800' :
+                                                            'bg-blue-100 text-blue-800'}`}>
+                                                    {row.status}
+                                                </span>
+                                                {row.next_action !== '-' && (
+                                                    <div className="text-xs text-gray-600 max-w-[150px] truncate" title={row.next_action}>
+                                                        Action: {row.next_action}
+                                                    </div>
+                                                )}
+                                                <button onClick={() => handleEditClick(row)} className="text-xs text-gray-400 hover:text-gray-600 underline">
+                                                    Edit
+                                                </button>
+                                            </div>
+                                        )}
+                                    </td>
+                                    <td className="px-4 py-4 whitespace-nowrap text-xs text-gray-500">
+                                        {editingId === row.id ? (
+                                            <input
+                                                type="date"
+                                                value={editForm.next_followup_date}
+                                                onChange={e => setEditForm({ ...editForm, next_followup_date: e.target.value })}
+                                                className="border rounded p-1 w-full"
+                                            />
+                                        ) : (
+                                            <>
+                                                <div>Start: {row.start_date}</div>
+                                                <div>Next: {row.next_followup_date}</div>
+                                                {row.last_followup_date !== '-' && <div className="text-gray-400">Last: {row.last_followup_date}</div>}
+                                            </>
+                                        )}
                                     </td>
 
                                     {/* Stages Cells */}
                                     {[...Array(8)].map((_, i) => {
                                         const stageData = row.stages[i];
                                         return (
-                                            <td key={i} className="px-6 py-4 whitespace-nowrap text-center border-l align-top">
+                                            <td key={i} className="px-2 py-4 whitespace-nowrap text-center border-l align-top">
                                                 {stageData ? (
                                                     <div className="flex flex-col items-center gap-1">
                                                         <div
-                                                            className="w-16 h-24 bg-gray-200 rounded cursor-pointer overflow-hidden border hover:border-indigo-500"
+                                                            className="w-12 h-16 bg-gray-100 rounded cursor-pointer overflow-hidden border hover:border-indigo-500 shadow-sm"
                                                             onClick={() => setPreviewImage(stageData.screenshot_url)}
                                                         >
                                                             <img
@@ -204,11 +282,11 @@ export default function Report() {
                                                                 loading="lazy"
                                                             />
                                                         </div>
-                                                        <span className="text-xs text-gray-500">{stageData.date}</span>
-                                                        <span className={`text-[10px] px-1 rounded ${stageData.status === 'valid' ? 'bg-green-100 text-green-700' :
-                                                            stageData.status === 'invalid' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
+                                                        <span className="text-[10px] text-gray-500">{stageData.date.split('-').slice(1).join('/')}</span>
+                                                        <span className={`text-[9px] px-1 rounded ${stageData.status === 'valid' ? 'bg-green-50 text-green-700' :
+                                                            stageData.status === 'invalid' ? 'bg-red-50 text-red-700' : 'bg-yellow-50 text-yellow-700'
                                                             }`}>
-                                                            {stageData.status}
+                                                            {stageData.status && stageData.status.charAt(0).toUpperCase()}
                                                         </span>
                                                     </div>
                                                 ) : '-'}
@@ -236,6 +314,47 @@ export default function Report() {
                             ✕
                         </button>
                         <img src={previewImage} alt="Preview" className="max-w-full max-h-[85vh] object-contain" />
+                    </div>
+                </div>
+            )}
+
+            {/* History Modal */}
+            {historyModal && (
+                <div
+                    className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+                    onClick={() => setHistoryModal(null)}
+                >
+                    <div className="bg-white rounded-lg p-6 max-w-lg w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-bold">Riwayat Status</h2>
+                            <button onClick={() => setHistoryModal(null)} className="text-gray-500 hover:text-gray-700">✕</button>
+                        </div>
+                        {logs.length === 0 ? (
+                            <p className="text-gray-500">Belum ada riwayat perubahan.</p>
+                        ) : (
+                            <ul className="space-y-4">
+                                {logs.map((log, idx) => (
+                                    <li key={idx} className="border-b pb-2 last:border-0">
+                                        <div className="flex justify-between text-sm">
+                                            <span className="font-semibold">{log.date}</span>
+                                            <span className="text-gray-500">{log.by}</span>
+                                        </div>
+                                        <div className="mt-1 text-sm">
+                                            Status: <span className="line-through text-gray-400">{log.old}</span>{' '}
+                                            <span className="text-gray-600">→</span>{' '}
+                                            <span className="font-medium text-blue-600">{log.new}</span>
+                                        </div>
+                                        {/* Since backend implementation of logs returning notes wasn't fully checked, we assume it might not be in the 'logs' map in controller unless added. 
+                                            Let's check controller again. It didn't map notes. 
+                                            We can update controller to map notes or just skip notes for now. 
+                                            User requirement was "History perubahan status (tanggal jam)". 
+                                            It didn't explicitly ask for notes, but notes helps. 
+                                            I'll leave it as is for now.
+                                        */}
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
                     </div>
                 </div>
             )}

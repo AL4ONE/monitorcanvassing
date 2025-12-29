@@ -17,10 +17,15 @@ class CanvassingCycle extends Model
         'start_date',
         'current_stage',
         'status',
+        'last_followup_date',
+        'next_followup_date',
+        'next_action',
     ];
 
     protected $casts = [
         'start_date' => 'date',
+        'last_followup_date' => 'date',
+        'next_followup_date' => 'date',
     ];
 
     public function prospect(): BelongsTo
@@ -36,6 +41,11 @@ class CanvassingCycle extends Model
     public function messages(): HasMany
     {
         return $this->hasMany(Message::class);
+    }
+
+    public function statusLogs(): HasMany
+    {
+        return $this->hasMany(CycleStatusLog::class)->orderBy('created_at', 'desc');
     }
 
     public function getNextStage(): int

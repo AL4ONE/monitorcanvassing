@@ -37,6 +37,7 @@ class MessageController extends Controller
         $request->validate([
             'screenshot' => 'required|image|mimes:jpeg,png,jpg,gif|max:10240', // 10MB max
             'stage' => 'nullable|integer|min:0|max:7',
+            'contact_number' => 'nullable|string|max:50',
         ]);
 
         $user = Auth::user();
@@ -189,10 +190,20 @@ class MessageController extends Controller
                 'validation_status' => 'pending',
             ]);
 
-            // Update cycle current_stage
-            $cycleResult['cycle']->update([
+            // Update cycle current_stage and last_followup_date
+            $cycleUpdates = [
                 'current_stage' => $expectedStage,
-            ]);
+                'last_followup_date' => now(), // Update last interaction date
+            ];
+
+            // If contact number valid and prospect exists, update it
+            if ($request->filled('contact_number') && $cycleResult['cycle']->prospect) {
+                $cycleResult['cycle']->prospect->update([
+                    'contact_number' => $request->contact_number
+                ]);
+            }
+
+            $cycleResult['cycle']->update($cycleUpdates);
 
             DB::commit();
 
@@ -229,7 +240,7 @@ class MessageController extends Controller
         $user = Auth::user();
 
         $query = Message::with(['canvassingCycle.prospect', 'canvassingCycle.staff'])
-            ->whereHas('canvassingCycle', function($q) use ($user) {
+            ->whereHas('canvassingCycle', function ($q) use ($user) {
                 if ($user->role === 'staff') {
                     $q->where('staff_id', $user->id);
                 }
@@ -261,7 +272,7 @@ class MessageController extends Controller
         $user = Auth::user();
 
         $message = Message::with(['canvassingCycle.prospect', 'canvassingCycle.staff', 'qualityCheck.supervisor'])
-            ->whereHas('canvassingCycle', function($q) use ($user) {
+            ->whereHas('canvassingCycle', function ($q) use ($user) {
                 if ($user->role === 'staff') {
                     $q->where('staff_id', $user->id);
                 }
@@ -292,7 +303,7 @@ class MessageController extends Controller
             DB::beginTransaction();
 
             $message = Message::with('canvassingCycle')
-                ->whereHas('canvassingCycle', function($q) use ($user) {
+                ->whereHas('canvassingCycle', function ($q) use ($user) {
                     $q->where('staff_id', $user->id);
                 })
                 ->findOrFail($id);

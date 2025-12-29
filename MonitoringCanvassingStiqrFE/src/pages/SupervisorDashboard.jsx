@@ -7,16 +7,20 @@ export default function SupervisorDashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [viewMode, setViewMode] = useState('daily'); // 'daily' or 'weekly'
 
   useEffect(() => {
     fetchDashboard();
-  }, [selectedDate]);
+  }, [selectedDate, viewMode]);
 
   const fetchDashboard = async () => {
     try {
       setLoading(true);
       const response = await api.get('/dashboard', {
-        params: { date: selectedDate },
+        params: {
+          date: selectedDate,
+          view_mode: viewMode
+        },
       });
       console.log('Dashboard data:', response.data); // Debug log
       setData(response.data);
@@ -46,6 +50,15 @@ export default function SupervisorDashboard() {
             onChange={(e) => setSelectedDate(e.target.value)}
             className="border border-gray-300 rounded-md px-3 py-2"
           />
+
+          <select
+            value={viewMode}
+            onChange={(e) => setViewMode(e.target.value)}
+            className="border border-gray-300 rounded-md px-3 py-2"
+          >
+            <option value="daily">Harian</option>
+            <option value="weekly">Mingguan</option>
+          </select>
 
           <Link
             to="/report"
@@ -82,7 +95,8 @@ export default function SupervisorDashboard() {
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="total_messages" name="Total Pesan" fill="#4F46E5" />
+                <Legend />
+                <Bar dataKey="total_messages" name={`Total Pesan (${viewMode === 'weekly' ? 'Mingguan' : 'Harian'})`} fill="#4F46E5" />
                 <Bar dataKey="success_cycles" name="Success Cycle" fill="#10B981" />
               </BarChart>
             </ResponsiveContainer>

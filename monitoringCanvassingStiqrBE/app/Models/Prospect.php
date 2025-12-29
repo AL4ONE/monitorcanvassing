@@ -16,6 +16,7 @@ class Prospect extends Model
         'business_type',
         'channel',
         'instagram_link',
+        'contact_number',
     ];
 
     public function canvassingCycles(): HasMany
