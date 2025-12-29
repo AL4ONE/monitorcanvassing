@@ -5,6 +5,24 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\QualityCheckController;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Artisan;
+
+// Debug Route for Migrations (TEMPORARY)
+Route::get('/debug/migrate', function () {
+    try {
+        Artisan::call('migrate', ['--force' => true]);
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Migration command executed.',
+            'output' => Artisan::output()
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => $e->getMessage()
+        ], 500);
+    }
+});
 
 // Auth routes
 Route::post('/login', [AuthController::class, 'login']);
