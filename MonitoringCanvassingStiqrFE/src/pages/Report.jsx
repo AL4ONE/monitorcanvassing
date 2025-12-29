@@ -63,6 +63,24 @@ export default function Report() {
         }
     };
 
+    const handleCleanupValid = async () => {
+        if (!window.confirm('PERINGATAN: Apakah Anda yakin ingin menghapus SEMUA data yang statusnya VALID? Data ini akan hilang dari laporan dan tidak dapat dikembalikan.')) {
+            return;
+        }
+
+        try {
+            setLoading(true);
+            const response = await api.delete('/canvassing/cleanup-valid');
+            alert(response.data.message);
+            fetchReport();
+        } catch (error) {
+            console.error('Error cleanup valid:', error);
+            alert('Gagal menghapus data: ' + (error.response?.data?.message || error.message));
+        } finally {
+            setLoading(false);
+        }
+    };
+
     // Extract unique staff for filter from loaded data if we don't have a dedicated endpoint yet
     // This is a bit chicken-and-egg if we filter on backend.
     // Ideally we should add a Reference API. For now, let's just use text input or simple ID?
@@ -86,6 +104,12 @@ export default function Report() {
         <div className="max-w-full mx-auto p-4">
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold">Laporan Canvassing</h1>
+                <button
+                    onClick={handleCleanupValid}
+                    className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 text-sm font-medium"
+                >
+                    Hapus Data Valid
+                </button>
             </div>
 
             {/* Filters */}
@@ -182,7 +206,7 @@ export default function Report() {
                                                         </div>
                                                         <span className="text-xs text-gray-500">{stageData.date}</span>
                                                         <span className={`text-[10px] px-1 rounded ${stageData.status === 'valid' ? 'bg-green-100 text-green-700' :
-                                                                stageData.status === 'invalid' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
+                                                            stageData.status === 'invalid' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
                                                             }`}>
                                                             {stageData.status}
                                                         </span>

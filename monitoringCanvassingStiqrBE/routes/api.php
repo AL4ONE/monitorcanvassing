@@ -24,11 +24,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // Quality Check (Supervisor only)
     Route::middleware('role:supervisor')->group(function () {
         Route::get('/quality-checks', [QualityCheckController::class, 'index']);
+        Route::post('/quality-checks/approve-all', [QualityCheckController::class, 'approveAll']);
         Route::get('/quality-checks/{id}', [QualityCheckController::class, 'show']);
         Route::post('/quality-checks/{id}/review', [QualityCheckController::class, 'review']);
 
         // Canvassing Data Management
-        Route::delete('/canvassing/cleanup', [\App\Http\Controllers\CanvassingController::class, 'cleanupSuccess']);
+        Route::delete('/canvassing/cleanup-valid', [\App\Http\Controllers\CanvassingController::class, 'cleanupValid']);
         Route::get('/canvassing/report', [\App\Http\Controllers\CanvassingController::class, 'report']);
     });
 });

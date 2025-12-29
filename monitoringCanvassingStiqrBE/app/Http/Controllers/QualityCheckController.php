@@ -15,7 +15,7 @@ class QualityCheckController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
-        
+
         if ($user->role !== 'supervisor') {
             return response()->json([
                 'success' => false,
@@ -28,7 +28,7 @@ class QualityCheckController extends Controller
 
         // Filter by staff_id
         if ($request->has('staff_id')) {
-            $query->whereHas('canvassingCycle', function($q) use ($request) {
+            $query->whereHas('canvassingCycle', function ($q) use ($request) {
                 $q->where('staff_id', $request->staff_id);
             });
         }
@@ -41,7 +41,7 @@ class QualityCheckController extends Controller
         // Filter by Instagram username
         if ($request->has('username') && $request->username !== '') {
             $username = strtolower(trim($request->username));
-            $query->whereHas('canvassingCycle.prospect', function($q) use ($username) {
+            $query->whereHas('canvassingCycle.prospect', function ($q) use ($username) {
                 $q->where('instagram_username', 'like', '%' . $username . '%');
             })->orWhere('ocr_instagram_username', 'like', '%' . $username . '%');
         }
@@ -80,7 +80,7 @@ class QualityCheckController extends Controller
     public function review(Request $request, $id)
     {
         $user = Auth::user();
-        
+
         if ($user->role !== 'supervisor') {
             return response()->json([
                 'success' => false,
@@ -125,12 +125,73 @@ class QualityCheckController extends Controller
     }
 
     /**
+     * Approve all pending messages
+     */
+    public function approveAll(Request $request)
+    {
+        $user = Auth::user();
+
+        if ($user->role !== 'supervisor') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Hanya supervisor yang dapat melakukan quality check',
+            ], 403);
+        }
+
+        try {
+            \Illuminate\Support\Facades\DB::beginTransaction();
+
+            $pendingMessages = Message::where('validation_status', 'pending')
+                ->when($request->staff_id, function ($q) use ($request) {
+                    $q->whereHas('canvassingCycle', function ($q2) use ($request) {
+                        $q2->where('staff_id', $request->staff_id);
+                    });
+                })
+                ->get();
+
+            $count = 0;
+            foreach ($pendingMessages as $message) {
+                // Create quality check
+                QualityCheck::create([
+                    'message_id' => $message->id,
+                    'supervisor_id' => $user->id,
+                    'status' => 'approved',
+                    'notes' => 'Auto-approved via Bulk Action',
+                ]);
+
+                // Update message
+                $message->update([
+                    'validation_status' => 'valid',
+                    'invalid_reason' => null,
+                ]);
+
+                $count++;
+            }
+
+            \Illuminate\Support\Facades\DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => "Berhasil menyetujui {$count} pesan pending",
+            ]);
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal melakukan approve all',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Get message detail for quality check
      */
     public function show($id)
     {
         $user = Auth::user();
-        
+
         if ($user->role !== 'supervisor') {
             return response()->json([
                 'success' => false,
@@ -141,14 +202,14 @@ class QualityCheckController extends Controller
         $message = Message::with([
             'canvassingCycle.prospect',
             'canvassingCycle.staff',
-            'canvassingCycle.messages' => function($q) {
+            'canvassingCycle.messages' => function ($q) {
                 $q->orderBy('stage', 'asc');
             },
             'qualityCheck.supervisor',
         ])->findOrFail($id);
 
         // Generate full URL for screenshot
-        $screenshotUrl = $message->screenshot_path 
+        $screenshotUrl = $message->screenshot_path
             ? url('storage/' . $message->screenshot_path)
             : null;
 

@@ -7,7 +7,7 @@ export default function QualityCheck() {
   const [loading, setLoading] = useState(true);
   const [reviewing, setReviewing] = useState(false);
   const [notes, setNotes] = useState('');
-  
+
   // Filter states
   const [filters, setFilters] = useState({
     stage: '',
@@ -25,7 +25,7 @@ export default function QualityCheck() {
     try {
       setLoading(true);
       const params = new URLSearchParams();
-      
+
       if (filters.stage !== '') {
         params.append('stage', filters.stage);
       }
@@ -41,7 +41,7 @@ export default function QualityCheck() {
       if (filters.category !== '') {
         params.append('category', filters.category);
       }
-      
+
       const queryString = params.toString();
       const url = `/quality-checks${queryString ? '?' + queryString : ''}`;
       const response = await api.get(url);
@@ -88,7 +88,7 @@ export default function QualityCheck() {
         status,
         notes,
       });
-      
+
       setSelectedMessage(null);
       setNotes('');
       fetchMessages();
@@ -97,6 +97,24 @@ export default function QualityCheck() {
       alert('Gagal melakukan review');
     } finally {
       setReviewing(false);
+    }
+  };
+
+  const handleApproveAll = async () => {
+    if (!window.confirm('Apakah Anda yakin ingin menyetujui SEMUA pesan yang pending?')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await api.post('/quality-checks/approve-all');
+      alert(response.data.message);
+      fetchMessages();
+    } catch (error) {
+      console.error('Error approving all:', error);
+      alert('Gagal melakukan approve all: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -121,8 +139,16 @@ export default function QualityCheck() {
                 Clear Filters
               </button>
             )}
+            {messages.length > 0 && (
+              <button
+                onClick={handleApproveAll}
+                className="ml-4 bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
+              >
+                Approve All
+              </button>
+            )}
           </div>
-          
+
           {/* Filters */}
           <div className="mb-4 space-y-3 p-4 bg-gray-50 rounded-lg">
             <div>
@@ -145,7 +171,7 @@ export default function QualityCheck() {
                 <option value="7">Follow Up 7</option>
               </select>
             </div>
-            
+
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">
                 Instagram Username
@@ -158,7 +184,7 @@ export default function QualityCheck() {
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
               />
             </div>
-            
+
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">
                 Kategori
@@ -174,7 +200,7 @@ export default function QualityCheck() {
                 <option value="restoran">Restoran</option>
               </select>
             </div>
-            
+
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -219,9 +245,9 @@ export default function QualityCheck() {
                         @{msg.canvassing_cycle?.prospect?.instagram_username || msg.ocr_instagram_username}
                       </p>
                       <p className="text-xs text-gray-500">
-                        {msg.category === 'umkm_fb' ? 'UMKM F&B' : 
-                         msg.category === 'coffee_shop' ? 'Coffee Shop' : 
-                         msg.category === 'restoran' ? 'Restoran' : 'N/A'}
+                        {msg.category === 'umkm_fb' ? 'UMKM F&B' :
+                          msg.category === 'coffee_shop' ? 'Coffee Shop' :
+                            msg.category === 'restoran' ? 'Restoran' : 'N/A'}
                       </p>
                       <p className="text-xs text-gray-500">
                         {new Date(msg.submitted_at).toLocaleString('id-ID')}
@@ -242,7 +268,7 @@ export default function QualityCheck() {
           {selectedMessage ? (
             <>
               <h2 className="text-lg font-semibold mb-4">Detail Message</h2>
-              
+
               <div className="mb-4">
                 {selectedMessage.screenshot_url ? (
                   <img
@@ -288,9 +314,9 @@ export default function QualityCheck() {
                 <div>
                   <label className="text-sm font-medium text-gray-700">Kategori</label>
                   <p className="text-sm">
-                    {selectedMessage.data.category === 'umkm_fb' ? 'UMKM F&B' : 
-                     selectedMessage.data.category === 'coffee_shop' ? 'Coffee Shop' : 
-                     selectedMessage.data.category === 'restoran' ? 'Restoran' : 'N/A'}
+                    {selectedMessage.data.category === 'umkm_fb' ? 'UMKM F&B' :
+                      selectedMessage.data.category === 'coffee_shop' ? 'Coffee Shop' :
+                        selectedMessage.data.category === 'restoran' ? 'Restoran' : 'N/A'}
                   </p>
                 </div>
 
@@ -309,11 +335,10 @@ export default function QualityCheck() {
                       {selectedMessage.data.canvassing_cycle.messages.map((m) => (
                         <div
                           key={m.id}
-                          className={`text-xs p-2 rounded ${
-                            m.id === selectedMessage.data.id
-                              ? 'bg-indigo-100'
-                              : 'bg-gray-50'
-                          }`}
+                          className={`text-xs p-2 rounded ${m.id === selectedMessage.data.id
+                            ? 'bg-indigo-100'
+                            : 'bg-gray-50'
+                            }`}
                         >
                           {m.stage === 0 ? 'Canvassing' : `FU-${m.stage}`} -{' '}
                           {new Date(m.submitted_at).toLocaleDateString('id-ID')}
