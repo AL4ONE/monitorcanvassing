@@ -628,30 +628,50 @@ class MessageValidationService
                 // because stage > 0 would have returned error above.
                 // So we Create a New Prospect and Cycle.
                 if (!$prospect) {
-                    \Illuminate\Support\Facades\Log::info('Creating new prospect and cycle for new canvassing', [
-                        'username' => $instagramUsername,
-                        'staff_id' => $staffId
-                    ]);
+                    // Logic check: Only allow creation for stage 0
+                    if ($stage > 0) {
+                        return [
+                            'valid' => false,
+                            'error' => "Prospect tidak ditemukan (v3). Follow-up harus untuk prospect yang sudah ada.",
+                            'cycle' => null
+                        ];
+                    }
 
-                    $prospect = Prospect::create([
-                        'instagram_username' => $instagramUsername,
-                        'category' => 'FnB', // Default category, will be updated by controller if provided
-                    ]);
+                    try {
+                        \Illuminate\Support\Facades\Log::info('Creating new prospect and cycle for new canvassing', [
+                            'username' => $instagramUsername,
+                            'staff_id' => $staffId
+                        ]);
 
-                    $cycle = CanvassingCycle::create([
-                        'prospect_id' => $prospect->id,
-                        'staff_id' => $staffId,
-                        'current_stage' => 0,
-                        'status' => 'active', // New cycle starts as active
-                        'start_date' => now(),
-                        'last_followup_date' => now(),
-                    ]);
+                        $prospect = Prospect::create([
+                            'instagram_username' => $instagramUsername,
+                            'category' => 'FnB',
+                        ]);
 
-                    return [
-                        'valid' => true,
-                        'cycle' => $cycle,
-                        // 'new_prospect' => true
-                    ];
+                        $cycle = CanvassingCycle::create([
+                            'prospect_id' => $prospect->id,
+                            'staff_id' => $staffId,
+                            'current_stage' => 0,
+                            'status' => 'active',
+                            'start_date' => now(),
+                            'last_followup_date' => now(),
+                        ]);
+
+                        return [
+                            'valid' => true,
+                            'cycle' => $cycle,
+                        ];
+                    } catch (\Exception $e) {
+                        \Illuminate\Support\Facades\Log::error('Failed to create new prospect', [
+                            'error' => $e->getMessage(),
+                            'trace' => $e->getTraceAsString()
+                        ]);
+                        return [
+                            'valid' => false,
+                            'error' => "Gagal membuat prospect baru: " . $e->getMessage(),
+                            'cycle' => null,
+                        ];
+                    }
                 }
 
                 $cycle = CanvassingCycle::where('prospect_id', $prospect->id)
