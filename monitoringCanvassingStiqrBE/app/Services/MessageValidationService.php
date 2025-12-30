@@ -64,7 +64,7 @@ class MessageValidationService
 
         // Check if there are active cycles that need follow-up
         $activeCycles = CanvassingCycle::where('staff_id', $staffId)
-            ->where('status', 'active')
+            ->whereIn('status', ['active', 'ongoing', 'sedang berlangsung'])
             ->with('messages')
             ->get();
 
@@ -412,7 +412,7 @@ class MessageValidationService
                     if (!$prospect) {
                         $activeProspects = Prospect::whereHas('canvassingCycles', function ($q) use ($staffId) {
                             $q->where('staff_id', $staffId)
-                                ->where('status', 'active');
+                                ->whereIn('status', ['active', 'ongoing', 'sedang berlangsung']);
                         })->get();
 
                         $bestProspect = null;
@@ -444,7 +444,7 @@ class MessageValidationService
                         $prospect = Prospect::where('instagram_username', 'like', $basePrefix . '_%')
                             ->whereHas('canvassingCycles', function ($q) use ($staffId) {
                                 $q->where('staff_id', $staffId)
-                                    ->where('status', 'active');
+                                    ->whereIn('status', ['active', 'ongoing', 'sedang berlangsung']);
                             })
                             ->first();
 
@@ -477,7 +477,7 @@ class MessageValidationService
                 // Check if cycle already exists for this staff
                 $existingCycle = CanvassingCycle::where('prospect_id', $prospect->id)
                     ->where('staff_id', $staffId)
-                    ->where('status', 'active')
+                    ->whereIn('status', ['active', 'ongoing', 'sedang berlangsung'])
                     ->first();
 
                 if ($existingCycle) {
@@ -506,7 +506,7 @@ class MessageValidationService
                     // Log all prospects for this staff to help debug
                     $allProspects = Prospect::whereHas('canvassingCycles', function ($q) use ($staffId) {
                         $q->where('staff_id', $staffId)
-                            ->where('status', 'active');
+                            ->whereIn('status', ['active', 'ongoing', 'sedang berlangsung']);
                     })->get(['id', 'instagram_username']);
 
                     // Get all OCR usernames from messages for this staff
@@ -549,7 +549,7 @@ class MessageValidationService
 
                 $cycle = CanvassingCycle::where('prospect_id', $prospect->id)
                     ->where('staff_id', $staffId)
-                    ->where('status', 'active')
+                    ->whereIn('status', ['active', 'ongoing', 'sedang berlangsung'])
                     ->first();
 
                 if (!$cycle) {
