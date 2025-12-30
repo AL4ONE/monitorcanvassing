@@ -617,6 +617,9 @@ class MessageValidationService
                         $errorMessage .= 'OCR usernames yang tersimpan: ' . implode(', ', array_slice($allOcrUsernames, 0, 5)) . (count($allOcrUsernames) > 5 ? '...' : '') . '.';
                     }
 
+                    return [
+                        'valid' => false,
+                        'error' => $errorMessage,
                         'cycle' => null,
                     ];
                 }
