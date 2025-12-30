@@ -23,6 +23,7 @@ class Message extends Model
         'submitted_at',
         'validation_status',
         'invalid_reason',
+        'channel',
     ];
 
     protected $casts = [

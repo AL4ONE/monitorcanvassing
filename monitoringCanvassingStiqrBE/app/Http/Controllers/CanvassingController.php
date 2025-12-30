@@ -25,6 +25,8 @@ class CanvassingController extends Controller
                 'status' => 'nullable|string',
                 'next_followup_date' => 'nullable|date',
                 'next_action' => 'nullable|string',
+                'failure_reason' => 'nullable|string',
+                'failure_notes' => 'nullable|string',
             ]);
 
             $updates = [];
@@ -48,6 +50,14 @@ class CanvassingController extends Controller
 
             if ($request->has('next_action')) {
                 $updates['next_action'] = $request->next_action;
+            }
+
+            if ($request->has('failure_reason')) {
+                $updates['failure_reason'] = $request->failure_reason;
+            }
+
+            if ($request->has('failure_notes')) {
+                $updates['failure_notes'] = $request->failure_notes;
             }
 
             // Transaction
@@ -199,6 +209,8 @@ class CanvassingController extends Controller
                     'last_followup_date' => $cycle->last_followup_date ? $cycle->last_followup_date->format('Y-m-d') : '-',
                     'next_followup_date' => $cycle->next_followup_date ? $cycle->next_followup_date->format('Y-m-d') : '-',
                     'next_action' => $cycle->next_action ?? '-',
+                    'failure_reason' => $cycle->failure_reason ?? '',
+                    'failure_notes' => $cycle->failure_notes ?? '',
                     'stages' => $messagesByStage,
                     'logs' => $cycle->statusLogs->map(function ($log) {
                         return [

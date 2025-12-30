@@ -21,7 +21,9 @@ export default function Report() {
     const [editForm, setEditForm] = useState({
         status: '',
         next_followup_date: '',
-        next_action: ''
+        next_action: '',
+        failure_reason: '',
+        failure_notes: ''
     });
 
     useEffect(() => {
@@ -85,13 +87,15 @@ export default function Report() {
         setEditForm({
             status: cycle.status,
             next_followup_date: cycle.next_followup_date !== '-' ? cycle.next_followup_date : '',
-            next_action: cycle.next_action !== '-' ? cycle.next_action : ''
+            next_action: cycle.next_action !== '-' ? cycle.next_action : '',
+            failure_reason: cycle.failure_reason || '',
+            failure_notes: cycle.failure_notes || ''
         });
     };
 
     const handleCancelEdit = () => {
         setEditingId(null);
-        setEditForm({ status: '', next_followup_date: '', next_action: '' });
+        setEditForm({ status: '', next_followup_date: '', next_action: '', failure_reason: '', failure_notes: '' });
     };
 
     const handleSaveEdit = async (id) => {
@@ -205,7 +209,7 @@ export default function Report() {
                                     </td>
                                     <td className="px-4 py-4 whitespace-nowrap align-top">
                                         {editingId === row.id ? (
-                                            <div className="flex flex-col gap-2 min-w-[160px]">
+                                            <div className="flex flex-col gap-2 min-w-[200px]">
                                                 <select
                                                     value={editForm.status}
                                                     onChange={e => setEditForm({ ...editForm, status: e.target.value })}
@@ -216,6 +220,29 @@ export default function Report() {
                                                     <option value="converted">Converted</option>
                                                     <option value="rejected">Rejected</option>
                                                 </select>
+
+                                                {(editForm.status === 'rejected' || editForm.status === 'failed' || editForm.status === 'invalid') && (
+                                                    <>
+                                                        <select
+                                                            value={editForm.failure_reason}
+                                                            onChange={e => setEditForm({ ...editForm, failure_reason: e.target.value })}
+                                                            className="text-xs border rounded p-1"
+                                                        >
+                                                            <option value="">Pilih Alasan Gagal...</option>
+                                                            <option value="Tidak Respon">Tidak Respon</option>
+                                                            <option value="Tidak Tertarik">Tidak Tertarik</option>
+                                                            <option value="Sudah Pakai Kompetitor">Sudah Pakai Kompetitor</option>
+                                                            <option value="Lainnya">Lainnya</option>
+                                                        </select>
+                                                        <textarea
+                                                            placeholder="Notes alasan gagal..."
+                                                            value={editForm.failure_notes}
+                                                            onChange={e => setEditForm({ ...editForm, failure_notes: e.target.value })}
+                                                            className="text-xs border rounded p-1 h-16"
+                                                        />
+                                                    </>
+                                                )}
+
                                                 <input
                                                     type="text"
                                                     placeholder="Next Action..."
@@ -236,6 +263,16 @@ export default function Report() {
                                                             'bg-blue-100 text-blue-800'}`}>
                                                     {row.status}
                                                 </span>
+                                                {row.failure_reason && (
+                                                    <div className="text-xs text-red-600 font-medium">
+                                                        {row.failure_reason}
+                                                    </div>
+                                                )}
+                                                {row.failure_notes && (
+                                                    <div className="text-xs text-gray-500 italic max-w-[150px] truncate" title={row.failure_notes}>
+                                                        "{row.failure_notes}"
+                                                    </div>
+                                                )}
                                                 {row.next_action !== '-' && (
                                                     <div className="text-xs text-gray-600 max-w-[150px] truncate" title={row.next_action}>
                                                         Action: {row.next_action}

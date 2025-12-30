@@ -10,6 +10,8 @@ export default function StaffUpload() {
   const [errors, setErrors] = useState([]);
   const [selectedStage, setSelectedStage] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [contact, setContact] = useState('');
+  const [channel, setChannel] = useState('');
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
 
@@ -30,7 +32,7 @@ export default function StaffUpload() {
       setFile(selectedFile);
       setMessage({ type: '', text: '' });
       setErrors([]);
-      
+
       // Create preview
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -42,7 +44,7 @@ export default function StaffUpload() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!file) {
       setMessage({ type: 'error', text: 'Pilih screenshot terlebih dahulu' });
       return;
@@ -67,6 +69,8 @@ export default function StaffUpload() {
       formData.append('screenshot', file);
       formData.append('stage', selectedStage.toString());
       formData.append('category', selectedCategory);
+      if (contact) formData.append('contact_number', contact);
+      if (channel) formData.append('channel', channel);
 
       const response = await api.post('/messages/upload', formData, {
         headers: {
@@ -84,6 +88,8 @@ export default function StaffUpload() {
       setPreview(null);
       setSelectedStage(0);
       setSelectedCategory('');
+      setContact('');
+      setChannel('');
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -129,7 +135,7 @@ export default function StaffUpload() {
             ))}
           </select>
           <p className="mt-2 text-sm text-gray-500">
-            {selectedStage === 0 
+            {selectedStage === 0
               ? 'Upload screenshot untuk canvassing awal'
               : `Pastikan sudah upload Follow Up ${selectedStage - 1} sebelumnya`}
           </p>
@@ -150,6 +156,39 @@ export default function StaffUpload() {
             <option value="coffee_shop">Coffee Shop</option>
             <option value="restoran">Restoran</option>
           </select>
+        </div>
+
+        <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Kontak (WA/HP)
+            </label>
+            <input
+              type="text"
+              value={contact}
+              onChange={(e) => setContact(e.target.value)}
+              placeholder="Contoh: 08123456789"
+              className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Channel FU
+            </label>
+            <select
+              value={channel}
+              onChange={(e) => setChannel(e.target.value)}
+              className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              <option value="">Pilih Channel</option>
+              <option value="instagram">Instagram</option>
+              <option value="tiktok">TikTok</option>
+              <option value="facebook">Facebook</option>
+              <option value="threads">Threads</option>
+              <option value="whatsapp">WhatsApp</option>
+              <option value="other">Lainnya</option>
+            </select>
+          </div>
         </div>
 
         <div className="mb-6">
@@ -184,11 +223,10 @@ export default function StaffUpload() {
 
         {message.text && (
           <div
-            className={`mb-4 p-4 rounded ${
-              message.type === 'success'
-                ? 'bg-green-50 text-green-800 border border-green-200'
-                : 'bg-red-50 text-red-800 border border-red-200'
-            }`}
+            className={`mb-4 p-4 rounded ${message.type === 'success'
+              ? 'bg-green-50 text-green-800 border border-green-200'
+              : 'bg-red-50 text-red-800 border border-red-200'
+              }`}
           >
             {message.text}
           </div>

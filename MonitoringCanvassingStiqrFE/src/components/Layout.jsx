@@ -1,9 +1,10 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Layout({ children }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = async () => {
     await logout();
@@ -24,14 +25,20 @@ export default function Layout({ children }) {
               <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
                 <Link
                   to="/dashboard"
-                  className="border-indigo-500 text-gray-900 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                  className={`${location.pathname === '/dashboard'
+                    ? 'border-indigo-500 text-gray-900'
+                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                    } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
                 >
                   Dashboard
                 </Link>
                 {user?.role === 'staff' && (
                   <Link
                     to="/upload"
-                    className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                    className={`${location.pathname === '/upload'
+                      ? 'border-indigo-500 text-gray-900'
+                      : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                      } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
                   >
                     Upload
                   </Link>
@@ -40,13 +47,19 @@ export default function Layout({ children }) {
                   <>
                     <Link
                       to="/quality-check"
-                      className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                      className={`${location.pathname === '/quality-check'
+                        ? 'border-indigo-500 text-gray-900'
+                        : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                        } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
                     >
                       Quality Check
                     </Link>
                     <Link
                       to="/report"
-                      className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                      className={`${location.pathname === '/report'
+                        ? 'border-indigo-500 text-gray-900'
+                        : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                        } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
                     >
                       Laporan
                     </Link>

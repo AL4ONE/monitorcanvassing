@@ -38,6 +38,7 @@ class MessageController extends Controller
             'screenshot' => 'required|image|mimes:jpeg,png,jpg,gif|max:10240', // 10MB max
             'stage' => 'nullable|integer|min:0|max:7',
             'contact_number' => 'nullable|string|max:50',
+            'channel' => 'nullable|string|in:instagram,tiktok,facebook,threads,whatsapp,other',
         ]);
 
         $user = Auth::user();
@@ -181,6 +182,7 @@ class MessageController extends Controller
                 'canvassing_cycle_id' => $cycleResult['cycle']->id,
                 'stage' => $expectedStage,
                 'category' => $category,
+                'channel' => $request->input('channel'),
                 'screenshot_path' => $filePath,
                 'screenshot_hash' => $fileHash,
                 'ocr_instagram_username' => $ocrResult['instagram_username'],

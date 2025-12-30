@@ -20,6 +20,8 @@ class CanvassingCycle extends Model
         'last_followup_date',
         'next_followup_date',
         'next_action',
+        'failure_reason',
+        'failure_notes',
     ];
 
     protected $casts = [
