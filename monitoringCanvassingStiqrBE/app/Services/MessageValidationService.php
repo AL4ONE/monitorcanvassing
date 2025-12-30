@@ -461,7 +461,16 @@ class MessageValidationService
                         $minDist = 100;
 
                         foreach ($activeProspects as $p) {
-                            $dist = levenshtein($instagramUsername, $p->instagram_username);
+                            // Normalization comparison (bonus strategy)
+                            $normInput = preg_replace('/[^a-z0-9]/', '', $instagramUsername);
+                            $normStored = preg_replace('/[^a-z0-9]/', '', $p->instagram_username);
+
+                            if ($normInput === $normStored && strlen($normInput) > 5) {
+                                $dist = 0;
+                            } else {
+                                $dist = levenshtein($instagramUsername, $p->instagram_username);
+                            }
+
                             $len = strlen($instagramUsername);
                             $threshold = ($len < 8) ? 1 : (($len < 15) ? 2 : 3);
 
