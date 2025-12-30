@@ -334,18 +334,59 @@ class MessageValidationService
                 }
             }
 
+                // Strategy 5: Levenshtein distance (Fuzzy Match) on stored OCR usernames
+                // This handles cases like missing first letter (edai.cekni vs kedai.cekni)
+                if ($matchingMessages->isEmpty()) {
+                    $allMessages = Message::whereHas('canvassingCycle', function($q) use ($staffId) {
+                        $q->where('staff_id', $staffId);
+                    })
+                    ->with('canvassingCycle.prospect')
+                    ->get();
+                    
+                    $bestMatch = null;
+                    $minDistance = 100;
+                    
+                    foreach ($allMessages as $msg) {
+                        if (!$msg->ocr_instagram_username) continue;
+                        
+                        $dist = levenshtein($instagramUsername, $msg->ocr_instagram_username);
+                        
+                        // Threshold logic:
+                        // Length < 8: max 1 difference
+                        // Length >= 8: max 2 difference 
+                        // Length >= 15: max 3 difference
+                        $len = strlen($instagramUsername);
+                        $threshold = ($len < 8) ? 1 : (($len < 15) ? 2 : 3);
+                        
+                        if ($dist <= $threshold && $dist < $minDistance) {
+                            $minDistance = $dist;
+                            $bestMatch = $msg;
+                        }
+                    }
+                    
+                    if ($bestMatch) {
+                        $matchingMessages = collect([$bestMatch]);
+                        \Illuminate\Support\Facades\Log::info('Found match via Strategy 5 (Levenshtein)', [
+                            'extracted' => $instagramUsername,
+                            'matched' => $bestMatch->ocr_instagram_username,
+                            'distance' => $minDistance
+                        ]);
+                    }
+                }
+            }
+ 
             \Illuminate\Support\Facades\Log::info('OCR username search results', [
                 'found_messages' => $matchingMessages->count(),
                 'searched_prefix' => $basePrefix,
                 'searched_suffix_prefix' => $suffixPrefix,
             ]);
-
+ 
             if ($matchingMessages->isNotEmpty()) {
                 // Get the prospect from the first matching message
                 $firstMessage = $matchingMessages->first();
                 if ($firstMessage->canvassingCycle && $firstMessage->canvassingCycle->prospect) {
                     $prospect = $firstMessage->canvassingCycle->prospect;
-
+ 
                     // Update prospect username if extracted username is longer (less truncated)
                     if (strlen($instagramUsername) > strlen($prospect->instagram_username)) {
                         $prospect->update(['instagram_username' => $instagramUsername]);
@@ -355,7 +396,7 @@ class MessageValidationService
                             'new_username' => $instagramUsername,
                         ]);
                     }
-
+ 
                     \Illuminate\Support\Facades\Log::info('Found prospect via OCR username from previous message', [
                         'prospect_id' => $prospect->id,
                         'stored_username' => $prospect->instagram_username,
@@ -366,19 +407,48 @@ class MessageValidationService
                 }
             } else {
                 // Last resort: find by prefix match in prospects table (very aggressive)
-                \Illuminate\Support\Facades\Log::info('Trying last resort: prefix match in prospects', [
-                    'base_prefix' => $basePrefix,
-                    'min_length' => 8,
-                ]);
-
-                if (strlen($basePrefix) >= 8) {
+                // ... (existing prefix match) ...
+                
+                // Strategy 6: Levenshtein on Active Prospects directly
+                if (!$prospect) {
+                     $activeProspects = Prospect::whereHas('canvassingCycles', function($q) use ($staffId) {
+                            $q->where('staff_id', $staffId)
+                              ->where('status', 'active');
+                        })->get();
+                        
+                     $bestProspect = null;
+                     $minDist = 100;
+                     
+                     foreach ($activeProspects as $p) {
+                         $dist = levenshtein($instagramUsername, $p->instagram_username);
+                         $len = strlen($instagramUsername);
+                         $threshold = ($len < 8) ? 1 : (($len < 15) ? 2 : 3);
+                         
+                         if ($dist <= $threshold && $dist < $minDist) {
+                             $minDist = $dist;
+                             $bestProspect = $p;
+                         }
+                     }
+                     
+                     if ($bestProspect) {
+                         $prospect = $bestProspect;
+                         \Illuminate\Support\Facades\Log::info('Found prospect via Strategy 6 (Levenshtein on Prospect)', [
+                            'extracted' => $instagramUsername,
+                            'matched' => $prospect->instagram_username,
+                            'distance' => $minDist
+                         ]);
+                     }
+                }
+                
+                // Original last resort logic (if still not found)
+                if (!$prospect && strlen($basePrefix) >= 8) {
                     $prospect = Prospect::where('instagram_username', 'like', $basePrefix . '_%')
                         ->whereHas('canvassingCycles', function($q) use ($staffId) {
                             $q->where('staff_id', $staffId)
                               ->where('status', 'active');
                         })
                         ->first();
-
+ 
                     if ($prospect) {
                         \Illuminate\Support\Facades\Log::info('Found prospect via last resort prefix match', [
                             'prospect_id' => $prospect->id,
