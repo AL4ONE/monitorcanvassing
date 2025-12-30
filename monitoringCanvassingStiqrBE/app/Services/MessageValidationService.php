@@ -345,32 +345,74 @@ class MessageValidationService
 
                 $bestMatch = null;
                 $minDistance = 100;
+                $bestIsActive = false;
 
                 foreach ($allMessages as $msg) {
                     if (!$msg->ocr_instagram_username)
                         continue;
 
-                    $dist = levenshtein($instagramUsername, $msg->ocr_instagram_username);
+                    // Normalization comparison (bonus strategy)
+                    // If normalized strings match, consider it distance 0
+                    $normInput = preg_replace('/[^a-z0-9]/', '', $instagramUsername);
+                    $normStored = preg_replace('/[^a-z0-9]/', '', $msg->ocr_instagram_username);
 
-                    // Threshold logic:
-                    // Length < 8: max 1 difference
-                    // Length >= 8: max 2 difference 
-                    // Length >= 15: max 3 difference
+                    if ($normInput === $normStored && strlen($normInput) > 5) {
+                        $dist = 0;
+                    } else {
+                        $dist = levenshtein($instagramUsername, $msg->ocr_instagram_username);
+                    }
+
+                    // Threshold logic
                     $len = strlen($instagramUsername);
                     $threshold = ($len < 8) ? 1 : (($len < 15) ? 2 : 3);
 
-                    if ($dist <= $threshold && $dist < $minDistance) {
-                        $minDistance = $dist;
-                        $bestMatch = $msg;
+                    if ($dist <= $threshold) {
+                        // Valid match candidate. Now check quality.
+                        // MUST have a cycle and prospect to be useful
+                        if (!$msg->canvassingCycle || !$msg->canvassingCycle->prospect) {
+                            continue;
+                        }
+
+                        $isActive = in_array($msg->canvassingCycle->status, ['active', 'ongoing', 'sedang berlangsung']);
+
+                        // Selection logic:
+                        // 1. If we don't have a match yet, take this one
+                        if (!$bestMatch) {
+                            $bestMatch = $msg;
+                            $minDistance = $dist;
+                            $bestIsActive = $isActive;
+                            continue;
+                        }
+
+                        // 2. If we have a match, try to beat it
+                        if ($dist < $minDistance) {
+                            // If explicit active preference needed:
+                            if ($isActive && !$bestIsActive && ($dist - $minDistance <= 1)) {
+                                $bestMatch = $msg;
+                                $minDistance = $dist;
+                                $bestIsActive = $isActive;
+                            } elseif ($dist < $minDistance) {
+                                $bestMatch = $msg;
+                                $minDistance = $dist;
+                                $bestIsActive = $isActive;
+                            }
+                        } elseif ($dist == $minDistance) {
+                            // Same distance? Prefer active.
+                            if ($isActive && !$bestIsActive) {
+                                $bestMatch = $msg;
+                                $bestIsActive = $isActive;
+                            }
+                        }
                     }
                 }
 
                 if ($bestMatch) {
                     $matchingMessages = collect([$bestMatch]);
-                    \Illuminate\Support\Facades\Log::info('Found match via Strategy 5 (Levenshtein)', [
+                    \Illuminate\Support\Facades\Log::info('Found match via Strategy 5 (Levenshtein+ActiveCheck)', [
                         'extracted' => $instagramUsername,
                         'matched' => $bestMatch->ocr_instagram_username,
-                        'distance' => $minDistance
+                        'distance' => $minDistance,
+                        'is_active' => $bestIsActive
                     ]);
                 }
 
