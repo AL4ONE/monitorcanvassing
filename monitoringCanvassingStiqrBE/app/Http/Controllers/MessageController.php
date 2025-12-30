@@ -152,13 +152,16 @@ class MessageController extends Controller
                 // This helps debugging OCR issues in production
                 return response()->json([
                     'success' => false,
-                    'message' => 'Tidak dapat mendeteksi Instagram username dari screenshot. Pastikan screenshot jelas dan mengandung username Instagram.',
+                    'message' => 'Gagal mendeteksi username Instagram. Pastikan: 
+                    1. Username terlihat di bagian ATAS screenshot. 
+                    2. Tidak tertutup notifikasi. 
+                    3. Format screenshot jelas.
+                    
+                    Text terdeteksi (Header): "' . substr($ocrResult['message_snippet'] ?? '', 0, 100) . '..."',
                     'debug' => [
-                        'ocr_message_preview' => substr($ocrResult['message_snippet'] ?? '', 0, 200),
                         'ocr_date' => $ocrResult['date'],
                         'expected_stage' => $expectedStage,
                         'is_followup' => $expectedStage > 0,
-                        'note' => 'Check Railway Deploy Logs for detailed OCR parsing logs (Header area, patterns tried, potential usernames)',
                     ],
                 ], 422);
             }

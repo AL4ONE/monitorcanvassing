@@ -424,6 +424,21 @@ class OcrService
             }
         }
 
+        // Pattern 3c: Username at the very start or following back arrow (<- or <)
+        // Common in dark mode screenshots where header text is "<- @username" or similar
+        // Also matches if it starts with "k" (from "kembali" arrow icon sometimes ocr'd as k or <)
+        if (!$username) {
+            // Look for username at start of text or lines in header
+            if (preg_match('/(?:^|[\n\r]|\s)(?:[<←k])\s*@?\s*([a-zA-Z0-9._]{5,30})/u', $headerText, $matches)) {
+                $potentialUsername = strtolower(trim($matches[1]));
+                // Use the same commonWords array defined at the top
+                if (!in_array($potentialUsername, $commonWords) && strlen($potentialUsername) >= 5) {
+                    $username = $potentialUsername;
+                    Log::info('Found username via Pattern 3c (back arrow)', ['username' => $username]);
+                }
+            }
+        }
+
         // Pattern 3b: Username in lowercase after capitalized name (e.g., "Kedai Kopi David" followed by "kedaikopidavid")
         // This pattern matches usernames that appear directly below the contact name in header
         if (!$username) {
