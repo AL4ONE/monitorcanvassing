@@ -714,11 +714,15 @@ class OcrService
 
         // Clean username (remove trailing dots/underscores that might be OCR errors)
         // Also handle truncated usernames from header (e.g., "bebekcaberawit_grandwis..." -> "bebekcaberawit_grandwis")
+        // Clean username (remove trailing dots/underscores that might be OCR errors)
+        // Also handle truncated usernames from header (e.g., "bebekcaberawit_grandwis..." -> "bebekcaberawit_grandwis")
         if ($username) {
-            $username = rtrim($username, '._');
+            // Aggressively trim dots and underscores from both ends
+            $username = trim($username, '._');
             // Remove trailing dots that indicate truncation (e.g., "grandwis..." -> "grandwis")
             $username = preg_replace('/\.{2,}$/', '', $username);
-            $username = rtrim($username, '.');
+            // Final trim just in case regexp left something
+            $username = trim($username, '._');
 
             // Final validation: SAME for both canvassing and follow-up
             // Just check minimum length (8 chars) - no difference between canvassing and follow-up
