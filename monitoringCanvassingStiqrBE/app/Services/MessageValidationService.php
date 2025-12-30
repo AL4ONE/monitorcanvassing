@@ -451,61 +451,61 @@ class MessageValidationService
                 // Strategy 6: Levenshtein on Active Prospects directly (Run if prospect still not found)
                 if (!$prospect) {
                     $activeProspects = Prospect::whereHas('canvassingCycles', function ($q) use ($staffId) {
-                            $q->where('staff_id', $staffId)
-                                ->whereIn('status', ['active', 'ongoing', 'sedang berlangsung']);
-                        })->get();
+                        $q->where('staff_id', $staffId)
+                            ->whereIn('status', ['active', 'ongoing', 'sedang berlangsung']);
+                    })->get();
 
-                        $bestProspect = null;
-                        $minDist = 100;
+                    $bestProspect = null;
+                    $minDist = 100;
 
-                        foreach ($activeProspects as $p) {
-                            // Normalization comparison (bonus strategy)
-                            $normInput = preg_replace('/[^a-z0-9]/', '', $instagramUsername);
-                            $normStored = preg_replace('/[^a-z0-9]/', '', $p->instagram_username);
+                    foreach ($activeProspects as $p) {
+                        // Normalization comparison (bonus strategy)
+                        $normInput = preg_replace('/[^a-z0-9]/', '', $instagramUsername);
+                        $normStored = preg_replace('/[^a-z0-9]/', '', $p->instagram_username);
 
-                            if ($normInput === $normStored && strlen($normInput) > 5) {
-                                $dist = 0;
-                            } else {
-                                $dist = levenshtein($instagramUsername, $p->instagram_username);
-                            }
-
-                            $len = strlen($instagramUsername);
-                            $threshold = ($len < 8) ? 1 : (($len < 15) ? 2 : 3);
-
-                            if ($dist <= $threshold && $dist < $minDist) {
-                                $minDist = $dist;
-                                $bestProspect = $p;
-                            }
+                        if ($normInput === $normStored && strlen($normInput) > 5) {
+                            $dist = 0;
+                        } else {
+                            $dist = levenshtein($instagramUsername, $p->instagram_username);
                         }
 
-                        if ($bestProspect) {
-                            $prospect = $bestProspect;
-                            \Illuminate\Support\Facades\Log::info('Found prospect via Strategy 6 (Levenshtein on Prospect)', [
-                                'extracted' => $instagramUsername,
-                                'matched' => $prospect->instagram_username,
-                                'distance' => $minDist
-                            ]);
+                        $len = strlen($instagramUsername);
+                        $threshold = ($len < 8) ? 1 : (($len < 15) ? 2 : 3);
+
+                        if ($dist <= $threshold && $dist < $minDist) {
+                            $minDist = $dist;
+                            $bestProspect = $p;
                         }
                     }
 
-                    // Original last resort logic (if still not found)
-                    if (!$prospect && strlen($basePrefix) >= 8) {
-                        $prospect = Prospect::where('instagram_username', 'like', $basePrefix . '_%')
-                            ->whereHas('canvassingCycles', function ($q) use ($staffId) {
-                                $q->where('staff_id', $staffId)
-                                    ->whereIn('status', ['active', 'ongoing', 'sedang berlangsung']);
-                            })
-                            ->first();
-
-                        if ($prospect) {
-                            \Illuminate\Support\Facades\Log::info('Found prospect via last resort prefix match', [
-                                'prospect_id' => $prospect->id,
-                                'stored_username' => $prospect->instagram_username,
-                                'searched_prefix' => $basePrefix,
-                            ]);
-                        }
+                    if ($bestProspect) {
+                        $prospect = $bestProspect;
+                        \Illuminate\Support\Facades\Log::info('Found prospect via Strategy 6 (Levenshtein on Prospect)', [
+                            'extracted' => $instagramUsername,
+                            'matched' => $prospect->instagram_username,
+                            'distance' => $minDist
+                        ]);
                     }
                 }
+
+                // Original last resort logic (if still not found)
+                if (!$prospect && strlen($basePrefix) >= 8) {
+                    $prospect = Prospect::where('instagram_username', 'like', $basePrefix . '_%')
+                        ->whereHas('canvassingCycles', function ($q) use ($staffId) {
+                            $q->where('staff_id', $staffId)
+                                ->whereIn('status', ['active', 'ongoing', 'sedang berlangsung']);
+                        })
+                        ->first();
+
+                    if ($prospect) {
+                        \Illuminate\Support\Facades\Log::info('Found prospect via last resort prefix match', [
+                            'prospect_id' => $prospect->id,
+                            'stored_username' => $prospect->instagram_username,
+                            'searched_prefix' => $basePrefix,
+                        ]);
+                    }
+                }
+
             }
 
             if ($stage == 0) {
