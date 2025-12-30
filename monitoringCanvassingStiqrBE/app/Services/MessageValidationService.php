@@ -583,7 +583,7 @@ class MessageValidationService
                         'total_ocr_usernames' => count($allOcrUsernames),
                     ]);
 
-                    $errorMessage = 'Prospect tidak ditemukan. Follow-up harus untuk prospect yang sudah di-canvassing. ';
+                    $errorMessage = 'Prospect tidak ditemukan (v2). Follow-up harus untuk prospect yang sudah di-canvassing. ';
                     $errorMessage .= 'Username yang dicari: ' . $instagramUsername . '. ';
                     if ($allProspects->isNotEmpty()) {
                         $errorMessage .= 'Prospects yang ada: ' . $allProspects->pluck('instagram_username')->implode(', ') . '. ';
