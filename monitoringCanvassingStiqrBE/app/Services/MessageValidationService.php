@@ -371,9 +371,7 @@ class MessageValidationService
                             'matched' => $bestMatch->ocr_instagram_username,
                             'distance' => $minDistance
                         ]);
-                    }
                 }
-            }
  
             \Illuminate\Support\Facades\Log::info('OCR username search results', [
                 'found_messages' => $matchingMessages->count(),
