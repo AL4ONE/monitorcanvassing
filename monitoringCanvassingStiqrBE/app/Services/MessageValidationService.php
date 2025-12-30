@@ -446,13 +446,11 @@ class MessageValidationService
                             'match_method' => 'OCR fallback',
                         ]);
                     }
-                } else {
-                    // Last resort: find by prefix match in prospects table (very aggressive)
-                    // ... (existing prefix match) ...
+                }
 
-                    // Strategy 6: Levenshtein on Active Prospects directly
-                    if (!$prospect) {
-                        $activeProspects = Prospect::whereHas('canvassingCycles', function ($q) use ($staffId) {
+                // Strategy 6: Levenshtein on Active Prospects directly (Run if prospect still not found)
+                if (!$prospect) {
+                    $activeProspects = Prospect::whereHas('canvassingCycles', function ($q) use ($staffId) {
                             $q->where('staff_id', $staffId)
                                 ->whereIn('status', ['active', 'ongoing', 'sedang berlangsung']);
                         })->get();
