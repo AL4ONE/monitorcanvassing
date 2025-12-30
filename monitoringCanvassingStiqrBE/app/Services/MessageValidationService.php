@@ -461,23 +461,48 @@ class MessageValidationService
                     $bestProspect = null;
                     $minDist = 100;
 
+                    // Debug vars for error message
+                    $closestMismatchName = null;
+                    $closestMismatchDist = 100;
+
                     foreach ($activeProspects as $p) {
+                        // Sanitize DB value (handle trailing spaces, mixed case)
+                        $storedUsername = strtolower(trim($p->instagram_username));
+
                         // Normalization comparison (bonus strategy)
                         $normInput = preg_replace('/[^a-z0-9]/', '', $instagramUsername);
-                        $normStored = preg_replace('/[^a-z0-9]/', '', $p->instagram_username);
+                        $normStored = preg_replace('/[^a-z0-9]/', '', $storedUsername);
 
                         if ($normInput === $normStored && strlen($normInput) > 5) {
                             $dist = 0;
                         } else {
-                            $dist = levenshtein($instagramUsername, $p->instagram_username);
+                            $dist = levenshtein($instagramUsername, $storedUsername);
                         }
 
                         $len = strlen($instagramUsername);
                         $threshold = ($len < 8) ? 1 : (($len < 15) ? 2 : 3);
 
+                        // Log debug info
+                        if (strpos($storedUsername, 'kedai') !== false || strpos($instagramUsername, 'edai') !== false) {
+                            \Illuminate\Support\Facades\Log::info('Strategy 6 Comparison Debug', [
+                                'input' => $instagramUsername,
+                                'stored_raw' => $p->instagram_username,
+                                'stored_clean' => $storedUsername,
+                                'dist' => $dist,
+                                'threshold' => $threshold,
+                                'match' => ($dist <= $threshold)
+                            ]);
+                        }
+
                         if ($dist <= $threshold && $dist < $minDist) {
                             $minDist = $dist;
                             $bestProspect = $p;
+                        } else {
+                            // Track closest mismatch for error reporting
+                            if ($dist < $closestMismatchDist) {
+                                $closestMismatchDist = $dist;
+                                $closestMismatchName = $storedUsername;
+                            }
                         }
                     }
 
