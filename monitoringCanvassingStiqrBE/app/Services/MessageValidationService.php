@@ -99,11 +99,11 @@ class MessageValidationService
         }
 
         // Check if previous stage exists for this staff
-        $previousStageCount = Message::whereHas('canvassingCycle', function($q) use ($staffId) {
+        $previousStageCount = Message::whereHas('canvassingCycle', function ($q) use ($staffId) {
             $q->where('staff_id', $staffId);
         })
-        ->where('stage', $stage - 1)
-        ->count();
+            ->where('stage', $stage - 1)
+            ->count();
 
         if ($previousStageCount === 0) {
             $errors[] = "Follow-up stage {$stage} tidak valid. Pastikan sudah upload " . ($stage === 1 ? 'Canvassing' : "Follow Up " . ($stage - 1)) . " terlebih dahulu.";
@@ -160,7 +160,7 @@ class MessageValidationService
             // 1. Stored username starts with extracted username (extracted is truncated)
             // 2. Extracted username starts with stored username (stored is truncated)
             // 3. Both start with same prefix (handle truncation in suffix part)
-            $prospect = Prospect::where(function($query) use ($instagramUsername, $basePrefix, $hasSuffix) {
+            $prospect = Prospect::where(function ($query) use ($instagramUsername, $basePrefix, $hasSuffix) {
                 // Case 1: Extracted is truncated, stored is full
                 // e.g., extracted: "bebekcaberawit_grandwis", stored: "bebekcaberawit_grandwisata"
                 $query->where('instagram_username', 'like', $instagramUsername . '%');
@@ -168,7 +168,7 @@ class MessageValidationService
                 // Case 2: Stored is truncated, extracted is full
                 // e.g., extracted: "bebekcaberawit_grandwisata", stored: "bebekcaberawit_grandwis"
                 // Use SQLite-compatible syntax (|| instead of CONCAT)
-                $query->orWhere(function($q) use ($instagramUsername) {
+                $query->orWhere(function ($q) use ($instagramUsername) {
                     $dbDriver = DB::connection()->getDriverName();
                     if ($dbDriver === 'sqlite') {
                         // SQLite: use || for concatenation
@@ -212,11 +212,11 @@ class MessageValidationService
 
             // Find messages from this staff with matching OCR username (with aggressive partial matching)
             // First, get all messages from this staff to see what we have
-            $allStaffMessages = Message::whereHas('canvassingCycle', function($q) use ($staffId) {
+            $allStaffMessages = Message::whereHas('canvassingCycle', function ($q) use ($staffId) {
                 $q->where('staff_id', $staffId);
             })
-            ->with('canvassingCycle.prospect')
-            ->get();
+                ->with('canvassingCycle.prospect')
+                ->get();
 
             \Illuminate\Support\Facades\Log::info('All messages for staff', [
                 'staff_id' => $staffId,
@@ -235,24 +235,24 @@ class MessageValidationService
             ]);
 
             // Strategy 1: Exact and partial matches
-            $strategy1 = Message::whereHas('canvassingCycle', function($q) use ($staffId) {
+            $strategy1 = Message::whereHas('canvassingCycle', function ($q) use ($staffId) {
                 $q->where('staff_id', $staffId);
             })
-            ->where(function($q) use ($instagramUsername) {
-                $q->where('ocr_instagram_username', $instagramUsername)
-                ->orWhere('ocr_instagram_username', 'like', $instagramUsername . '%')
-                ->orWhere(function($q2) use ($instagramUsername) {
-                    $dbDriver = DB::connection()->getDriverName();
-                    if ($dbDriver === 'sqlite') {
-                        $q2->whereRaw('? LIKE (ocr_instagram_username || \'%\')', [$instagramUsername]);
-                    } else {
-                        $q2->whereRaw('? LIKE CONCAT(ocr_instagram_username, \'%\')', [$instagramUsername]);
-                    }
-                });
-            })
-            ->with('canvassingCycle.prospect')
-            ->orderBy('submitted_at', 'desc')
-            ->get();
+                ->where(function ($q) use ($instagramUsername) {
+                    $q->where('ocr_instagram_username', $instagramUsername)
+                        ->orWhere('ocr_instagram_username', 'like', $instagramUsername . '%')
+                        ->orWhere(function ($q2) use ($instagramUsername) {
+                            $dbDriver = DB::connection()->getDriverName();
+                            if ($dbDriver === 'sqlite') {
+                                $q2->whereRaw('? LIKE (ocr_instagram_username || \'%\')', [$instagramUsername]);
+                            } else {
+                                $q2->whereRaw('? LIKE CONCAT(ocr_instagram_username, \'%\')', [$instagramUsername]);
+                            }
+                        });
+                })
+                ->with('canvassingCycle.prospect')
+                ->orderBy('submitted_at', 'desc')
+                ->get();
 
             \Illuminate\Support\Facades\Log::info('Strategy 1 results', [
                 'found' => $strategy1->count(),
@@ -264,13 +264,13 @@ class MessageValidationService
             } else {
                 // Strategy 2: Prefix matching (for truncated usernames)
                 if ($hasSuffix && strlen($basePrefix) >= 8) {
-                    $strategy2 = Message::whereHas('canvassingCycle', function($q) use ($staffId) {
+                    $strategy2 = Message::whereHas('canvassingCycle', function ($q) use ($staffId) {
                         $q->where('staff_id', $staffId);
                     })
-                    ->where('ocr_instagram_username', 'like', $basePrefix . '_%')
-                    ->with('canvassingCycle.prospect')
-                    ->orderBy('submitted_at', 'desc')
-                    ->get();
+                        ->where('ocr_instagram_username', 'like', $basePrefix . '_%')
+                        ->with('canvassingCycle.prospect')
+                        ->orderBy('submitted_at', 'desc')
+                        ->get();
 
                     \Illuminate\Support\Facades\Log::info('Strategy 2 results', [
                         'found' => $strategy2->count(),
@@ -285,13 +285,13 @@ class MessageValidationService
 
                 // Strategy 3: Prefix + suffix prefix matching
                 if ($matchingMessages->isEmpty() && $hasSuffix && strlen($basePrefix) >= 8 && strlen($suffixPrefix) >= 3) {
-                    $strategy3 = Message::whereHas('canvassingCycle', function($q) use ($staffId) {
+                    $strategy3 = Message::whereHas('canvassingCycle', function ($q) use ($staffId) {
                         $q->where('staff_id', $staffId);
                     })
-                    ->where('ocr_instagram_username', 'like', $basePrefix . '_' . $suffixPrefix . '%')
-                    ->with('canvassingCycle.prospect')
-                    ->orderBy('submitted_at', 'desc')
-                    ->get();
+                        ->where('ocr_instagram_username', 'like', $basePrefix . '_' . $suffixPrefix . '%')
+                        ->with('canvassingCycle.prospect')
+                        ->orderBy('submitted_at', 'desc')
+                        ->get();
 
                     \Illuminate\Support\Facades\Log::info('Strategy 3 results', [
                         'found' => $strategy3->count(),
@@ -307,13 +307,13 @@ class MessageValidationService
                 // Strategy 4: Extract prefix from stored OCR username and compare (PHP filter)
                 if ($matchingMessages->isEmpty() && strlen($basePrefix) >= 8) {
                     // Get all messages and filter in PHP (more reliable across databases)
-                    $allMessages = Message::whereHas('canvassingCycle', function($q) use ($staffId) {
+                    $allMessages = Message::whereHas('canvassingCycle', function ($q) use ($staffId) {
                         $q->where('staff_id', $staffId);
                     })
-                    ->with('canvassingCycle.prospect')
-                    ->get();
+                        ->with('canvassingCycle.prospect')
+                        ->get();
 
-                    $strategy4 = $allMessages->filter(function($msg) use ($basePrefix) {
+                    $strategy4 = $allMessages->filter(function ($msg) use ($basePrefix) {
                         if (!$msg->ocr_instagram_username) {
                             return false;
                         }
@@ -334,272 +334,275 @@ class MessageValidationService
                 }
             }
 
-                // Strategy 5: Levenshtein distance (Fuzzy Match) on stored OCR usernames
-                // This handles cases like missing first letter (edai.cekni vs kedai.cekni)
-                if ($matchingMessages->isEmpty()) {
-                    $allMessages = Message::whereHas('canvassingCycle', function($q) use ($staffId) {
-                        $q->where('staff_id', $staffId);
-                    })
-                    ->with('canvassingCycle.prospect')
-                    ->get();
-                    
-                    $bestMatch = null;
-                    $minDistance = 100;
-                    
-                    foreach ($allMessages as $msg) {
-                        if (!$msg->ocr_instagram_username) continue;
-                        
-                        $dist = levenshtein($instagramUsername, $msg->ocr_instagram_username);
-                        
-                        // Threshold logic:
-                        // Length < 8: max 1 difference
-                        // Length >= 8: max 2 difference 
-                        // Length >= 15: max 3 difference
-                        $len = strlen($instagramUsername);
-                        $threshold = ($len < 8) ? 1 : (($len < 15) ? 2 : 3);
-                        
-                        if ($dist <= $threshold && $dist < $minDistance) {
-                            $minDistance = $dist;
-                            $bestMatch = $msg;
-                        }
-                    }
-                    
-                    if ($bestMatch) {
-                        $matchingMessages = collect([$bestMatch]);
-                        \Illuminate\Support\Facades\Log::info('Found match via Strategy 5 (Levenshtein)', [
-                            'extracted' => $instagramUsername,
-                            'matched' => $bestMatch->ocr_instagram_username,
-                            'distance' => $minDistance
-                        ]);
-                }
- 
-            \Illuminate\Support\Facades\Log::info('OCR username search results', [
-                'found_messages' => $matchingMessages->count(),
-                'searched_prefix' => $basePrefix,
-                'searched_suffix_prefix' => $suffixPrefix,
-            ]);
- 
-            if ($matchingMessages->isNotEmpty()) {
-                // Get the prospect from the first matching message
-                $firstMessage = $matchingMessages->first();
-                if ($firstMessage->canvassingCycle && $firstMessage->canvassingCycle->prospect) {
-                    $prospect = $firstMessage->canvassingCycle->prospect;
- 
-                    // Update prospect username if extracted username is longer (less truncated)
-                    if (strlen($instagramUsername) > strlen($prospect->instagram_username)) {
-                        $prospect->update(['instagram_username' => $instagramUsername]);
-                        \Illuminate\Support\Facades\Log::info('Updated prospect username to longer version', [
-                            'prospect_id' => $prospect->id,
-                            'old_username' => $prospect->getOriginal('instagram_username'),
-                            'new_username' => $instagramUsername,
-                        ]);
-                    }
- 
-                    \Illuminate\Support\Facades\Log::info('Found prospect via OCR username from previous message', [
-                        'prospect_id' => $prospect->id,
-                        'stored_username' => $prospect->instagram_username,
-                        'previous_ocr_username' => $firstMessage->ocr_instagram_username,
-                        'current_ocr_username' => $instagramUsername,
-                        'match_method' => 'OCR fallback',
-                    ]);
-                }
-            } else {
-                // Last resort: find by prefix match in prospects table (very aggressive)
-                // ... (existing prefix match) ...
-                
-                // Strategy 6: Levenshtein on Active Prospects directly
-                if (!$prospect) {
-                     $activeProspects = Prospect::whereHas('canvassingCycles', function($q) use ($staffId) {
-                            $q->where('staff_id', $staffId)
-                              ->where('status', 'active');
-                        })->get();
-                        
-                     $bestProspect = null;
-                     $minDist = 100;
-                     
-                     foreach ($activeProspects as $p) {
-                         $dist = levenshtein($instagramUsername, $p->instagram_username);
-                         $len = strlen($instagramUsername);
-                         $threshold = ($len < 8) ? 1 : (($len < 15) ? 2 : 3);
-                         
-                         if ($dist <= $threshold && $dist < $minDist) {
-                             $minDist = $dist;
-                             $bestProspect = $p;
-                         }
-                     }
-                     
-                     if ($bestProspect) {
-                         $prospect = $bestProspect;
-                         \Illuminate\Support\Facades\Log::info('Found prospect via Strategy 6 (Levenshtein on Prospect)', [
-                            'extracted' => $instagramUsername,
-                            'matched' => $prospect->instagram_username,
-                            'distance' => $minDist
-                         ]);
-                     }
-                }
-                
-                // Original last resort logic (if still not found)
-                if (!$prospect && strlen($basePrefix) >= 8) {
-                    $prospect = Prospect::where('instagram_username', 'like', $basePrefix . '_%')
-                        ->whereHas('canvassingCycles', function($q) use ($staffId) {
-                            $q->where('staff_id', $staffId)
-                              ->where('status', 'active');
-                        })
-                        ->first();
- 
-                    if ($prospect) {
-                        \Illuminate\Support\Facades\Log::info('Found prospect via last resort prefix match', [
-                            'prospect_id' => $prospect->id,
-                            'stored_username' => $prospect->instagram_username,
-                            'searched_prefix' => $basePrefix,
-                        ]);
-                    }
-                }
-            }
-        }
-
-        if ($stage == 0) {
-            // Canvassing - create new prospect if doesn't exist
-            if (!$prospect) {
-                // Use the extracted username (might be truncated, that's OK)
-                $prospect = Prospect::create([
-                    'instagram_username' => $instagramUsername,
-                ]);
-            } else {
-                // If prospect exists but username is different (one is truncated), update to longer version
-                if (strlen($prospect->instagram_username) < strlen($instagramUsername)) {
-                    $prospect->update(['instagram_username' => $instagramUsername]);
-                }
-                // If extracted is shorter (truncated), keep the longer one (no update needed)
-            }
-
-            // Check if cycle already exists for this staff
-            $existingCycle = CanvassingCycle::where('prospect_id', $prospect->id)
-                ->where('staff_id', $staffId)
-                ->where('status', 'active')
-                ->first();
-
-            if ($existingCycle) {
-                return [
-                    'valid' => false,
-                    'error' => 'Prospect ini sudah pernah di-canvassing sebelumnya',
-                    'cycle' => null,
-                ];
-            }
-
-            $cycle = CanvassingCycle::create([
-                'prospect_id' => $prospect->id,
-                'staff_id' => $staffId,
-                'start_date' => Carbon::today(),
-                'current_stage' => 0,
-                'status' => 'active',
-            ]);
-
-            return [
-                'valid' => true,
-                'cycle' => $cycle,
-            ];
-        } else {
-            // Follow-up - must find existing cycle
-            if (!$prospect) {
-                // Log all prospects for this staff to help debug
-                $allProspects = Prospect::whereHas('canvassingCycles', function($q) use ($staffId) {
-                    $q->where('staff_id', $staffId)
-                      ->where('status', 'active');
-                })->get(['id', 'instagram_username']);
-
-                // Get all OCR usernames from messages for this staff
-                $allOcrUsernames = Message::whereHas('canvassingCycle', function($q) use ($staffId) {
+            // Strategy 5: Levenshtein distance (Fuzzy Match) on stored OCR usernames
+            // This handles cases like missing first letter (edai.cekni vs kedai.cekni)
+            if ($matchingMessages->isEmpty()) {
+                $allMessages = Message::whereHas('canvassingCycle', function ($q) use ($staffId) {
                     $q->where('staff_id', $staffId);
                 })
-                ->whereNotNull('ocr_instagram_username')
-                ->distinct()
-                ->pluck('ocr_instagram_username')
-                ->toArray();
+                    ->with('canvassingCycle.prospect')
+                    ->get();
 
-                \Illuminate\Support\Facades\Log::error('Prospect not found for follow-up', [
-                    'extracted_username' => $instagramUsername,
-                    'staff_id' => $staffId,
-                    'stage' => $stage,
-                    'base_prefix' => $basePrefix ?? 'N/A',
-                    'all_prospects_for_staff' => $allProspects->map(function($p) {
-                        return ['id' => $p->id, 'username' => $p->instagram_username];
-                    })->toArray(),
-                    'all_ocr_usernames_for_staff' => $allOcrUsernames,
-                    'total_prospects' => $allProspects->count(),
-                    'total_ocr_usernames' => count($allOcrUsernames),
+                $bestMatch = null;
+                $minDistance = 100;
+
+                foreach ($allMessages as $msg) {
+                    if (!$msg->ocr_instagram_username)
+                        continue;
+
+                    $dist = levenshtein($instagramUsername, $msg->ocr_instagram_username);
+
+                    // Threshold logic:
+                    // Length < 8: max 1 difference
+                    // Length >= 8: max 2 difference 
+                    // Length >= 15: max 3 difference
+                    $len = strlen($instagramUsername);
+                    $threshold = ($len < 8) ? 1 : (($len < 15) ? 2 : 3);
+
+                    if ($dist <= $threshold && $dist < $minDistance) {
+                        $minDistance = $dist;
+                        $bestMatch = $msg;
+                    }
+                }
+
+                if ($bestMatch) {
+                    $matchingMessages = collect([$bestMatch]);
+                    \Illuminate\Support\Facades\Log::info('Found match via Strategy 5 (Levenshtein)', [
+                        'extracted' => $instagramUsername,
+                        'matched' => $bestMatch->ocr_instagram_username,
+                        'distance' => $minDistance
+                    ]);
+                }
+
+                \Illuminate\Support\Facades\Log::info('OCR username search results', [
+                    'found_messages' => $matchingMessages->count(),
+                    'searched_prefix' => $basePrefix,
+                    'searched_suffix_prefix' => $suffixPrefix,
                 ]);
 
-                $errorMessage = 'Prospect tidak ditemukan. Follow-up harus untuk prospect yang sudah di-canvassing. ';
-                $errorMessage .= 'Username yang dicari: ' . $instagramUsername . '. ';
-                if ($allProspects->isNotEmpty()) {
-                    $errorMessage .= 'Prospects yang ada: ' . $allProspects->pluck('instagram_username')->implode(', ') . '. ';
+                if ($matchingMessages->isNotEmpty()) {
+                    // Get the prospect from the first matching message
+                    $firstMessage = $matchingMessages->first();
+                    if ($firstMessage->canvassingCycle && $firstMessage->canvassingCycle->prospect) {
+                        $prospect = $firstMessage->canvassingCycle->prospect;
+
+                        // Update prospect username if extracted username is longer (less truncated)
+                        if (strlen($instagramUsername) > strlen($prospect->instagram_username)) {
+                            $prospect->update(['instagram_username' => $instagramUsername]);
+                            \Illuminate\Support\Facades\Log::info('Updated prospect username to longer version', [
+                                'prospect_id' => $prospect->id,
+                                'old_username' => $prospect->getOriginal('instagram_username'),
+                                'new_username' => $instagramUsername,
+                            ]);
+                        }
+
+                        \Illuminate\Support\Facades\Log::info('Found prospect via OCR username from previous message', [
+                            'prospect_id' => $prospect->id,
+                            'stored_username' => $prospect->instagram_username,
+                            'previous_ocr_username' => $firstMessage->ocr_instagram_username,
+                            'current_ocr_username' => $instagramUsername,
+                            'match_method' => 'OCR fallback',
+                        ]);
+                    }
+                } else {
+                    // Last resort: find by prefix match in prospects table (very aggressive)
+                    // ... (existing prefix match) ...
+
+                    // Strategy 6: Levenshtein on Active Prospects directly
+                    if (!$prospect) {
+                        $activeProspects = Prospect::whereHas('canvassingCycles', function ($q) use ($staffId) {
+                            $q->where('staff_id', $staffId)
+                                ->where('status', 'active');
+                        })->get();
+
+                        $bestProspect = null;
+                        $minDist = 100;
+
+                        foreach ($activeProspects as $p) {
+                            $dist = levenshtein($instagramUsername, $p->instagram_username);
+                            $len = strlen($instagramUsername);
+                            $threshold = ($len < 8) ? 1 : (($len < 15) ? 2 : 3);
+
+                            if ($dist <= $threshold && $dist < $minDist) {
+                                $minDist = $dist;
+                                $bestProspect = $p;
+                            }
+                        }
+
+                        if ($bestProspect) {
+                            $prospect = $bestProspect;
+                            \Illuminate\Support\Facades\Log::info('Found prospect via Strategy 6 (Levenshtein on Prospect)', [
+                                'extracted' => $instagramUsername,
+                                'matched' => $prospect->instagram_username,
+                                'distance' => $minDist
+                            ]);
+                        }
+                    }
+
+                    // Original last resort logic (if still not found)
+                    if (!$prospect && strlen($basePrefix) >= 8) {
+                        $prospect = Prospect::where('instagram_username', 'like', $basePrefix . '_%')
+                            ->whereHas('canvassingCycles', function ($q) use ($staffId) {
+                                $q->where('staff_id', $staffId)
+                                    ->where('status', 'active');
+                            })
+                            ->first();
+
+                        if ($prospect) {
+                            \Illuminate\Support\Facades\Log::info('Found prospect via last resort prefix match', [
+                                'prospect_id' => $prospect->id,
+                                'stored_username' => $prospect->instagram_username,
+                                'searched_prefix' => $basePrefix,
+                            ]);
+                        }
+                    }
                 }
-                if (!empty($allOcrUsernames)) {
-                    $errorMessage .= 'OCR usernames yang tersimpan: ' . implode(', ', array_slice($allOcrUsernames, 0, 5)) . (count($allOcrUsernames) > 5 ? '...' : '') . '.';
+            }
+
+            if ($stage == 0) {
+                // Canvassing - create new prospect if doesn't exist
+                if (!$prospect) {
+                    // Use the extracted username (might be truncated, that's OK)
+                    $prospect = Prospect::create([
+                        'instagram_username' => $instagramUsername,
+                    ]);
+                } else {
+                    // If prospect exists but username is different (one is truncated), update to longer version
+                    if (strlen($prospect->instagram_username) < strlen($instagramUsername)) {
+                        $prospect->update(['instagram_username' => $instagramUsername]);
+                    }
+                    // If extracted is shorter (truncated), keep the longer one (no update needed)
+                }
+
+                // Check if cycle already exists for this staff
+                $existingCycle = CanvassingCycle::where('prospect_id', $prospect->id)
+                    ->where('staff_id', $staffId)
+                    ->where('status', 'active')
+                    ->first();
+
+                if ($existingCycle) {
+                    return [
+                        'valid' => false,
+                        'error' => 'Prospect ini sudah pernah di-canvassing sebelumnya',
+                        'cycle' => null,
+                    ];
+                }
+
+                $cycle = CanvassingCycle::create([
+                    'prospect_id' => $prospect->id,
+                    'staff_id' => $staffId,
+                    'start_date' => Carbon::today(),
+                    'current_stage' => 0,
+                    'status' => 'active',
+                ]);
+
+                return [
+                    'valid' => true,
+                    'cycle' => $cycle,
+                ];
+            } else {
+                // Follow-up - must find existing cycle
+                if (!$prospect) {
+                    // Log all prospects for this staff to help debug
+                    $allProspects = Prospect::whereHas('canvassingCycles', function ($q) use ($staffId) {
+                        $q->where('staff_id', $staffId)
+                            ->where('status', 'active');
+                    })->get(['id', 'instagram_username']);
+
+                    // Get all OCR usernames from messages for this staff
+                    $allOcrUsernames = Message::whereHas('canvassingCycle', function ($q) use ($staffId) {
+                        $q->where('staff_id', $staffId);
+                    })
+                        ->whereNotNull('ocr_instagram_username')
+                        ->distinct()
+                        ->pluck('ocr_instagram_username')
+                        ->toArray();
+
+                    \Illuminate\Support\Facades\Log::error('Prospect not found for follow-up', [
+                        'extracted_username' => $instagramUsername,
+                        'staff_id' => $staffId,
+                        'stage' => $stage,
+                        'base_prefix' => $basePrefix ?? 'N/A',
+                        'all_prospects_for_staff' => $allProspects->map(function ($p) {
+                            return ['id' => $p->id, 'username' => $p->instagram_username];
+                        })->toArray(),
+                        'all_ocr_usernames_for_staff' => $allOcrUsernames,
+                        'total_prospects' => $allProspects->count(),
+                        'total_ocr_usernames' => count($allOcrUsernames),
+                    ]);
+
+                    $errorMessage = 'Prospect tidak ditemukan. Follow-up harus untuk prospect yang sudah di-canvassing. ';
+                    $errorMessage .= 'Username yang dicari: ' . $instagramUsername . '. ';
+                    if ($allProspects->isNotEmpty()) {
+                        $errorMessage .= 'Prospects yang ada: ' . $allProspects->pluck('instagram_username')->implode(', ') . '. ';
+                    }
+                    if (!empty($allOcrUsernames)) {
+                        $errorMessage .= 'OCR usernames yang tersimpan: ' . implode(', ', array_slice($allOcrUsernames, 0, 5)) . (count($allOcrUsernames) > 5 ? '...' : '') . '.';
+                    }
+
+                    return [
+                        'valid' => false,
+                        'error' => $errorMessage,
+                        'cycle' => null,
+                    ];
+                }
+
+                $cycle = CanvassingCycle::where('prospect_id', $prospect->id)
+                    ->where('staff_id', $staffId)
+                    ->where('status', 'active')
+                    ->first();
+
+                if (!$cycle) {
+                    return [
+                        'valid' => false,
+                        'error' => 'Cycle tidak ditemukan untuk follow-up ini',
+                        'cycle' => null,
+                    ];
+                }
+
+                // Check if previous stage exists
+                $previousMessage = Message::where('canvassing_cycle_id', $cycle->id)
+                    ->where('stage', $stage - 1)
+                    ->first();
+
+                if (!$previousMessage) {
+                    return [
+                        'valid' => false,
+                        'error' => "Follow-up stage {$stage} tidak valid. Stage sebelumnya belum ada.",
+                        'cycle' => null,
+                    ];
                 }
 
                 return [
-                    'valid' => false,
-                    'error' => $errorMessage,
-                    'cycle' => null,
+                    'valid' => true,
+                    'cycle' => $cycle,
                 ];
             }
-
-            $cycle = CanvassingCycle::where('prospect_id', $prospect->id)
-                ->where('staff_id', $staffId)
-                ->where('status', 'active')
-                ->first();
-
-            if (!$cycle) {
-                return [
-                    'valid' => false,
-                    'error' => 'Cycle tidak ditemukan untuk follow-up ini',
-                    'cycle' => null,
-                ];
-            }
-
-            // Check if previous stage exists
-            $previousMessage = Message::where('canvassing_cycle_id', $cycle->id)
-                ->where('stage', $stage - 1)
-                ->first();
-
-            if (!$previousMessage) {
-                return [
-                    'valid' => false,
-                    'error' => "Follow-up stage {$stage} tidak valid. Stage sebelumnya belum ada.",
-                    'cycle' => null,
-                ];
-            }
-
-            return [
-                'valid' => true,
-                'cycle' => $cycle,
-            ];
         }
+
     }
 
     /**
      * Check daily targets
      */
-    public function checkDailyTargets(int $staffId, string $date = null): array
+    public function checkDailyTargets(int $staffId, ?string $date = null): array
     {
         $date = $date ? Carbon::parse($date) : Carbon::today();
         $target = 50;
 
-        $canvassingCount = Message::whereHas('canvassingCycle', function($query) use ($staffId) {
+        $canvassingCount = Message::whereHas('canvassingCycle', function ($query) use ($staffId) {
             $query->where('staff_id', $staffId);
         })
-        ->where('stage', 0)
-        ->whereDate('submitted_at', $date)
-        ->count();
+            ->where('stage', 0)
+            ->whereDate('submitted_at', $date)
+            ->count();
 
-        $followUpCount = Message::whereHas('canvassingCycle', function($query) use ($staffId) {
+        $followUpCount = Message::whereHas('canvassingCycle', function ($query) use ($staffId) {
             $query->where('staff_id', $staffId);
         })
-        ->where('stage', '>', 0)
-        ->whereDate('submitted_at', $date)
-        ->count();
+            ->where('stage', '>', 0)
+            ->whereDate('submitted_at', $date)
+            ->count();
 
         return [
             'date' => $date->format('Y-m-d'),
