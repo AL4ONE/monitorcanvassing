@@ -553,9 +553,23 @@ class MessageValidationService
                     ->first();
 
                 if (!$cycle) {
+                    // Debug: check if ANY cycle exists for this prospect (even if not active)
+                    $anyCycle = CanvassingCycle::where('prospect_id', $prospect->id)
+                        ->where('staff_id', $staffId)
+                        ->latest()
+                        ->first();
+
+                    if ($anyCycle) {
+                        return [
+                            'valid' => false,
+                            'error' => "Siklus canvassing untuk prospect '{$prospect->instagram_username}' tidak aktif (Status: {$anyCycle->status}). Hubungi supervisor jika status ditolak.",
+                            'cycle' => null,
+                        ];
+                    }
+
                     return [
                         'valid' => false,
-                        'error' => 'Cycle tidak ditemukan untuk follow-up ini',
+                        'error' => "Tidak ditemukan siklus canvassing aktif untuk prospect '{$prospect->instagram_username}'. Pastikan anda sudah melakukan canvassing awal.",
                         'cycle' => null,
                     ];
                 }
