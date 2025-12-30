@@ -122,10 +122,13 @@ class MessageValidationService
     public function findOrCreateCycle(string $instagramUsername, int $staffId, int $stage): array
     {
         $instagramUsername = strtolower(trim($instagramUsername));
-        // Remove trailing dots/underscores that might indicate truncation
-        $instagramUsername = rtrim($instagramUsername, '._');
 
-        \Illuminate\Support\Facades\Log::info('findOrCreateCycle called', [
+        // Aggressively remove ANY non-alphanumeric characters from the end
+        // This handles standard dots (.), OCR noise, or invalid trailing characters
+        // Instagram usernames cannot end with a dot anyway.
+        $instagramUsername = preg_replace('/[^a-z0-9]+$/', '', $instagramUsername);
+
+        \Illuminate\Support\Facades\Log::info('findOrCreateCycle called (Cleaned)', [
             'instagram_username' => $instagramUsername,
             'staff_id' => $staffId,
             'stage' => $stage,
