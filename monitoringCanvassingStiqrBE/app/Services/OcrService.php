@@ -712,10 +712,7 @@ class OcrService
             }
         }
 
-        // Clean username (remove trailing dots/underscores that might be OCR errors)
-        // Also handle truncated usernames from header (e.g., "bebekcaberawit_grandwis..." -> "bebekcaberawit_grandwis")
-        // Clean username (remove trailing dots/underscores that might be OCR errors)
-        // Also handle truncated usernames from header (e.g., "bebekcaberawit_grandwis..." -> "bebekcaberawit_grandwis")
+
         if ($username) {
             // Aggressively trim dots and underscores from both ends
             $username = trim($username, '._');
