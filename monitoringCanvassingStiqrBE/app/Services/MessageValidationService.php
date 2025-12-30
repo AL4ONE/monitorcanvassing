@@ -617,10 +617,37 @@ class MessageValidationService
                         $errorMessage .= 'OCR usernames yang tersimpan: ' . implode(', ', array_slice($allOcrUsernames, 0, 5)) . (count($allOcrUsernames) > 5 ? '...' : '') . '.';
                     }
 
-                    return [
-                        'valid' => false,
-                        'error' => $errorMessage,
                         'cycle' => null,
+                    ];
+                }
+
+                // If prospect still not found and logic reached here, it MUST be stage 0 (canvassing)
+                // because stage > 0 would have returned error above.
+                // So we Create a New Prospect and Cycle.
+                if (!$prospect) {
+                    \Illuminate\Support\Facades\Log::info('Creating new prospect and cycle for new canvassing', [
+                        'username' => $instagramUsername,
+                        'staff_id' => $staffId
+                    ]);
+
+                    $prospect = Prospect::create([
+                        'instagram_username' => $instagramUsername,
+                        'category' => 'FnB', // Default category, will be updated by controller if provided
+                    ]);
+
+                    $cycle = CanvassingCycle::create([
+                        'prospect_id' => $prospect->id,
+                        'staff_id' => $staffId,
+                        'current_stage' => 0,
+                        'status' => 'active', // New cycle starts as active
+                        'start_date' => now(),
+                        'last_followup_date' => now(),
+                    ]);
+
+                    return [
+                        'valid' => true,
+                        'cycle' => $cycle,
+                        // 'new_prospect' => true
                     ];
                 }
 
