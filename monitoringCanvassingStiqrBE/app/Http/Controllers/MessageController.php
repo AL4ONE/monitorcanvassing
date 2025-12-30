@@ -39,6 +39,7 @@ class MessageController extends Controller
             'stage' => 'nullable|integer|min:0|max:7',
             'contact_number' => 'nullable|string|max:50',
             'channel' => 'nullable|string|in:instagram,tiktok,facebook,threads,whatsapp,other',
+            'interaction_status' => 'nullable|string|in:no_response,menolak,tertarik,menerima',
         ]);
 
         $user = Auth::user();
@@ -183,6 +184,7 @@ class MessageController extends Controller
                 'stage' => $expectedStage,
                 'category' => $category,
                 'channel' => $request->input('channel'),
+                'interaction_status' => $request->input('interaction_status'),
                 'screenshot_path' => $filePath,
                 'screenshot_hash' => $fileHash,
                 'ocr_instagram_username' => $ocrResult['instagram_username'],
@@ -197,6 +199,22 @@ class MessageController extends Controller
                 'current_stage' => $expectedStage,
                 'last_followup_date' => now(), // Update last interaction date
             ];
+
+            // Update cycle status based on staff interaction feedback
+            if ($request->filled('interaction_status')) {
+                $status = $request->interaction_status;
+                if ($status === 'menolak') {
+                    $cycleUpdates['status'] = 'rejected';
+                    $cycleUpdates['failure_reason'] = 'Menolak (Staff Input)';
+                } elseif ($status === 'menerima') {
+                    $cycleUpdates['status'] = 'converted';
+                } elseif ($status === 'tertarik') {
+                    $cycleUpdates['status'] = 'ongoing';
+                } elseif ($status === 'no_response') {
+                    // Force ongoing if no response but was active, or keep valid status
+                    $cycleResult['cycle']->status === 'active' ? $cycleUpdates['status'] = 'ongoing' : null;
+                }
+            }
 
             // If contact number valid and prospect exists, update it
             if ($request->filled('contact_number') && $cycleResult['cycle']->prospect) {
