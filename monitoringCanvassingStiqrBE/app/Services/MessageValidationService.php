@@ -190,6 +190,45 @@ class MessageValidationService
 
         // FOLLOW-UP (Stage > 0): Handle after canvassing
         if ($stage > 0) {
+            // If exact match failed, try fuzzy matching to handle OCR errors
+            // Common OCR confusions: i↔l, 0↔O, 1↔I, etc.
+            if (!$prospect) {
+                \Illuminate\Support\Facades\Log::info('Exact match failed for follow-up, trying fuzzy match', [
+                    'extracted_username' => $instagramUsername,
+                    'staff_id' => $staffId,
+                ]);
+
+                // Get all prospects for this staff
+                $staffProspects = Prospect::whereHas('canvassingCycles', function ($q) use ($staffId) {
+                    $q->where('staff_id', $staffId);
+                })->get();
+
+                $bestMatch = null;
+                $minDistance = 999;
+
+                foreach ($staffProspects as $p) {
+                    $storedUsername = strtolower(trim($p->instagram_username));
+
+                    // Calculate Levenshtein distance
+                    $distance = levenshtein($instagramUsername, $storedUsername);
+
+                    // For usernames, allow max distance of 2 (handles 1-2 char OCR errors)
+                    if ($distance <= 2 && $distance < $minDistance) {
+                        $minDistance = $distance;
+                        $bestMatch = $p;
+                    }
+                }
+
+                if ($bestMatch) {
+                    $prospect = $bestMatch;
+                    \Illuminate\Support\Facades\Log::info('Found prospect via fuzzy match', [
+                        'extracted' => $instagramUsername,
+                        'matched' => $prospect->instagram_username,
+                        'distance' => $minDistance,
+                    ]);
+                }
+            }
+
             // Prospect must exist for follow-up
             if (!$prospect) {
                 return [
