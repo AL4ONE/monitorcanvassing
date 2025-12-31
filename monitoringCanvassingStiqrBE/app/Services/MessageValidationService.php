@@ -151,6 +151,7 @@ class MessageValidationService
                 $prospect = Prospect::create([
                     'instagram_username' => $instagramUsername,
                     'category' => 'FnB',
+                    'channel' => 'Instagram', // Default channel for Instagram canvassing
                 ]);
 
                 \Illuminate\Support\Facades\Log::info('Created new prospect for canvassing', [
