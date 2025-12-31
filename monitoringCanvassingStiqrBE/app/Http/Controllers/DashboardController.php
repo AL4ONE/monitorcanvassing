@@ -29,7 +29,7 @@ class DashboardController extends Controller
     public function index(Request $request)
     {
         ini_set('memory_limit', '512M'); // Increase memory limit for dashboard stats
-        
+
         $user = Auth::user();
         $date = $request->get('date', Carbon::today()->format('Y-m-d'));
         $viewMode = $request->get('view_mode', 'daily'); // daily or weekly
@@ -230,7 +230,7 @@ class DashboardController extends Controller
                 'overall_stats' => $overallStats,
                 'chart_data' => $chartData,
             ]);
-            ]);
+
         } catch (\Throwable $e) {
             Log::error('Supervisor dashboard error (Fatal)', [
                 'error' => $e->getMessage(),
