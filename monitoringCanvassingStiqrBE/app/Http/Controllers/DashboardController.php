@@ -268,13 +268,17 @@ class DashboardController extends Controller
             }
 
             // Check for invalid follow-ups (missing previous stage)
-            $invalidFollowUps = Message::with(['canvassingCycle'])
+            $invalidFollowUps = Message::with([
+                'canvassingCycle' => function ($q) {
+                    $q->select('id', 'staff_id', 'prospect_id');
+                }
+            ])
                 ->whereHas('canvassingCycle', function ($q) use ($staffId) {
                     $q->where('staff_id', $staffId);
                 })
                 ->where('stage', '>', 0)
                 ->whereDate('submitted_at', $date)
-                ->get()
+                ->get(['id', 'canvassing_cycle_id', 'stage', 'submitted_at'])
                 ->filter(function ($message) {
                     if (!$message->canvassing_cycle_id) {
                         return false; // Skip if no cycle ID
@@ -295,12 +299,16 @@ class DashboardController extends Controller
             }
 
             // Check for OCR username mismatch (use partial matching to handle truncated usernames)
-            $mismatchedUsernames = Message::with(['canvassingCycle.prospect'])
+            $mismatchedUsernames = Message::with([
+                'canvassingCycle.prospect' => function ($q) {
+                    $q->select('id', 'instagram_username');
+                }
+            ])
                 ->whereHas('canvassingCycle', function ($q) use ($staffId) {
                     $q->where('staff_id', $staffId);
                 })
                 ->whereDate('submitted_at', $date)
-                ->get()
+                ->get(['id', 'canvassing_cycle_id', 'ocr_instagram_username', 'stage', 'submitted_at'])
                 ->filter(function ($message) {
                     // Add null check to prevent errors
                     if (!$message->canvassingCycle || !$message->canvassingCycle->prospect) {
