@@ -146,13 +146,13 @@ class MessageValidationService
 
         // CANVASSING (Stage 0): Handle early to avoid complex nested logic
         if ($stage == 0) {
+            // Create prospect if doesn't exist
             if (!$prospect) {
-                // Create new prospect for canvassing
                 $prospect = Prospect::create([
                     'instagram_username' => $instagramUsername,
                     'category' => 'FnB',
                 ]);
-                
+
                 \Illuminate\Support\Facades\Log::info('Created new prospect for canvassing', [
                     'prospect_id' => $prospect->id,
                     'username' => $instagramUsername,
@@ -188,11 +188,11 @@ class MessageValidationService
             ];
         }
 
+
         // If not found, try partial matching (handle truncated usernames)
-        // ONLY for follow-ups - canvassing should create new prospects
         // e.g., "bebekcaberawit_grandwis" should match "bebekcaberawit_grandwisata"
         // or "bebekcaberawit_grandwisata" should match "bebekcaberawit_grandwis"
-        if (!$prospect && $stage > 0) {
+        if (!$prospect) {
             // Get base username (first part before potential truncation)
             // Username format usually: "prefix_suffix" - match on prefix part
             $baseParts = explode('_', $instagramUsername);
@@ -580,15 +580,8 @@ class MessageValidationService
                 }
 
             }
-        }
 
-        // Canvassing and Follow-up logic
-        \Illuminate\Support\Facades\Log::info('About to check stage', [
-            'stage' => $stage,
-            'prospect_found' => $prospect ? 'yes' : 'no',
-        ]);
-
-        if ($stage == 0) {
+            if ($stage == 0) {
                 // Canvassing - create new prospect if doesn't exist
                 if (!$prospect) {
                     // Use the extracted username (might be truncated, that's OK)
@@ -773,11 +766,6 @@ class MessageValidationService
             }
         }
 
-        return [
-            'valid' => false,
-            'error' => 'Validasi gagal: Kesalahan internal (Logic Fallthrough)',
-            'cycle' => null,
-        ];
     }
 
     /**
