@@ -569,9 +569,13 @@ class MessageValidationService
                     }
                 }
 
-            }
+                }
 
-            if ($stage == 0) {
+            }
+        }
+
+        // Canvassing and Follow-up logic
+        if ($stage == 0) {
                 // Canvassing - create new prospect if doesn't exist
                 if (!$prospect) {
                     // Use the extracted username (might be truncated, that's OK)
