@@ -188,6 +188,49 @@ class MessageValidationService
             ];
         }
 
+        // FOLLOW-UP (Stage > 0): Handle after canvassing
+        if ($stage > 0) {
+            // Prospect must exist for follow-up
+            if (!$prospect) {
+                return [
+                    'valid' => false,
+                    'error' => "Prospect tidak ditemukan. Follow-up harus untuk prospect yang sudah di-canvassing. Username: {$instagramUsername}",
+                    'cycle' => null,
+                ];
+            }
+
+            // Find active cycle
+            $cycle = CanvassingCycle::where('prospect_id', $prospect->id)
+                ->where('staff_id', $staffId)
+                ->whereIn('status', ['active', 'ongoing', 'sedang berlangsung'])
+                ->first();
+
+            if (!$cycle) {
+                return [
+                    'valid' => false,
+                    'error' => "Tidak ditemukan siklus canvassing aktif untuk prospect '{$prospect->instagram_username}'. Pastikan anda sudah melakukan canvassing awal.",
+                    'cycle' => null,
+                ];
+            }
+
+            // Check if previous stage exists
+            $previousMessage = Message::where('canvassing_cycle_id', $cycle->id)
+                ->where('stage', $stage - 1)
+                ->first();
+
+            if (!$previousMessage) {
+                return [
+                    'valid' => false,
+                    'error' => "Follow-up stage {$stage} tidak valid. Stage sebelumnya belum ada.",
+                    'cycle' => null,
+                ];
+            }
+
+            return [
+                'valid' => true,
+                'cycle' => $cycle,
+            ];
+        }
 
         // If not found, try partial matching (handle truncated usernames)
         // e.g., "bebekcaberawit_grandwis" should match "bebekcaberawit_grandwisata"
