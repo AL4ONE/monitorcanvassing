@@ -218,9 +218,11 @@ class MessageValidationService
             $allStaffMessages = Message::whereHas('canvassingCycle', function ($q) use ($staffId) {
                 $q->where('staff_id', $staffId);
             })
-                ->with(['canvassingCycle.prospect' => function($q) {
-                    $q->select('id', 'instagram_username');
-                }])
+                ->with([
+                    'canvassingCycle.prospect' => function ($q) {
+                        $q->select('id', 'instagram_username');
+                    }
+                ])
                 ->get(['id', 'canvassing_cycle_id', 'ocr_instagram_username', 'stage', 'submitted_at']);
 
             \Illuminate\Support\Facades\Log::info('All messages for staff', [
@@ -255,9 +257,11 @@ class MessageValidationService
                             }
                         });
                 })
-                ->with(['canvassingCycle.prospect' => function($q) {
-                    $q->select('id', 'instagram_username');
-                }])
+                ->with([
+                    'canvassingCycle.prospect' => function ($q) {
+                        $q->select('id', 'instagram_username');
+                    }
+                ])
                 ->orderBy('submitted_at', 'desc')
                 ->get(['id', 'canvassing_cycle_id', 'ocr_instagram_username', 'stage', 'submitted_at']);
 
@@ -275,9 +279,11 @@ class MessageValidationService
                         $q->where('staff_id', $staffId);
                     })
                         ->where('ocr_instagram_username', 'like', $basePrefix . '_%')
-                        ->with(['canvassingCycle.prospect' => function($q) {
-                            $q->select('id', 'instagram_username');
-                        }])
+                        ->with([
+                            'canvassingCycle.prospect' => function ($q) {
+                                $q->select('id', 'instagram_username');
+                            }
+                        ])
                         ->orderBy('submitted_at', 'desc')
                         ->get(['id', 'canvassing_cycle_id', 'ocr_instagram_username', 'stage', 'submitted_at']);
 
@@ -298,9 +304,11 @@ class MessageValidationService
                         $q->where('staff_id', $staffId);
                     })
                         ->where('ocr_instagram_username', 'like', $basePrefix . '_' . $suffixPrefix . '%')
-                        ->with(['canvassingCycle.prospect' => function($q) {
-                            $q->select('id', 'instagram_username');
-                        }])
+                        ->with([
+                            'canvassingCycle.prospect' => function ($q) {
+                                $q->select('id', 'instagram_username');
+                            }
+                        ])
                         ->orderBy('submitted_at', 'desc')
                         ->get(['id', 'canvassing_cycle_id', 'ocr_instagram_username', 'stage', 'submitted_at']);
 
@@ -321,9 +329,11 @@ class MessageValidationService
                     $allMessages = Message::whereHas('canvassingCycle', function ($q) use ($staffId) {
                         $q->where('staff_id', $staffId);
                     })
-                        ->with(['canvassingCycle.prospect' => function($q) {
-                            $q->select('id', 'instagram_username');
-                        }])
+                        ->with([
+                            'canvassingCycle.prospect' => function ($q) {
+                                $q->select('id', 'instagram_username');
+                            }
+                        ])
                         ->get(['id', 'canvassing_cycle_id', 'ocr_instagram_username', 'stage', 'submitted_at']);
 
                     $strategy4 = $allMessages->filter(function ($msg) use ($basePrefix) {
@@ -353,9 +363,11 @@ class MessageValidationService
                 $allMessages = Message::whereHas('canvassingCycle', function ($q) use ($staffId) {
                     $q->where('staff_id', $staffId);
                 })
-                    ->with(['canvassingCycle.prospect' => function($q) {
-                        $q->select('id', 'instagram_username');
-                    }])
+                    ->with([
+                        'canvassingCycle.prospect' => function ($q) {
+                            $q->select('id', 'instagram_username');
+                        }
+                    ])
                     ->get(['id', 'canvassing_cycle_id', 'ocr_instagram_username', 'stage', 'submitted_at']);
 
                 $bestMatch = null;
@@ -376,9 +388,9 @@ class MessageValidationService
                     } else {
                         // Check string length limit for levenshtein (max 255)
                         if (strlen($instagramUsername) > 255 || strlen($msg->ocr_instagram_username) > 255) {
-                             $dist = 255;
+                            $dist = 255;
                         } else {
-                             $dist = levenshtein($instagramUsername, $msg->ocr_instagram_username);
+                            $dist = levenshtein($instagramUsername, $msg->ocr_instagram_username);
                         }
                     }
 
@@ -697,7 +709,8 @@ class MessageValidationService
                     'cycle' => $cycle,
                 ];
             }
-        
+        }
+
         return [
             'valid' => false,
             'error' => 'Validasi gagal: Kesalahan internal (Logic Fallthrough)',
