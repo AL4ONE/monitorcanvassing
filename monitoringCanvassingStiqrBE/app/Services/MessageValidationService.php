@@ -218,12 +218,8 @@ class MessageValidationService
             $allStaffMessages = Message::whereHas('canvassingCycle', function ($q) use ($staffId) {
                 $q->where('staff_id', $staffId);
             })
-                ->with([
-                    'canvassingCycle.prospect' => function ($q) {
-                        $q->select('id', 'instagram_username');
-                    }
-                ])
-                ->get(['id', 'canvassing_cycle_id', 'ocr_instagram_username', 'stage', 'submitted_at']);
+                ->with('canvassingCycle.prospect')
+                ->get();
 
             \Illuminate\Support\Facades\Log::info('All messages for staff', [
                 'staff_id' => $staffId,
@@ -257,13 +253,9 @@ class MessageValidationService
                             }
                         });
                 })
-                ->with([
-                    'canvassingCycle.prospect' => function ($q) {
-                        $q->select('id', 'instagram_username');
-                    }
-                ])
+                ->with('canvassingCycle.prospect')
                 ->orderBy('submitted_at', 'desc')
-                ->get(['id', 'canvassing_cycle_id', 'ocr_instagram_username', 'stage', 'submitted_at']);
+                ->get();
 
             \Illuminate\Support\Facades\Log::info('Strategy 1 results', [
                 'found' => $strategy1->count(),
@@ -279,13 +271,9 @@ class MessageValidationService
                         $q->where('staff_id', $staffId);
                     })
                         ->where('ocr_instagram_username', 'like', $basePrefix . '_%')
-                        ->with([
-                            'canvassingCycle.prospect' => function ($q) {
-                                $q->select('id', 'instagram_username');
-                            }
-                        ])
+                        ->with('canvassingCycle.prospect')
                         ->orderBy('submitted_at', 'desc')
-                        ->get(['id', 'canvassing_cycle_id', 'ocr_instagram_username', 'stage', 'submitted_at']);
+                        ->get();
 
                     \Illuminate\Support\Facades\Log::info('Strategy 2 results', [
                         'found' => $strategy2->count(),
@@ -304,13 +292,9 @@ class MessageValidationService
                         $q->where('staff_id', $staffId);
                     })
                         ->where('ocr_instagram_username', 'like', $basePrefix . '_' . $suffixPrefix . '%')
-                        ->with([
-                            'canvassingCycle.prospect' => function ($q) {
-                                $q->select('id', 'instagram_username');
-                            }
-                        ])
+                        ->with('canvassingCycle.prospect')
                         ->orderBy('submitted_at', 'desc')
-                        ->get(['id', 'canvassing_cycle_id', 'ocr_instagram_username', 'stage', 'submitted_at']);
+                        ->get();
 
                     \Illuminate\Support\Facades\Log::info('Strategy 3 results', [
                         'found' => $strategy3->count(),
@@ -329,12 +313,8 @@ class MessageValidationService
                     $allMessages = Message::whereHas('canvassingCycle', function ($q) use ($staffId) {
                         $q->where('staff_id', $staffId);
                     })
-                        ->with([
-                            'canvassingCycle.prospect' => function ($q) {
-                                $q->select('id', 'instagram_username');
-                            }
-                        ])
-                        ->get(['id', 'canvassing_cycle_id', 'ocr_instagram_username', 'stage', 'submitted_at']);
+                        ->with('canvassingCycle.prospect')
+                        ->get();
 
                     $strategy4 = $allMessages->filter(function ($msg) use ($basePrefix) {
                         if (!$msg->ocr_instagram_username) {
@@ -363,12 +343,8 @@ class MessageValidationService
                 $allMessages = Message::whereHas('canvassingCycle', function ($q) use ($staffId) {
                     $q->where('staff_id', $staffId);
                 })
-                    ->with([
-                        'canvassingCycle.prospect' => function ($q) {
-                            $q->select('id', 'instagram_username');
-                        }
-                    ])
-                    ->get(['id', 'canvassing_cycle_id', 'ocr_instagram_username', 'stage', 'submitted_at']);
+                    ->with('canvassingCycle.prospect')
+                    ->get();
 
                 $bestMatch = null;
                 $minDistance = 100;
@@ -386,12 +362,7 @@ class MessageValidationService
                     if ($normInput === $normStored && strlen($normInput) > 5) {
                         $dist = 0;
                     } else {
-                        // Check string length limit for levenshtein (max 255)
-                        if (strlen($instagramUsername) > 255 || strlen($msg->ocr_instagram_username) > 255) {
-                            $dist = 255;
-                        } else {
-                            $dist = levenshtein($instagramUsername, $msg->ocr_instagram_username);
-                        }
+                        $dist = levenshtein($instagramUsername, $msg->ocr_instagram_username);
                     }
 
                     // Threshold logic
@@ -505,12 +476,7 @@ class MessageValidationService
                         if ($normInput === $normStored && strlen($normInput) > 5) {
                             $dist = 0;
                         } else {
-                            // Check string length limit for levenshtein (max 255)
-                            if (strlen($instagramUsername) > 255 || strlen($storedUsername) > 255) {
-                                $dist = 255;
-                            } else {
-                                $dist = levenshtein($instagramUsername, $storedUsername);
-                            }
+                            $dist = levenshtein($instagramUsername, $storedUsername);
                         }
 
                         $len = strlen($instagramUsername);
@@ -569,16 +535,13 @@ class MessageValidationService
                 }
 
             }
-        }
 
-        // Canvassing and Follow-up logic
-        if ($stage == 0) {
+            if ($stage == 0) {
                 // Canvassing - create new prospect if doesn't exist
                 if (!$prospect) {
                     // Use the extracted username (might be truncated, that's OK)
                     $prospect = Prospect::create([
                         'instagram_username' => $instagramUsername,
-                        'category' => 'FnB', // Default category
                     ]);
                 } else {
                     // If prospect exists but username is different (one is truncated), update to longer version
@@ -664,7 +627,52 @@ class MessageValidationService
                 // If prospect still not found and logic reached here, it MUST be stage 0 (canvassing)
                 // because stage > 0 would have returned error above.
                 // So we Create a New Prospect and Cycle.
+                if (!$prospect) {
+                    // Logic check: Only allow creation for stage 0
+                    if ($stage > 0) {
+                        return [
+                            'valid' => false,
+                            'error' => "Prospect tidak ditemukan (v3). Follow-up harus untuk prospect yang sudah ada.",
+                            'cycle' => null
+                        ];
+                    }
 
+                    try {
+                        \Illuminate\Support\Facades\Log::info('Creating new prospect and cycle for new canvassing', [
+                            'username' => $instagramUsername,
+                            'staff_id' => $staffId
+                        ]);
+
+                        $prospect = Prospect::create([
+                            'instagram_username' => $instagramUsername,
+                            'category' => 'FnB',
+                        ]);
+
+                        $cycle = CanvassingCycle::create([
+                            'prospect_id' => $prospect->id,
+                            'staff_id' => $staffId,
+                            'current_stage' => 0,
+                            'status' => 'active',
+                            'start_date' => now(),
+                            'last_followup_date' => now(),
+                        ]);
+
+                        return [
+                            'valid' => true,
+                            'cycle' => $cycle,
+                        ];
+                    } catch (\Exception $e) {
+                        \Illuminate\Support\Facades\Log::error('Failed to create new prospect', [
+                            'error' => $e->getMessage(),
+                            'trace' => $e->getTraceAsString()
+                        ]);
+                        return [
+                            'valid' => false,
+                            'error' => "Gagal membuat prospect baru: " . $e->getMessage(),
+                            'cycle' => null,
+                        ];
+                    }
+                }
 
                 $cycle = CanvassingCycle::where('prospect_id', $prospect->id)
                     ->where('staff_id', $staffId)
@@ -713,11 +721,6 @@ class MessageValidationService
             }
         }
 
-        return [
-            'valid' => false,
-            'error' => 'Validasi gagal: Kesalahan internal (Logic Fallthrough)',
-            'cycle' => null,
-        ];
     }
 
     /**
