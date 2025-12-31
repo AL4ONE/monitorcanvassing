@@ -536,14 +536,15 @@ class MessageValidationService
                 }
 
             }
+        }
 
-            // Canvassing and Follow-up logic
-            \Illuminate\Support\Facades\Log::info('About to check stage', [
-                'stage' => $stage,
-                'prospect_found' => $prospect ? 'yes' : 'no',
-            ]);
+        // Canvassing and Follow-up logic
+        \Illuminate\Support\Facades\Log::info('About to check stage', [
+            'stage' => $stage,
+            'prospect_found' => $prospect ? 'yes' : 'no',
+        ]);
 
-            if ($stage == 0) {
+        if ($stage == 0) {
                 // Canvassing - create new prospect if doesn't exist
                 if (!$prospect) {
                     // Use the extracted username (might be truncated, that's OK)
