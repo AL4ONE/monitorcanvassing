@@ -721,6 +721,11 @@ class MessageValidationService
             }
         }
 
+        return [
+            'valid' => false,
+            'error' => 'Validasi gagal: Kesalahan internal (Logic Fallthrough)',
+            'cycle' => null,
+        ];
     }
 
     /**
