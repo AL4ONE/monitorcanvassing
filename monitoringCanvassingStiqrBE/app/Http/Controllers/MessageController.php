@@ -34,6 +34,13 @@ class MessageController extends Controller
      */
     public function upload(Request $request)
     {
+        ini_set('memory_limit', '512M'); // Increase memory limit for image processing and OCR matching
+
+        Log::info('Upload request started', [
+            'has_file' => $request->hasFile('screenshot'),
+            'content_length' => $_SERVER['CONTENT_LENGTH'] ?? 'unknown',
+        ]);
+
         $request->validate([
             'screenshot' => 'required|image|mimes:jpeg,png,jpg,gif|max:10240', // 10MB max
             'stage' => 'nullable|integer|min:0|max:7',
@@ -241,21 +248,27 @@ class MessageController extends Controller
                 ],
             ], 201);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
             if (isset($filePath)) {
                 Storage::disk('public')->delete($filePath);
             }
 
-            \Illuminate\Support\Facades\Log::error('Upload failed: ' . $e->getMessage(), [
+            \Illuminate\Support\Facades\Log::error('Upload failed (Fatal): ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
-                'user_id' => $user->id,
+                'user_id' => $user->id ?? 'unknown',
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Terjadi kesalahan saat memproses upload',
+                'message' => 'Terjadi kesalahan sistem (Server Error)',
                 'error' => config('app.debug') ? $e->getMessage() : null,
+                'debug' => config('app.debug') ? [
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                ] : null,
             ], 500);
         }
     }
