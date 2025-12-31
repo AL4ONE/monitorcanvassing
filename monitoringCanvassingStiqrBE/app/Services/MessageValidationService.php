@@ -144,6 +144,50 @@ class MessageValidationService
             ]);
         }
 
+        // CANVASSING (Stage 0): Handle early to avoid complex nested logic
+        if ($stage == 0) {
+            if (!$prospect) {
+                // Create new prospect for canvassing
+                $prospect = Prospect::create([
+                    'instagram_username' => $instagramUsername,
+                    'category' => 'FnB',
+                ]);
+                
+                \Illuminate\Support\Facades\Log::info('Created new prospect for canvassing', [
+                    'prospect_id' => $prospect->id,
+                    'username' => $instagramUsername,
+                ]);
+            }
+
+            // Check if cycle already exists
+            $existingCycle = CanvassingCycle::where('prospect_id', $prospect->id)
+                ->where('staff_id', $staffId)
+                ->whereIn('status', ['active', 'ongoing', 'sedang berlangsung'])
+                ->first();
+
+            if ($existingCycle) {
+                return [
+                    'valid' => false,
+                    'error' => 'Prospect ini sudah pernah di-canvassing sebelumnya',
+                    'cycle' => null,
+                ];
+            }
+
+            // Create new cycle
+            $cycle = CanvassingCycle::create([
+                'prospect_id' => $prospect->id,
+                'staff_id' => $staffId,
+                'start_date' => Carbon::today(),
+                'current_stage' => 0,
+                'status' => 'active',
+            ]);
+
+            return [
+                'valid' => true,
+                'cycle' => $cycle,
+            ];
+        }
+
         // If not found, try partial matching (handle truncated usernames)
         // ONLY for follow-ups - canvassing should create new prospects
         // e.g., "bebekcaberawit_grandwis" should match "bebekcaberawit_grandwisata"
