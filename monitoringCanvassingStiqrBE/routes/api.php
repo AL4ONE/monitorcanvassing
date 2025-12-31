@@ -36,8 +36,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // Messages
     Route::post('/messages/upload', [MessageController::class, 'upload']);
     Route::get('/messages', [MessageController::class, 'index']);
-    Route::get('/messages/{id}', [MessageController::class, 'show']);
-    Route::delete('/messages/{id}', [MessageController::class, 'destroy']);
+    Route::get('/messages/{id}', [MessageController::class, 'show'])->where('id', '[0-9]+');
+    Route::delete('/messages/{id}', [MessageController::class, 'destroy'])->where('id', '[0-9]+');
 
     // Quality Check (Supervisor only)
     Route::middleware('role:supervisor')->group(function () {

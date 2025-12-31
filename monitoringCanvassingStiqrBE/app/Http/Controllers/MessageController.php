@@ -247,6 +247,11 @@ class MessageController extends Controller
                 Storage::disk('public')->delete($filePath);
             }
 
+            \Illuminate\Support\Facades\Log::error('Upload failed: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'user_id' => $user->id,
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Terjadi kesalahan saat memproses upload',
