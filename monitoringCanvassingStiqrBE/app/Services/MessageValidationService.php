@@ -145,10 +145,9 @@ class MessageValidationService
         }
 
         // If not found, try partial matching (handle truncated usernames)
-        // ONLY for follow-ups (stage > 0) - for canvassing, we want exact matches only
         // e.g., "bebekcaberawit_grandwis" should match "bebekcaberawit_grandwisata"
         // or "bebekcaberawit_grandwisata" should match "bebekcaberawit_grandwis"
-        if (!$prospect && $stage > 0) {
+        if (!$prospect) {
             // Get base username (first part before potential truncation)
             // Username format usually: "prefix_suffix" - match on prefix part
             $baseParts = explode('_', $instagramUsername);
