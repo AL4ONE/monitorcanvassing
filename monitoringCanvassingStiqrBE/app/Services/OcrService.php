@@ -400,6 +400,17 @@ class OcrService
                 Log::info('Found username via Pattern 1 (memulai obrolan)', ['username' => $username]);
             }
         }
+        // Pattern 1.5: Username BEFORE "Obrolan bisnis" (follow-up screenshot format)
+        // This appears in follow-up screenshots: "uptrend.kopi Obrolan bisnis"
+        // The username appears in the header but WITHOUT "memulai obrolan dengan" text
+        elseif (preg_match('/([a-zA-Z0-9._]{5,30})\s+(?:Obrolan|obrolan)\s+(?:bisnis|business)/i', $headerText, $matches)) {
+            $potentialUsername = strtolower(trim($matches[1]));
+            // Check it's not a common word and not a number-only string
+            if (!in_array($potentialUsername, $commonWords) && !is_numeric($potentialUsername)) {
+                $username = $potentialUsername;
+                Log::info('Found username via Pattern 1.5 (before Obrolan bisnis)', ['username' => $username]);
+            }
+        }
         // Pattern 2: "obrolan dengan username" or "chat with username" (from header/top)
         // This appears in the header area: "obrolan bisnis" or "obrolan dengan username"
         // MUST search ONLY in header area
