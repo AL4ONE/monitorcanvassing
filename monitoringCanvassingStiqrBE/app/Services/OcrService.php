@@ -437,15 +437,21 @@ class OcrService
 
         // Pattern 3c: Username at the very start or following back arrow (<- or <)
         // Common in dark mode screenshots where header text is "<- @username" or similar
-        // Also matches if it starts with "k" (from "kembali" arrow icon sometimes ocr'd as k or <)
         if (!$username) {
-            // Look for username at start of text or lines in header
-            if (preg_match('/(?:^|[\n\r]|\s)(?:[<←k])\s*@?\s*([a-zA-Z0-9._]{5,30})/u', $headerText, $matches)) {
+            // Look for username at start of line in header (not mid-sentence)
+            // Removed 'k' and '\s' to prevent matching random words in messages
+            if (preg_match('/(?:^|[\n\r])(?:[<←])\s*@?\s*([a-zA-Z0-9._]{8,30})/u', $headerText, $matches)) {
                 $potentialUsername = strtolower(trim($matches[1]));
-                // Use the same commonWords array defined at the top
-                if (!in_array($potentialUsername, $commonWords) && strlen($potentialUsername) >= 5) {
+                // VALIDATE BEFORE ACCEPTING - must be at least 8 chars and not a common word
+                if (!in_array($potentialUsername, $commonWords) && strlen($potentialUsername) >= 8) {
                     $username = $potentialUsername;
                     Log::info('Found username via Pattern 3c (back arrow)', ['username' => $username]);
+                } else {
+                    Log::info('Pattern 3c matched but failed validation', [
+                        'matched' => $potentialUsername,
+                        'length' => strlen($potentialUsername),
+                        'reason' => strlen($potentialUsername) < 8 ? 'too_short' : 'common_word'
+                    ]);
                 }
             }
         }

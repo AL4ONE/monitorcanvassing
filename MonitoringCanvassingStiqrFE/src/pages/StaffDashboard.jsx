@@ -52,12 +52,10 @@ export default function StaffDashboard() {
 
   const targetsPerStage = stats?.targets_per_stage || {};
 
-  // Helper function to convert UTC to WIB
+  // Helper function to format date to WIB
   const formatToWIB = (dateString) => {
     const date = new Date(dateString);
-    // Convert to WIB (UTC+7)
-    const wibDate = new Date(date.getTime() + (7 * 60 * 60 * 1000));
-    return wibDate.toLocaleString('id-ID', {
+    return date.toLocaleString('id-ID', {
       timeZone: 'Asia/Jakarta',
       year: 'numeric',
       month: '2-digit',
@@ -160,10 +158,10 @@ export default function StaffDashboard() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span
                         className={`px-2 py-1 text-xs rounded ${msg.validation_status === 'valid'
-                            ? 'bg-green-100 text-green-800'
-                            : msg.validation_status === 'invalid'
-                              ? 'bg-red-100 text-red-800'
-                              : 'bg-yellow-100 text-yellow-800'
+                          ? 'bg-green-100 text-green-800'
+                          : msg.validation_status === 'invalid'
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-yellow-100 text-yellow-800'
                           }`}
                       >
                         {msg.validation_status === 'valid'
