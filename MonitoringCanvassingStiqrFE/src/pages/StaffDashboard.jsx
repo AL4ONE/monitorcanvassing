@@ -50,7 +50,28 @@ export default function StaffDashboard() {
     return <div className="p-6">Memuat...</div>;
   }
 
-  const targets = stats?.targets || {};
+  const targetsPerStage = stats?.targets_per_stage || {};
+
+  // Helper function to convert UTC to WIB
+  const formatToWIB = (dateString) => {
+    const date = new Date(dateString);
+    // Convert to WIB (UTC+7)
+    const wibDate = new Date(date.getTime() + (7 * 60 * 60 * 1000));
+    return wibDate.toLocaleString('id-ID', {
+      timeZone: 'Asia/Jakarta',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+  };
+
+  // Helper function to get stage label
+  const getStageLabel = (stage) => {
+    return stage === 0 ? 'Canvassing' : `Follow Up ${stage}`;
+  };
 
   return (
     <div className="max-w-7xl mx-auto p-6">
@@ -72,49 +93,29 @@ export default function StaffDashboard() {
         </div>
       </div>
 
-      {/* Target Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-lg font-semibold mb-4">Canvassing Hari Ini</h2>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-3xl font-bold">
-                {targets.canvassing?.count || 0} / {targets.canvassing?.target || 50}
-              </p>
-              <p className="text-sm text-gray-600 mt-2">
-                Target: 50 per hari
-              </p>
-            </div>
-            <div
-              className={`text-4xl ${
-                targets.canvassing?.met ? 'text-green-500' : 'text-red-500'
-              }`}
-            >
-              {targets.canvassing?.met ? '✓' : '✗'}
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-lg font-semibold mb-4">Follow Up Hari Ini</h2>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-3xl font-bold">
-                {targets.follow_up?.count || 0} / {targets.follow_up?.target || 50}
-              </p>
-              <p className="text-sm text-gray-600 mt-2">
-                Target: 50 per hari
-              </p>
-            </div>
-            <div
-              className={`text-4xl ${
-                targets.follow_up?.met ? 'text-green-500' : 'text-red-500'
-              }`}
-            >
-              {targets.follow_up?.met ? '✓' : '✗'}
+      {/* Target Cards - Dynamic for all stages */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {Object.entries(targetsPerStage).map(([stage, data]) => (
+          <div key={stage} className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-lg font-semibold mb-4">{getStageLabel(parseInt(stage))}</h2>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-3xl font-bold">
+                  {data.count || 0} / {data.target || 50}
+                </p>
+                <p className="text-sm text-gray-600 mt-2">
+                  Target: {data.target || 50} per hari
+                </p>
+              </div>
+              <div
+                className={`text-4xl ${data.met ? 'text-green-500' : 'text-red-500'
+                  }`}
+              >
+                {data.met ? '✓' : '✗'}
+              </div>
             </div>
           </div>
-        </div>
+        ))}
       </div>
 
       {/* Recent Messages */}
@@ -134,7 +135,7 @@ export default function StaffDashboard() {
                     Instagram Username
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Waktu Upload
+                    Waktu Upload (WIB)
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                     Status
@@ -154,23 +155,22 @@ export default function StaffDashboard() {
                       @{msg.canvassing_cycle?.prospect?.instagram_username || msg.ocr_instagram_username}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {new Date(msg.submitted_at).toLocaleString('id-ID')}
+                      {formatToWIB(msg.submitted_at)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span
-                        className={`px-2 py-1 text-xs rounded ${
-                          msg.validation_status === 'valid'
+                        className={`px-2 py-1 text-xs rounded ${msg.validation_status === 'valid'
                             ? 'bg-green-100 text-green-800'
                             : msg.validation_status === 'invalid'
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-yellow-100 text-yellow-800'
+                          }`}
                       >
                         {msg.validation_status === 'valid'
                           ? 'Valid'
                           : msg.validation_status === 'invalid'
-                          ? 'Invalid'
-                          : 'Pending'}
+                            ? 'Invalid'
+                            : 'Pending'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
