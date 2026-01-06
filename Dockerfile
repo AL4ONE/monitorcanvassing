@@ -10,8 +10,8 @@ WORKDIR /app
 # Copy composer files
 COPY composer.json composer.lock ./
 
-# Install dependencies
-RUN composer install --no-dev --optimize-autoloader --no-scripts --ignore-platform-reqs
+# Install/update dependencies to sync lock with composer.json
+RUN composer update -W --no-dev --optimize-autoloader --no-scripts --ignore-platform-reqs
 
 
 # ============================================================
@@ -41,7 +41,7 @@ RUN npm run build
 # ------------------------------------------------------------
 # Tujuan: Menjalankan aplikasi Laravel dengan PHP-FPM dan NGINX
 # ============================================================
-FROM php:8.2-fpm-alpine
+FROM php:8.3-fpm-alpine
 
 # Install system dependencies dan PHP extensions
 RUN apk add --no-cache \

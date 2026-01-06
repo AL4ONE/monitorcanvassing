@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  stiqrcanvas-backend:
+  backend:
     build:
       context: .
       dockerfile: Dockerfile
@@ -12,38 +12,36 @@ services:
     env_file:
       - .env
     environment:
-      - APP_NAME=canvas
-      - APP_ENV=production
-      - APP_KEY=base64:8X3b/3Tz0b2JkqN06wi0Z2u3M3oXq6N8Zy0x5yJ8xR4=
-      - APP_DEBUG=false
-      - APP_URL=http://localhost
-      - LOG_CHANNEL=stderr
-      - LOG_LEVEL=error
-      - DB_CONNECTION=pgsql
-      - DB_HOST=stiqrcanvas-postgres
-      - DB_PORT=5432
-      - DB_DATABASE=canvas
-      - DB_USERNAME=canvas
-      - DB_PASSWORD=canvas_password
-      - CACHE_DRIVER=file
-      - SESSION_DRIVER=file
-      - QUEUE_CONNECTION=sync
-      # Filesystem Configuration
-      - FILESYSTEM_DISK=s3
-      # AWS S3 Configuration
+      - APP_NAME=${APP_NAME}
+      - APP_ENV=${APP_ENV}
+      - APP_KEY=${APP_KEY}
+      - APP_DEBUG=${APP_DEBUG}
+      - APP_URL=${APP_URL}
+      - LOG_CHANNEL=${LOG_CHANNEL}
+      - LOG_LEVEL=${LOG_LEVEL}
+      - DB_CONNECTION=${DB_CONNECTION}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_DATABASE=${DB_DATABASE}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - CACHE_DRIVER=${CACHE_STORE}
+      - SESSION_DRIVER=${SESSION_DRIVER}
+      - QUEUE_CONNECTION=${QUEUE_CONNECTION}
+      - FILESYSTEM_DISK=${FILESYSTEM_DISK}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-ap-southeast-1}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
       - AWS_BUCKET=${AWS_BUCKET}
       - AWS_URL=${AWS_URL}
       - AWS_ENDPOINT=${AWS_ENDPOINT}
-      - AWS_USE_PATH_STYLE_ENDPOINT=${AWS_USE_PATH_STYLE_ENDPOINT:-false}
+      - AWS_USE_PATH_STYLE_ENDPOINT=${AWS_USE_PATH_STYLE_ENDPOINT}
     volumes:
       - ./storage:/var/www/html/storage
     networks:
       - stiqrcanvas-network
     depends_on:
-      stiqrcanvas-postgres:
+      postgres:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1/health"]
@@ -52,14 +50,14 @@ services:
       retries: 3
       start_period: 40s
 
-  stiqrcanvas-postgres:
+  postgres:
     image: postgres:16-alpine
     container_name: stiqrcanvas-postgres
     restart: unless-stopped
     environment:
-      - POSTGRES_DB=canvas
-      - POSTGRES_USER=canvas
-      - POSTGRES_PASSWORD=canvas_password
+      - POSTGRES_DB=${DB_DATABASE}
+      - POSTGRES_USER=${DB_USERNAME}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
       - PGDATA=/var/lib/postgresql/data/pgdata
     volumes:
       - stiqrcanvas_postgres_data:/var/lib/postgresql/data
@@ -68,7 +66,7 @@ services:
     networks:
       - stiqrcanvas-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U canvas -d canvas"]
+      test: ["CMD-SHELL", "pg_isready -U $DB_USERNAME -d $DB_DATABASE"]
       interval: 10s
       timeout: 5s
       retries: 5

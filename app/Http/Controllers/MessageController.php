@@ -66,18 +66,13 @@ class MessageController extends Controller
             $file = $request->file('screenshot');
             $fileName = Str::uuid() . '.' . $file->getClientOriginalExtension();
             $disk = config('filesystems.default');
+            // Generate hash from temp file before moving
+            $tempPath = $file->getRealPath();
+            $fileHash = hash_file('sha256', $tempPath);
+            // Save to configured disk
             $filePath = $file->storeAs('screenshots', $fileName, $disk);
-            // Dapatkan URL file sesuai disk
-            if ($disk === 's3') {
-                $fullPath = Storage::disk('s3')->url($filePath);
-            } elseif ($disk === 'public') {
-                $fullPath = asset('storage/' . $filePath);
-            } else {
-                $fullPath = storage_path('app/private/' . $filePath);
-            }
 
-            // Generate hash
-            $fileHash = hash_file('sha256', $fullPath);
+            // Hash sudah dihitung dari temp file
 
             // Get stage from request (required)
             $expectedStage = $request->input('stage');
@@ -109,14 +104,14 @@ class MessageController extends Controller
 
             // Validate
             $validation = $this->validationService->validateAndProcess(
-                $fullPath,
+                $tempPath,
                 $fileHash,
                 $user->id,
                 $expectedStage
             );
 
             if (!$validation['valid']) {
-                Storage::disk('public')->delete($filePath);
+                Storage::disk($disk)->delete($filePath);
                 DB::rollBack();
                 return response()->json([
                     'success' => false,
@@ -126,7 +121,7 @@ class MessageController extends Controller
             }
 
             // Run OCR (pass expected stage to filter messages)
-            $ocrResult = $this->ocrService->extractData($fullPath, $expectedStage);
+            $ocrResult = $this->ocrService->extractData($tempPath, $expectedStage);
 
             // Validate message content matches expected stage (ALWAYS validate for stage > 0)
             // This ensures the message contains the correct template for the selected day
@@ -137,7 +132,7 @@ class MessageController extends Controller
                 );
 
                 if (!$messageValidation['valid']) {
-                    Storage::disk('public')->delete($filePath);
+                    Storage::disk($disk)->delete($filePath);
                     DB::rollBack();
                     return response()->json([
                         'success' => false,
@@ -148,7 +143,7 @@ class MessageController extends Controller
 
             // Find or create cycle based on OCR result
             if (!$ocrResult['instagram_username']) {
-                Storage::disk('public')->delete($filePath);
+                Storage::disk($disk)->delete($filePath);
                 DB::rollBack();
 
                 // Log OCR result for debugging with extensive details
@@ -329,9 +324,14 @@ class MessageController extends Controller
             })
             ->findOrFail($id);
 
+        $disk = config('filesystems.default');
+        $screenshotUrl = $disk === 's3'
+            ? Storage::disk('s3')->url($message->screenshot_path)
+            : url('storage/' . $message->screenshot_path);
+
         return response()->json([
             'data' => $message,
-            'screenshot_url' => url('storage/' . $message->screenshot_path),
+            'screenshot_url' => $screenshotUrl,
         ]);
     }
 
@@ -380,9 +380,10 @@ class MessageController extends Controller
                 ], 422);
             }
 
-            // Delete screenshot file
-            if ($message->screenshot_path && Storage::disk('public')->exists($message->screenshot_path)) {
-                Storage::disk('public')->delete($message->screenshot_path);
+            // Delete screenshot file on the configured disk
+            $disk = config('filesystems.default');
+            if ($message->screenshot_path && Storage::disk($disk)->exists($message->screenshot_path)) {
+                Storage::disk($disk)->delete($message->screenshot_path);
             }
 
             // Get cycle info before deletion
