@@ -65,8 +65,16 @@ class MessageController extends Controller
             // Store file
             $file = $request->file('screenshot');
             $fileName = Str::uuid() . '.' . $file->getClientOriginalExtension();
-            $filePath = $file->storeAs('screenshots', $fileName, 'public');
-            $fullPath = storage_path('app/public/' . $filePath);
+            $disk = config('filesystems.default');
+            $filePath = $file->storeAs('screenshots', $fileName, $disk);
+            // Dapatkan URL file sesuai disk
+            if ($disk === 's3') {
+                $fullPath = Storage::disk('s3')->url($filePath);
+            } elseif ($disk === 'public') {
+                $fullPath = asset('storage/' . $filePath);
+            } else {
+                $fullPath = storage_path('app/private/' . $filePath);
+            }
 
             // Generate hash
             $fileHash = hash_file('sha256', $fullPath);

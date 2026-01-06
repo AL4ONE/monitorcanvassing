@@ -1,18 +1,18 @@
 version: '3.8'
 
 services:
-  stiqrhub-backend:
+  stiqrcanvas-backend:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: stiqrhub-be-prod
+    container_name: stiqrcanvas-be-prod
     ports:
       - "80:80"
     restart: unless-stopped
     env_file:
       - .env
     environment:
-      - APP_NAME=StiqrHub
+      - APP_NAME=canvas
       - APP_ENV=production
       - APP_KEY=base64:8X3b/3Tz0b2JkqN06wi0Z2u3M3oXq6N8Zy0x5yJ8xR4=
       - APP_DEBUG=false
@@ -20,11 +20,11 @@ services:
       - LOG_CHANNEL=stderr
       - LOG_LEVEL=error
       - DB_CONNECTION=pgsql
-      - DB_HOST=postgres
+      - DB_HOST=stiqrcanvas-postgres
       - DB_PORT=5432
-      - DB_DATABASE=stiqrhub
-      - DB_USERNAME=stiqrhub
-      - DB_PASSWORD=stiqrhub_password
+      - DB_DATABASE=canvas
+      - DB_USERNAME=canvas
+      - DB_PASSWORD=canvas_password
       - CACHE_DRIVER=file
       - SESSION_DRIVER=file
       - QUEUE_CONNECTION=sync
@@ -41,9 +41,9 @@ services:
     volumes:
       - ./storage:/var/www/html/storage
     networks:
-      - stiqrhub-network
+      - stiqrcanvas-network
     depends_on:
-      postgres:
+      stiqrcanvas-postgres:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1/health"]
@@ -52,31 +52,31 @@ services:
       retries: 3
       start_period: 40s
 
-  postgres:
+  stiqrcanvas-postgres:
     image: postgres:16-alpine
-    container_name: stiqrhub-postgres
+    container_name: stiqrcanvas-postgres
     restart: unless-stopped
     environment:
-      - POSTGRES_DB=stiqrhub
-      - POSTGRES_USER=stiqrhub
-      - POSTGRES_PASSWORD=stiqrhub_password
+      - POSTGRES_DB=canvas
+      - POSTGRES_USER=canvas
+      - POSTGRES_PASSWORD=canvas_password
       - PGDATA=/var/lib/postgresql/data/pgdata
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - stiqrcanvas_postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     networks:
-      - stiqrhub-network
+      - stiqrcanvas-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U stiqrhub -d stiqrhub"]
+      test: ["CMD-SHELL", "pg_isready -U canvas -d canvas"]
       interval: 10s
       timeout: 5s
       retries: 5
 
 networks:
-  stiqrhub-network:
+  stiqrcanvas-network:
     driver: bridge
 
 volumes:
-  postgres_data:
+  stiqrcanvas_postgres_data:
     driver: local
