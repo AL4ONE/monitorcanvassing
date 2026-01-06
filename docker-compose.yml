@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  stiqrhub-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: stiqrhub-be-prod
+    ports:
+      - "80:80"
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - APP_NAME=StiqrHub
+      - APP_ENV=production
+      - APP_KEY=base64:8X3b/3Tz0b2JkqN06wi0Z2u3M3oXq6N8Zy0x5yJ8xR4=
+      - APP_DEBUG=false
+      - APP_URL=http://localhost
+      - LOG_CHANNEL=stderr
+      - LOG_LEVEL=error
+      - DB_CONNECTION=pgsql
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_DATABASE=stiqrhub
+      - DB_USERNAME=stiqrhub
+      - DB_PASSWORD=stiqrhub_password
+      - CACHE_DRIVER=file
+      - SESSION_DRIVER=file
+      - QUEUE_CONNECTION=sync
+      # Filesystem Configuration
+      - FILESYSTEM_DISK=s3
+      # AWS S3 Configuration
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-ap-southeast-1}
+      - AWS_BUCKET=${AWS_BUCKET}
+      - AWS_URL=${AWS_URL}
+      - AWS_ENDPOINT=${AWS_ENDPOINT}
+      - AWS_USE_PATH_STYLE_ENDPOINT=${AWS_USE_PATH_STYLE_ENDPOINT:-false}
+    volumes:
+      - ./storage:/var/www/html/storage
+    networks:
+      - stiqrhub-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: stiqrhub-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=stiqrhub
+      - POSTGRES_USER=stiqrhub
+      - POSTGRES_PASSWORD=stiqrhub_password
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - stiqrhub-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stiqrhub -d stiqrhub"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  stiqrhub-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
