@@ -17,21 +17,23 @@ class Cors
     {
         // Handle preflight OPTIONS request
         if ($request->isMethod('OPTIONS')) {
-            return response('', 200)
-                ->header('Access-Control-Allow-Origin', '*')
-                ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH')
-                ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin')
-                ->header('Access-Control-Allow-Credentials', 'true')
-                ->header('Access-Control-Max-Age', '86400');
+            return response('', 200)->withHeaders([
+                'Access-Control-Allow-Origin' => '*',
+                'Access-Control-Allow-Methods' => 'GET, POST, PUT, DELETE, OPTIONS, PATCH',
+                'Access-Control-Allow-Headers' => 'Content-Type, Authorization, X-Requested-With, Accept, Origin',
+                'Access-Control-Allow-Credentials' => 'true',
+                'Access-Control-Max-Age' => '86400',
+            ]);
         }
 
         $response = $next($request);
 
         // Add CORS headers to response
-        return $response
-            ->header('Access-Control-Allow-Origin', '*')
-            ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH')
-            ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin')
-            ->header('Access-Control-Allow-Credentials', 'true');
+        $response->headers->set('Access-Control-Allow-Origin', '*');
+        $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+        $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+        $response->headers->set('Access-Control-Allow-Credentials', 'true');
+
+        return $response;
     }
 }
