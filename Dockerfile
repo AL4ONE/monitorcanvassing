@@ -69,6 +69,12 @@ COPY --chown=www-data:www-data . .
 # Copy composer dependencies dari builder
 COPY --from=composer-builder --chown=www-data:www-data /app/vendor ./vendor
 
+# Install composer for production (needed for autoload regeneration)
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+# Regenerate autoload files in production environment
+RUN composer dump-autoload --optimize --no-dev
+
 # Copy built assets dari node builder
 COPY --from=node-builder --chown=www-data:www-data /app/public/build ./public/build
 
