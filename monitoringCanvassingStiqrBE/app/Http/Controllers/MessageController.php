@@ -59,17 +59,26 @@ class MessageController extends Controller
             ], 403);
         }
 
+        // Temporary test bypass: allow skipping OCR + validation when enabled via config
+        $bypass = config('app.allow_fake_ocr') && config('app.env') !== 'production';
+
         try {
             DB::beginTransaction();
 
             // Store file
             $file = $request->file('screenshot');
             $fileName = Str::uuid() . '.' . $file->getClientOriginalExtension();
-            $filePath = $file->storeAs('screenshots', $fileName, 'public');
-            $fullPath = storage_path('app/public/' . $filePath);
+            $disk = config('filesystems.default');
+            // Generate hash from temp file before moving
+            $tempPath = $file->getRealPath();
+            $fileHash = hash_file('sha256', $tempPath);
+            // Save to configured disk with public visibility
+            $filePath = $file->storeAs('screenshots', $fileName, [
+                'disk' => $disk,
+                'visibility' => 'public',
+            ]);
 
-            // Generate hash
-            $fileHash = hash_file('sha256', $fullPath);
+            // Hash sudah dihitung dari temp file
 
             // Get stage from request (required)
             $expectedStage = $request->input('stage');
@@ -99,16 +108,20 @@ class MessageController extends Controller
                 ], 422);
             }
 
-            // Validate
-            $validation = $this->validationService->validateAndProcess(
-                $fullPath,
-                $fileHash,
-                $user->id,
-                $expectedStage
-            );
+            // Validate (bypass for testing when enabled)
+            if ($bypass) {
+                $validation = ['valid' => true];
+            } else {
+                $validation = $this->validationService->validateAndProcess(
+                    $tempPath,
+                    $fileHash,
+                    $user->id,
+                    $expectedStage
+                );
+            }
 
             if (!$validation['valid']) {
-                Storage::disk('public')->delete($filePath);
+                Storage::disk($disk)->delete($filePath);
                 DB::rollBack();
                 return response()->json([
                     'success' => false,
@@ -117,19 +130,41 @@ class MessageController extends Controller
                 ], 422);
             }
 
-            // Run OCR (pass expected stage to filter messages)
-            $ocrResult = $this->ocrService->extractData($fullPath, $expectedStage);
+            // Run OCR (or bypass with fake data)
+            if ($bypass) {
+                $ocrResult = [
+                    'instagram_username' => 'test_user_' . substr($fileHash, 0, 8),
+                    'message_snippet' => 'Bypass message for testing',
+                    'date' => now()->toDateString(),
+                ];
+            } else {
+                $ocrResult = $this->ocrService->extractData($tempPath, $expectedStage);
+            }
+
+            // Optional bypass for testing when no username is detected (e.g., dummy images)
+            if (empty($ocrResult['instagram_username'])) {
+                $bypassUsername = config('services.ocr_space.bypass_username');
+                if (!empty($bypassUsername)) {
+                    $ocrResult['instagram_username'] = $bypassUsername;
+                    $ocrResult['message_snippet'] = $ocrResult['message_snippet'] ?? 'bypass-message';
+                    Log::warning('OCR bypass username applied', [
+                        'bypass_username' => $bypassUsername,
+                        'expected_stage' => $expectedStage,
+                        'user_id' => $user->id,
+                    ]);
+                }
+            }
 
             // Validate message content matches expected stage (ALWAYS validate for stage > 0)
             // This ensures the message contains the correct template for the selected day
-            if ($expectedStage > 0 && $ocrResult['message_snippet']) {
+            if (!$bypass && $expectedStage > 0 && $ocrResult['message_snippet']) {
                 $messageValidation = $this->templateService->validateMessageForStage(
                     $ocrResult['message_snippet'],
                     $expectedStage
                 );
 
                 if (!$messageValidation['valid']) {
-                    Storage::disk('public')->delete($filePath);
+                    Storage::disk($disk)->delete($filePath);
                     DB::rollBack();
                     return response()->json([
                         'success' => false,
@@ -139,8 +174,8 @@ class MessageController extends Controller
             }
 
             // Find or create cycle based on OCR result
-            if (!$ocrResult['instagram_username']) {
-                Storage::disk('public')->delete($filePath);
+            if (!$bypass && !$ocrResult['instagram_username']) {
+                Storage::disk($disk)->delete($filePath);
                 DB::rollBack();
 
                 // Log OCR result for debugging with extensive details
@@ -181,7 +216,7 @@ class MessageController extends Controller
             );
 
             if (!$cycleResult['valid']) {
-                Storage::disk('public')->delete($filePath);
+                Storage::disk($disk)->delete($filePath);
                 DB::rollBack();
                 return response()->json([
                     'success' => false,
@@ -252,7 +287,8 @@ class MessageController extends Controller
         } catch (\Throwable $e) {
             DB::rollBack();
             if (isset($filePath)) {
-                Storage::disk('public')->delete($filePath);
+                $disk = $disk ?? config('filesystems.default');
+                Storage::disk($disk)->delete($filePath);
             }
 
             \Illuminate\Support\Facades\Log::error('Upload failed (Fatal): ' . $e->getMessage(), [
@@ -321,9 +357,26 @@ class MessageController extends Controller
             })
             ->findOrFail($id);
 
+        $disk = config('filesystems.default');
+        if ($disk === 's3') {
+            // Generate public URL using config or fallback to manual build
+            $baseUrl = config('filesystems.disks.s3.url');
+            if (!empty($baseUrl)) {
+                // Use AWS_URL from config
+                $screenshotUrl = rtrim($baseUrl, '/') . '/' . $message->screenshot_path;
+            } else {
+                // Fallback: build URL manually from endpoint + bucket
+                $endpoint = config('filesystems.disks.s3.endpoint');
+                $bucket = config('filesystems.disks.s3.bucket');
+                $screenshotUrl = rtrim($endpoint, '/') . '/' . $bucket . '/' . $message->screenshot_path;
+            }
+        } else {
+            $screenshotUrl = url('storage/' . $message->screenshot_path);
+        }
+
         return response()->json([
             'data' => $message,
-            'screenshot_url' => url('storage/' . $message->screenshot_path),
+            'screenshot_url' => $screenshotUrl,
         ]);
     }
 
@@ -372,9 +425,10 @@ class MessageController extends Controller
                 ], 422);
             }
 
-            // Delete screenshot file
-            if ($message->screenshot_path && Storage::disk('public')->exists($message->screenshot_path)) {
-                Storage::disk('public')->delete($message->screenshot_path);
+            // Delete screenshot file on the configured disk
+            $disk = config('filesystems.default');
+            if ($message->screenshot_path && Storage::disk($disk)->exists($message->screenshot_path)) {
+                Storage::disk($disk)->delete($message->screenshot_path);
             }
 
             // Get cycle info before deletion

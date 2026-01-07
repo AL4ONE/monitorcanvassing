@@ -33,15 +33,26 @@ export default function Layout({ children }) {
                   Dashboard
                 </Link>
                 {user?.role === 'staff' && (
-                  <Link
-                    to="/upload"
-                    className={`${location.pathname === '/upload'
-                      ? 'border-indigo-500 text-gray-900'
-                      : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-                      } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
-                  >
-                    Upload
-                  </Link>
+                  <>
+                    <Link
+                      to="/upload"
+                      className={`${location.pathname === '/upload'
+                        ? 'border-indigo-500 text-gray-900'
+                        : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                        } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
+                    >
+                      Upload
+                    </Link>
+                    <Link
+                      to="/bulk-import"
+                      className={`${location.pathname === '/bulk-import'
+                        ? 'border-indigo-500 text-gray-900'
+                        : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                        } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
+                    >
+                      Bulk Import
+                    </Link>
+                  </>
                 )}
                 {user?.role === 'supervisor' && (
                   <>
@@ -62,6 +73,15 @@ export default function Layout({ children }) {
                         } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
                     >
                       Laporan
+                    </Link>
+                    <Link
+                      to="/bulk-import"
+                      className={`${location.pathname === '/bulk-import'
+                        ? 'border-indigo-500 text-gray-900'
+                        : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                        } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
+                    >
+                      Bulk Import
                     </Link>
                   </>
                 )}

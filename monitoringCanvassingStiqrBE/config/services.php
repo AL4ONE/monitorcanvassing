@@ -37,6 +37,7 @@ return [
 
     'ocr_space' => [
         'api_key' => env('OCR_SPACE_API_KEY'),
+        'bypass_username' => env('OCR_BYPASS_USERNAME'),
     ],
 
 ];
