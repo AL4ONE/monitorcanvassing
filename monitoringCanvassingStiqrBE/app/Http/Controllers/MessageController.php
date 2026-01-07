@@ -46,6 +46,7 @@ class MessageController extends Controller
             'screenshot' => 'required|image|mimes:jpeg,png,jpg,gif|max:10240', // 10MB max
             'stage' => 'nullable|integer|min:0|max:7',
             'contact_number' => 'nullable|string|max:50',
+            'instagram_link' => 'nullable|url|max:255',
             'channel' => 'nullable|string|in:instagram,tiktok,facebook,threads,whatsapp,other',
             'interaction_status' => 'nullable|string|in:no_response,menolak,tertarik,menerima',
         ]);
@@ -264,11 +265,16 @@ class MessageController extends Controller
                 }
             }
 
-            // If contact number valid and prospect exists, update it
-            if ($request->filled('contact_number') && $cycleResult['cycle']->prospect) {
-                $cycleResult['cycle']->prospect->update([
-                    'contact_number' => $request->contact_number
-                ]);
+            // If contact number or instagram link provided and prospect exists, update it
+            if (($request->filled('contact_number') || $request->filled('instagram_link')) && $cycleResult['cycle']->prospect) {
+                $updateData = [];
+                if ($request->filled('contact_number')) {
+                    $updateData['contact_number'] = $request->contact_number;
+                }
+                if ($request->filled('instagram_link')) {
+                    $updateData['instagram_link'] = $request->instagram_link;
+                }
+                $cycleResult['cycle']->prospect->update($updateData);
             }
 
             $cycleResult['cycle']->update($cycleUpdates);
