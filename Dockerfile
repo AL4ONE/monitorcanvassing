@@ -20,7 +20,7 @@ RUN composer install --no-dev --optimize-autoloader --no-scripts --no-interactio
 # ------------------------------------------------------------
 # Tujuan: Membangun asset frontend Laravel Vite
 # ============================================================
-FROM node:20.17.0-alpine AS node-builder
+FROM node:22.21.1-alpine3.23 AS node-builder
 
 WORKDIR /app
 
