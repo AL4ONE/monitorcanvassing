@@ -4,6 +4,8 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\QualityCheckController;
+use App\Http\Controllers\ImportController;
+use App\Http\Controllers\TemplateController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Artisan;
 
@@ -38,6 +40,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/messages', [MessageController::class, 'index']);
     Route::get('/messages/{id}', [MessageController::class, 'show'])->where('id', '[0-9]+');
     Route::delete('/messages/{id}', [MessageController::class, 'destroy'])->where('id', '[0-9]+');
+
+    // Bulk Import
+    Route::post('/import/spreadsheet', [ImportController::class, 'importSpreadsheet']);
+    Route::get('/import/template', [TemplateController::class, 'downloadTemplate']);
 
     // Quality Check (Supervisor only)
     Route::middleware('role:supervisor')->group(function () {
