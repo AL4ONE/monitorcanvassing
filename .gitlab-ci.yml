@@ -120,6 +120,7 @@ laravel-test:
   allow_failure: true  # Pipeline tidak akan gagal meskipun job ini gagal
   only:
     - development
+    - on-development
     - staging
     - fix-build
 
