@@ -19,12 +19,7 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => [
-        'https://canvas.stiqr.id',
-        'https://monitorcanvassing.vercel.app',
-        'http://localhost:3000',
-        'http://localhost:5173',
-    ],
+    'allowed_origins' => ['*'],
 
     'allowed_origins_patterns' => [],
 
