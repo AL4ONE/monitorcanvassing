@@ -20,16 +20,12 @@ class ImportController extends Controller
         try {
             $file = $request->file('file');
 
-            // Store file temporarily
-            $tempPath = $file->store('temp');
-            $fullPath = storage_path('app/' . $tempPath);
+            // Get the uploaded file's real path
+            $fullPath = $file->getRealPath();
 
             // Process import
             $importService = new ImportService(auth()->id());
             $result = $importService->importFromSpreadsheet($fullPath);
-
-            // Clean up temp file
-            Storage::delete($tempPath);
 
             return response()->json([
                 'success' => true,
