@@ -102,6 +102,10 @@ class OcrService
         }
 
         try {
+            // Get file extension for filetype parameter
+            $extension = strtolower(pathinfo($imagePath, PATHINFO_EXTENSION));
+            $fileType = $extension === 'jpg' ? 'JPG' : strtoupper($extension);
+
             /** @var \Illuminate\Http\Client\Response $response */
             $response = Http::timeout(30)
                 ->asMultipart()
@@ -110,6 +114,7 @@ class OcrService
                     'apikey' => $apiKey,
                     'language' => 'eng', // English (works well for mixed Indonesian/English text)
                     'OCREngine' => 2, // Use OCR Engine 2 for better accuracy
+                    'filetype' => $fileType, // Explicitly set file type to avoid detection errors
                 ]);
 
             $status = $response->status();
