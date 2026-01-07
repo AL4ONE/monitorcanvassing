@@ -138,7 +138,9 @@ class MessageController extends Controller
                     'date' => now()->toDateString(),
                 ];
             } else {
-                $ocrResult = $this->ocrService->extractData($tempPath, $expectedStage);
+                // Use stored file path (temp file is deleted after storeAs)
+                $storedFilePath = Storage::disk($disk)->path($filePath);
+                $ocrResult = $this->ocrService->extractData($storedFilePath, $expectedStage);
             }
 
             // Optional bypass for testing when no username is detected (e.g., dummy images)
