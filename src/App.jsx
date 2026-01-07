@@ -6,6 +6,7 @@ import StaffUpload from './pages/StaffUpload';
 import SupervisorDashboard from './pages/SupervisorDashboard';
 import QualityCheck from './pages/QualityCheck';
 import Report from './pages/Report';
+import BulkImport from './pages/BulkImport';
 import Layout from './components/Layout';
 
 function PrivateRoute({ children, requiredRole }) {
@@ -76,6 +77,17 @@ function AppRoutes() {
           <PrivateRoute requiredRole="supervisor">
             <Layout>
               <Report />
+            </Layout>
+          </PrivateRoute>
+        }
+      />
+
+      <Route
+        path="/bulk-import"
+        element={
+          <PrivateRoute>
+            <Layout>
+              <BulkImport />
             </Layout>
           </PrivateRoute>
         }
