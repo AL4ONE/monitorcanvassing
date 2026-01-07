@@ -105,18 +105,24 @@ build-app-cloud:
     - on-production
 
 
-test-curl:
+
+laravel-test:
   stage: test
   script:
     - source variables.env
-    - echo "Testing $CI_REG_PROJECT_NAME connectivity using cURL..."
-    - docker network create net-$CI_REG_PROJECT_NAME
-    - docker run --network=net-$CI_REG_PROJECT_NAME -d --name $CI_REG_PROJECT_NAME -p 80:80 -e DATABASE_URL="${DATABASE_URL}" -e JWT_SECRET="${JWT_SECRET}" -e PORT="${PORT}" $IMAGE_TAG_PRE
-    - docker inspect $CI_REG_PROJECT_NAME
-    - apk add curl
-    - sleep 10
-    - curl -vvv --fail http://127.0.0.1
-    - docker stop $CI_REG_PROJECT_NAME
+    - echo "Testing $CI_REG_PROJECT_NAME with Laravel test..."
+    - |
+      rm -f docker-compose.override.yml
+      docker compose up -d
+      docker compose exec app php artisan test
+      docker compose down
+      
+  allow_failure: true  # Pipeline tidak akan gagal meskipun job ini gagal
+  only:
+    - development
+    - staging
+    - fix-build
+
   allow_failure: true  # Pipeline tidak akan gagal meskipun job ini gagal
 
 
