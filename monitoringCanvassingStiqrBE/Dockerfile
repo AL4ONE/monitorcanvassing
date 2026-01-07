@@ -11,7 +11,8 @@ WORKDIR /app
 COPY composer.json composer.lock ./
 
 # Install dependencies respecting composer.lock (deterministic builds)
-RUN composer install --no-dev --optimize-autoloader --no-scripts --no-interaction
+# Note: --ignore-platform-reqs is safe here because extensions are installed in production stage
+RUN composer install --no-dev --optimize-autoloader --no-scripts --no-interaction --ignore-platform-reqs
 
 
 # ============================================================
