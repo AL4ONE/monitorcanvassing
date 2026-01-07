@@ -59,6 +59,7 @@ class ImportService
                 'total_rows' => $highestRow - 1,
                 'imported' => $this->imported,
                 'failed' => $this->failed,
+                'images_found' => count($images),
                 'errors' => $this->errors
             ];
 
@@ -165,16 +166,39 @@ class ImportService
         $images = [];
 
         foreach ($worksheet->getDrawingCollection() as $drawing) {
-            if ($drawing instanceof Drawing) {
-                $imageContents = file_get_contents($drawing->getPath());
-                $extension = pathinfo($drawing->getPath(), PATHINFO_EXTENSION);
+            try {
+                // Support both Drawing (file-based) and MemoryDrawing (embedded)
+                if ($drawing instanceof Drawing) {
+                    $imagePath = $drawing->getPath();
+                    if (file_exists($imagePath)) {
+                        $imageContents = file_get_contents($imagePath);
+                        $extension = pathinfo($imagePath, PATHINFO_EXTENSION);
 
-                $images[] = [
-                    'coordinates' => $drawing->getCoordinates(),
-                    'content' => $imageContents,
-                    'extension' => $extension,
-                    'name' => $drawing->getName(),
-                ];
+                        $images[] = [
+                            'coordinates' => $drawing->getCoordinates(),
+                            'content' => $imageContents,
+                            'extension' => $extension ?: 'png',
+                            'name' => $drawing->getName(),
+                        ];
+                    }
+                } elseif ($drawing instanceof \PhpOffice\PhpSpreadsheet\Worksheet\MemoryDrawing) {
+                    // Handle embedded images
+                    ob_start();
+                    call_user_func($drawing->getRenderingFunction(), $drawing->getImageResource());
+                    $imageContents = ob_get_contents();
+                    ob_end_clean();
+
+                    $images[] = [
+                        'coordinates' => $drawing->getCoordinates(),
+                        'content' => $imageContents,
+                        'extension' => strtolower($drawing->getMimeType() === 'image/jpeg' ? 'jpg' : 'png'),
+                        'name' => $drawing->getName(),
+                    ];
+                }
+            } catch (\Exception $e) {
+                // Skip images that fail to extract
+                \Log::warning("Failed to extract image: " . $e->getMessage());
+                continue;
             }
         }
 
