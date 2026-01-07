@@ -36,6 +36,7 @@ services:
       - AWS_URL=${AWS_URL}
       - AWS_ENDPOINT=${AWS_ENDPOINT}
       - AWS_USE_PATH_STYLE_ENDPOINT=${AWS_USE_PATH_STYLE_ENDPOINT}
+      - ALLOW_FAKE_OCR=${ALLOW_FAKE_OCR}
     volumes:
       - ./storage:/var/www/html/storage
     networks:

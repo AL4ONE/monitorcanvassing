@@ -10,8 +10,8 @@ WORKDIR /app
 # Copy composer files
 COPY composer.json composer.lock ./
 
-# Install/update dependencies to sync lock with composer.json
-RUN composer update -W --no-dev --optimize-autoloader --no-scripts --ignore-platform-reqs
+# Install dependencies respecting composer.lock (deterministic builds)
+RUN composer install --no-dev --optimize-autoloader --no-scripts --no-interaction
 
 
 # ============================================================
@@ -54,9 +54,10 @@ RUN apk add --no-cache \
     zip \
     libzip-dev \
     oniguruma-dev \
+    libxml2-dev \
     postgresql-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install pdo pdo_mysql pdo_pgsql mbstring exif pcntl bcmath gd zip
+    && docker-php-ext-install pdo pdo_mysql pdo_pgsql mbstring exif pcntl bcmath gd zip xml dom
 
 # Set working directory
 WORKDIR /var/www/html

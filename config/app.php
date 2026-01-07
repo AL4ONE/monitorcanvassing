@@ -123,4 +123,7 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    // Test bypass flag
+    'allow_fake_ocr' => env('ALLOW_FAKE_OCR', false),
+
 ];

@@ -59,6 +59,9 @@ class MessageController extends Controller
             ], 403);
         }
 
+        // Temporary test bypass: allow skipping OCR + validation when enabled via config
+        $bypass = config('app.allow_fake_ocr') && config('app.env') !== 'production';
+
         try {
             DB::beginTransaction();
 
@@ -69,8 +72,11 @@ class MessageController extends Controller
             // Generate hash from temp file before moving
             $tempPath = $file->getRealPath();
             $fileHash = hash_file('sha256', $tempPath);
-            // Save to configured disk
-            $filePath = $file->storeAs('screenshots', $fileName, $disk);
+            // Save to configured disk with public visibility
+            $filePath = $file->storeAs('screenshots', $fileName, [
+                'disk' => $disk,
+                'visibility' => 'public',
+            ]);
 
             // Hash sudah dihitung dari temp file
 
@@ -102,13 +108,17 @@ class MessageController extends Controller
                 ], 422);
             }
 
-            // Validate
-            $validation = $this->validationService->validateAndProcess(
-                $tempPath,
-                $fileHash,
-                $user->id,
-                $expectedStage
-            );
+            // Validate (bypass for testing when enabled)
+            if ($bypass) {
+                $validation = ['valid' => true];
+            } else {
+                $validation = $this->validationService->validateAndProcess(
+                    $tempPath,
+                    $fileHash,
+                    $user->id,
+                    $expectedStage
+                );
+            }
 
             if (!$validation['valid']) {
                 Storage::disk($disk)->delete($filePath);
@@ -120,12 +130,34 @@ class MessageController extends Controller
                 ], 422);
             }
 
-            // Run OCR (pass expected stage to filter messages)
-            $ocrResult = $this->ocrService->extractData($tempPath, $expectedStage);
+            // Run OCR (or bypass with fake data)
+            if ($bypass) {
+                $ocrResult = [
+                    'instagram_username' => 'test_user_' . substr($fileHash, 0, 8),
+                    'message_snippet' => 'Bypass message for testing',
+                    'date' => now()->toDateString(),
+                ];
+            } else {
+                $ocrResult = $this->ocrService->extractData($tempPath, $expectedStage);
+            }
+
+            // Optional bypass for testing when no username is detected (e.g., dummy images)
+            if (empty($ocrResult['instagram_username'])) {
+                $bypassUsername = config('services.ocr_space.bypass_username');
+                if (!empty($bypassUsername)) {
+                    $ocrResult['instagram_username'] = $bypassUsername;
+                    $ocrResult['message_snippet'] = $ocrResult['message_snippet'] ?? 'bypass-message';
+                    Log::warning('OCR bypass username applied', [
+                        'bypass_username' => $bypassUsername,
+                        'expected_stage' => $expectedStage,
+                        'user_id' => $user->id,
+                    ]);
+                }
+            }
 
             // Validate message content matches expected stage (ALWAYS validate for stage > 0)
             // This ensures the message contains the correct template for the selected day
-            if ($expectedStage > 0 && $ocrResult['message_snippet']) {
+            if (!$bypass && $expectedStage > 0 && $ocrResult['message_snippet']) {
                 $messageValidation = $this->templateService->validateMessageForStage(
                     $ocrResult['message_snippet'],
                     $expectedStage
@@ -142,7 +174,7 @@ class MessageController extends Controller
             }
 
             // Find or create cycle based on OCR result
-            if (!$ocrResult['instagram_username']) {
+            if (!$bypass && !$ocrResult['instagram_username']) {
                 Storage::disk($disk)->delete($filePath);
                 DB::rollBack();
 
@@ -184,7 +216,7 @@ class MessageController extends Controller
             );
 
             if (!$cycleResult['valid']) {
-                Storage::disk('public')->delete($filePath);
+                Storage::disk($disk)->delete($filePath);
                 DB::rollBack();
                 return response()->json([
                     'success' => false,
@@ -255,7 +287,8 @@ class MessageController extends Controller
         } catch (\Throwable $e) {
             DB::rollBack();
             if (isset($filePath)) {
-                Storage::disk('public')->delete($filePath);
+                $disk = $disk ?? config('filesystems.default');
+                Storage::disk($disk)->delete($filePath);
             }
 
             \Illuminate\Support\Facades\Log::error('Upload failed (Fatal): ' . $e->getMessage(), [
@@ -325,9 +358,21 @@ class MessageController extends Controller
             ->findOrFail($id);
 
         $disk = config('filesystems.default');
-        $screenshotUrl = $disk === 's3'
-            ? Storage::disk('s3')->url($message->screenshot_path)
-            : url('storage/' . $message->screenshot_path);
+        if ($disk === 's3') {
+            // Generate public URL using config or fallback to manual build
+            $baseUrl = config('filesystems.disks.s3.url');
+            if (!empty($baseUrl)) {
+                // Use AWS_URL from config
+                $screenshotUrl = rtrim($baseUrl, '/') . '/' . $message->screenshot_path;
+            } else {
+                // Fallback: build URL manually from endpoint + bucket
+                $endpoint = config('filesystems.disks.s3.endpoint');
+                $bucket = config('filesystems.disks.s3.bucket');
+                $screenshotUrl = rtrim($endpoint, '/') . '/' . $bucket . '/' . $message->screenshot_path;
+            }
+        } else {
+            $screenshotUrl = url('storage/' . $message->screenshot_path);
+        }
 
         return response()->json([
             'data' => $message,
