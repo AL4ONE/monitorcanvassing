@@ -2,9 +2,9 @@
 # 🏗️ TAHAP 1: BUILD STAGE
 # ------------------------------------------------------------
 # Tujuan: Membangun aplikasi frontend menggunakan Node.js
-# Basis image: Node 20 Alpine (ringan & cepat)
+# Basis image: Node 22 Alpine (ringan & cepat)
 # ============================================================
-FROM dns-regx.dnstech.co.id/library/node:20.17.0-alpine AS img-builder
+FROM node:22-alpine AS img-builder
 
 # 🌱 Set environment untuk build
 ENV NODE_ENV=development
