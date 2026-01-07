@@ -44,7 +44,8 @@ RUN npm run build
 # ============================================================
 FROM php:8.3-fpm-alpine
 
-# Install system dependencies dan PHP extensions
+
+# Install system dependencies, PHP extensions, and phpredis
 RUN apk add --no-cache \
     nginx \
     supervisor \
@@ -57,6 +58,8 @@ RUN apk add --no-cache \
     oniguruma-dev \
     libxml2-dev \
     postgresql-dev \
+    && pecl install redis \
+    && docker-php-ext-enable redis \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install pdo pdo_mysql pdo_pgsql mbstring exif pcntl bcmath gd zip xml dom
 
