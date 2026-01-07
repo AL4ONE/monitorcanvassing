@@ -58,6 +58,7 @@ RUN apk add --no-cache \
     oniguruma-dev \
     libxml2-dev \
     postgresql-dev \
+    autoconf g++ make \
     && pecl install redis \
     && docker-php-ext-enable redis \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
