@@ -3,7 +3,14 @@
 # 🚀 Laravel Application Entrypoint (Production Safe)
 # ============================================================
 
+
 set -e
+
+# Ensure LOG_FILE and BACKUP_DIR are set and directories exist
+LOG_FILE="/var/log/entrypoint.log"
+BACKUP_DIR="/tmp/backup_assets"
+mkdir -p "$(dirname "$LOG_FILE")"
+mkdir -p "$BACKUP_DIR"
 
 echo "============================================================"
 echo "🚀 Starting Laravel application"
@@ -18,9 +25,13 @@ cd "$APP_DIR"
 # ============================================================
 # 🔐 Fix Permissions
 # ============================================================
-echo "🔐 Fixing permissions..."
-chown -R www-data:www-data storage bootstrap/cache
-chmod -R 775 storage bootstrap/cache
+echo "🔐 Ensuring storage subfolders and fixing permissions..."
+# Laravel storage subfolders
+for dir in storage/app storage/framework storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache; do
+  mkdir -p "$dir"
+  chown -R www-data:www-data "$dir"
+  chmod -R 775 "$dir"
+done
 
 # ============================================================
 # 🔑 Generate APP_KEY (jika APP_KEY di .env kosong)
