@@ -1,40 +1,68 @@
 #!/bin/sh
 # ============================================================
-# 🚀 Laravel Application Entrypoint
+# 🚀 Laravel Application Entrypoint (Production Safe)
 # ============================================================
 
 set -e
 
-echo "🚀 Starting Laravel application..."
+echo "============================================================"
+echo "🚀 Starting Laravel application"
+echo "APP_ENV        : ${APP_ENV:-undefined}"
+echo "RUN_MIGRATION  : ${RUN_MIGRATION:-false}"
+echo "============================================================"
 
-# Set proper permissions
-chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
-chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
+APP_DIR="/var/www/html"
 
-# Run Laravel optimizations
-cd /var/www/html
+cd "$APP_DIR"
 
-# Generate APP_KEY if not set
-if [ -z "$APP_KEY" ] || [ "$APP_KEY" = "base64:YOUR_32_CHAR_KEY_HERE_CHANGE_THIS_IN_PRODUCTION" ]; then
-    echo "🔑 Generating APP_KEY..."
-    export APP_KEY=$(php artisan key:generate --show)
-    echo "Generated APP_KEY: $APP_KEY"
+# ============================================================
+# 🔐 Fix Permissions
+# ============================================================
+echo "🔐 Fixing permissions..."
+chown -R www-data:www-data storage bootstrap/cache
+chmod -R 775 storage bootstrap/cache
+
+# ============================================================
+# 🔑 Generate APP_KEY (jika APP_KEY di .env kosong)
+# ============================================================
+echo "🔍 Checking APP_KEY..."
+
+if ! grep -q "^APP_KEY=base64:" .env 2>/dev/null; then
+  echo "🔑 APP_KEY not found in .env, generating..."
+  php artisan key:generate --force
+  echo "✅ APP_KEY generated"
+else
+  echo "🔐 APP_KEY already exists, skipping"
 fi
 
-# Laravel menggunakan environment variables langsung
-echo "📝 Caching Laravel configuration dari environment variables..."
+# ============================================================
+# 🧠 Laravel Cache
+# ============================================================
+echo "🧠 Caching Laravel configuration..."
+php artisan config:clear || true
 php artisan config:cache || true
 php artisan route:cache || true
 php artisan view:cache || true
 
-# Run database migrations (jika database tersedia)
-echo "🔄 Running database migrations..."
-php artisan migrate --force || echo "⚠️  Migration failed or database not available, continuing..."
+# ============================================================
+# 🔄 Controlled Database Migration
+# ============================================================
+echo "🔄 Checking migration conditions..."
 
-echo "✅ Laravel setup complete, starting services..."
+if [ "$RUN_MIGRATION" = "true" ]; then
+  if [ "$APP_ENV" != "production" ]; then
+    echo "⚠️ Running database migration (APP_ENV=$APP_ENV)"
+    php artisan migrate --force || echo "⚠️ Migration failed, continuing"
+  else
+    echo "🚫 Migration skipped (production environment)"
+  fi
+else
+  echo "ℹ️ RUN_MIGRATION disabled"
+fi
 
-# Execute the main command (supervisord)
-exec "$@"
+echo "✅ Laravel initialization completed"
+echo "============================================================"
+
 
 [ -n "$VITE_OSS_URL" ] && echo "  VITE_OSS_URL: $VITE_OSS_URL" >> "$LOG_FILE"
 
@@ -96,4 +124,9 @@ echo "============================================================" >> "$LOG_FIL
 # ============================================================
 # 🚀 Jalankan perintah lanjutan (CMD/ARG docker)
 # ============================================================
+
+# ============================================================
+# 🚀 Start main container process (php-fpm / nginx / supervisord)
+# ============================================================
+
 exec "$@"
