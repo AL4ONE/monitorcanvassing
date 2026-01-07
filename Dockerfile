@@ -36,7 +36,7 @@ COPY --chown=node:node .env.docker .env
 RUN npm run build
 
 # 🧾 (Opsional) Debug hasil build: tampilkan isi direktori build
-RUN pwd && ls -alsh build
+RUN pwd && ls -alsh dist
 
 
 # ============================================================
@@ -48,7 +48,7 @@ RUN pwd && ls -alsh build
 FROM nginx:1.25-alpine
 
 # 📦 Salin hasil build dari tahap pertama ke direktori web NGINX
-COPY --from=img-builder /app/build /usr/share/nginx/html
+COPY --from=img-builder /app/dist /usr/share/nginx/html
 
 # ⚙️ Ganti konfigurasi default NGINX dengan file custom
 COPY docker-config/nginx.conf /etc/nginx/conf.d/default.conf
