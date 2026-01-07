@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  stiqr-canvas-fe:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: stiqr-canvas-fe
+    ports:
+      - "80:80"
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+    networks:
+      - stiqr-canvas-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  stiqr-canvas-network:
+    driver: bridge
