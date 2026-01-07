@@ -172,6 +172,7 @@ export default function Report() {
                         <tr>
                             <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50 z-10">Merchant</th>
                             <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Kontak</th>
+                            <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Link IG</th>
                             <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Channel</th>
                             <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Staff / Kategori</th>
                             <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Status & Action</th>
@@ -186,9 +187,9 @@ export default function Report() {
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                         {loading ? (
-                            <tr><td colSpan="14" className="text-center py-4">Memuat data...</td></tr>
+                            <tr><td colSpan="15" className="text-center py-4">Memuat data...</td></tr>
                         ) : reportData.length === 0 ? (
-                            <tr><td colSpan="14" className="text-center py-4">Tidak ada data</td></tr>
+                            <tr><td colSpan="15" className="text-center py-4">Tidak ada data</td></tr>
                         ) : (
                             reportData.map((row) => (
                                 <tr key={row.id} className="hover:bg-gray-50">
@@ -203,6 +204,20 @@ export default function Report() {
                                     </td>
                                     <td className="px-4 py-4 whitespace-nowrap text-gray-500">
                                         {row.contact_number}
+                                    </td>
+                                    <td className="px-4 py-4 whitespace-nowrap text-gray-500">
+                                        {row.instagram_link ? (
+                                            <a
+                                                href={row.instagram_link}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-blue-600 hover:underline flex items-center gap-1"
+                                            >
+                                                Lihat IG →
+                                            </a>
+                                        ) : (
+                                            <span className="text-gray-400">-</span>
+                                        )}
                                     </td>
                                     <td className="px-4 py-4 whitespace-nowrap text-gray-500">
                                         {row.channel || '-'}

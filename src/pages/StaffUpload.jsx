@@ -11,6 +11,7 @@ export default function StaffUpload() {
   const [selectedStage, setSelectedStage] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [contact, setContact] = useState('');
+  const [instagramLink, setInstagramLink] = useState('');
   const [channel, setChannel] = useState('');
   const [interactionStatus, setInteractionStatus] = useState('');
   const fileInputRef = useRef(null);
@@ -71,6 +72,7 @@ export default function StaffUpload() {
       formData.append('stage', selectedStage.toString());
       formData.append('category', selectedCategory);
       if (contact) formData.append('contact_number', contact);
+      if (instagramLink) formData.append('instagram_link', instagramLink);
       if (channel) formData.append('channel', channel);
       if (interactionStatus) formData.append('interaction_status', interactionStatus);
 
@@ -91,6 +93,7 @@ export default function StaffUpload() {
       setSelectedStage(0);
       setSelectedCategory('');
       setContact('');
+      setInstagramLink('');
       setChannel('');
       setInteractionStatus('');
       if (fileInputRef.current) {
@@ -171,6 +174,18 @@ export default function StaffUpload() {
               value={contact}
               onChange={(e) => setContact(e.target.value)}
               placeholder="Contoh: 08123456789"
+              className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Link Instagram (Opsional)
+            </label>
+            <input
+              type="url"
+              value={instagramLink}
+              onChange={(e) => setInstagramLink(e.target.value)}
+              placeholder="https://instagram.com/username"
               className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
             />
           </div>
