@@ -1,59 +1,352 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# STIQR Canvas Backend
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Backend API untuk aplikasi STIQR Canvas - sistem manajemen canvassing dan follow-up untuk tim sales.
 
-## About Laravel
+## Tech Stack
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- **Laravel 11** - PHP Framework
+- **PHP 8.3** - Runtime
+- **PostgreSQL 16** - Database
+- **Docker & Docker Compose** - Containerization
+- **S3-Compatible Storage** (IS3 CloudHost) - File Storage
+- **Laravel Sanctum** - API Authentication
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Features
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- 🔐 Authentication dengan Laravel Sanctum (Token-based)
+- 📸 Upload screenshot ke S3-compatible storage (public access)
+- 🔍 OCR integration untuk ekstraksi data dari screenshot
+- 👥 Role-based access (Staff, Supervisor)
+- 📊 Dashboard dan reporting
+- ✅ Quality check workflow
+- 🔄 Canvassing cycle management
 
-## Learning Laravel
+## Requirements
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+- Docker & Docker Compose
+- Git
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## Quick Start
 
-## Laravel Sponsors
+### 1. Clone Repository
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+```bash
+git clone <repository-url>
+cd stiqr-canvas-be
+```
 
-### Premium Partners
+### 2. Setup Environment
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+Copy `.env.example` ke `.env` dan sesuaikan konfigurasi:
 
-## Contributing
+```bash
+cp .env.example .env
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Konfigurasi penting di `.env`:
 
-## Code of Conduct
+```env
+# App
+APP_NAME=Laravel
+APP_ENV=local
+APP_KEY=base64:... # Generate dengan: php artisan key:generate
+APP_DEBUG=true
+APP_URL=http://localhost
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+# Database
+DB_CONNECTION=pgsql
+DB_HOST=postgres
+DB_PORT=5432
+DB_DATABASE=canvasdb
+DB_USERNAME=postgres
+DB_PASSWORD=your_secure_password
 
-## Security Vulnerabilities
+# S3 Storage (IS3 CloudHost atau AWS S3)
+FILESYSTEM_DISK=s3
+AWS_ACCESS_KEY_ID=your_access_key
+AWS_SECRET_ACCESS_KEY=your_secret_key
+AWS_DEFAULT_REGION=ap-southeast-1
+AWS_BUCKET=your-bucket-name
+AWS_ENDPOINT=https://is3.cloudhost.id
+AWS_USE_PATH_STYLE_ENDPOINT=true
+AWS_URL=https://is3.cloudhost.id/your-bucket-name
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+# OCR Service (Optional - untuk production)
+OCR_SPACE_API_KEY=your_ocr_api_key
+
+# Testing (Development Only)
+ALLOW_FAKE_OCR=true  # Set false di production
+```
+
+### 3. Build & Run dengan Docker
+
+```bash
+# Build image
+docker compose build --no-cache
+
+# Start containers
+docker compose up -d
+
+# Check status
+docker compose ps
+```
+
+### 4. Run Migrations
+
+```bash
+docker exec -it stiqrcanvas-be-prod php artisan migrate --force
+```
+
+### 5. Create Test User
+
+```bash
+docker exec -it stiqrcanvas-be-prod php artisan tinker
+
+# Di dalam tinker:
+App\Models\User::create([
+    'name' => 'Staff User',
+    'email' => 'staff@example.com',
+    'password' => 'password123',
+    'role' => 'staff'
+]);
+```
+
+## API Endpoints
+
+### Authentication
+
+```bash
+# Login
+POST /api/login
+Content-Type: application/json
+{
+  "email": "staff@example.com",
+  "password": "password123"
+}
+
+# Response
+{
+  "success": true,
+  "token": "1|xxx...",
+  "user": {
+    "id": 1,
+    "name": "Staff User",
+    "email": "staff@example.com",
+    "role": "staff"
+  }
+}
+
+# Logout
+POST /api/logout
+Authorization: Bearer {token}
+
+# Get current user
+GET /api/me
+Authorization: Bearer {token}
+```
+
+### Messages / Screenshots
+
+```bash
+# Upload screenshot
+POST /api/messages/upload
+Authorization: Bearer {token}
+Content-Type: multipart/form-data
+
+# Parameters:
+- screenshot: File (required) - Image file (jpg, png, gif, max 10MB)
+- stage: Integer (required) - 0-7 (0 = canvassing, 1-7 = follow-up days)
+- category: String (required) - umkm_fb, coffee_shop, atau restoran
+- channel: String (optional) - instagram, tiktok, facebook, threads, whatsapp, other
+- interaction_status: String (optional) - no_response, menolak, tertarik, menerima
+- contact_number: String (optional) - Nomor kontak
+
+# Response
+{
+  "success": true,
+  "message": "Screenshot berhasil diupload",
+  "data": {
+    "id": 1,
+    "stage": 0,
+    "ocr_result": {...},
+    "validation_status": "pending"
+  }
+}
+
+# List messages
+GET /api/messages?page=1&per_page=20
+Authorization: Bearer {token}
+
+# Get message detail
+GET /api/messages/{id}
+Authorization: Bearer {token}
+
+# Response includes public S3 URL:
+{
+  "data": {...},
+  "screenshot_url": "https://is3.cloudhost.id/bucket/screenshots/uuid.jpg"
+}
+
+# Delete message (staff only, pending status only)
+DELETE /api/messages/{id}
+Authorization: Bearer {token}
+```
+
+### Dashboard
+
+```bash
+# Get dashboard stats
+GET /api/dashboard
+Authorization: Bearer {token}
+```
+
+## Development
+
+### Run Commands Inside Container
+
+```bash
+# Artisan commands
+docker exec -it stiqrcanvas-be-prod php artisan <command>
+
+# Tinker
+docker exec -it stiqrcanvas-be-prod php artisan tinker
+
+# Clear cache
+docker exec -it stiqrcanvas-be-prod php artisan cache:clear
+docker exec -it stiqrcanvas-be-prod php artisan config:clear
+```
+
+### View Logs
+
+```bash
+# Application logs
+docker exec -it stiqrcanvas-be-prod tail -f storage/logs/laravel.log
+
+# Container logs
+docker compose logs -f backend
+
+# Nginx logs
+docker exec -it stiqrcanvas-be-prod tail -f /var/log/nginx/error.log
+```
+
+### Rebuild After Code Changes
+
+```bash
+# Rebuild image
+docker compose build --no-cache backend
+
+# Restart containers
+docker compose up -d
+```
+
+## S3 Storage Configuration
+
+Aplikasi ini menggunakan S3-compatible storage dengan konfigurasi:
+
+- **Public Visibility**: File yang diupload otomatis public-readable
+- **Random Filenames**: UUID untuk keamanan
+- **Path**: `screenshots/{uuid}.{ext}`
+- **URL Format**: `{AWS_URL}/screenshots/{uuid}.{ext}`
+
+### Testing S3 Connection
+
+```bash
+docker exec -it stiqrcanvas-be-prod php artisan tinker
+
+# Test write
+Storage::disk('s3')->put('test.txt', 'Hello S3');
+
+# Test read
+Storage::disk('s3')->exists('test.txt');
+
+# Get public URL
+Storage::disk('s3')->url('screenshots/file.jpg');
+```
+
+## Testing Mode
+
+Untuk development/testing tanpa OCR API:
+
+1. Set `ALLOW_FAKE_OCR=true` di `.env`
+2. Upload akan bypass OCR validation dan generate dummy data
+3. **WAJIB set `ALLOW_FAKE_OCR=false` di production**
+
+## Deployment
+
+### Production Checklist
+
+- [ ] Set `APP_ENV=production`
+- [ ] Set `APP_DEBUG=false`
+- [ ] Generate `APP_KEY` yang secure
+- [ ] Set `ALLOW_FAKE_OCR=false`
+- [ ] Konfigurasi `OCR_SPACE_API_KEY` yang valid
+- [ ] Gunakan password database yang strong
+- [ ] Setup SSL/TLS untuk HTTPS
+- [ ] Configure firewall rules
+- [ ] Setup backup untuk database dan S3
+- [ ] Configure log rotation
+
+### Environment Variables
+
+Pastikan semua environment variables di-forward ke container via `docker-compose.yml`:
+
+```yaml
+environment:
+  - APP_NAME=${APP_NAME}
+  - APP_ENV=${APP_ENV}
+  - APP_KEY=${APP_KEY}
+  - DB_CONNECTION=${DB_CONNECTION}
+  # ... dst
+```
+
+## Troubleshooting
+
+### Port 80 Already in Use
+
+```bash
+# Check what's using port 80
+sudo lsof -i :80
+
+# Option 1: Stop the service
+sudo systemctl stop nginx
+
+# Option 2: Change port in docker-compose.yml
+ports:
+  - "8080:80"  # Use port 8080 instead
+```
+
+### Database Connection Failed
+
+```bash
+# Check postgres is running
+docker compose ps
+
+# Check postgres logs
+docker compose logs postgres
+
+# Verify DB credentials in .env match docker-compose.yml
+```
+
+### S3 Upload 403 Forbidden
+
+```bash
+# Verify credentials
+docker exec stiqrcanvas-be-prod php artisan tinker
+config('filesystems.disks.s3.key');
+config('filesystems.disks.s3.secret');
+
+# Test connection
+Storage::disk('s3')->put('test.txt', 'test');
+```
+
+### File Permission Issues
+
+```bash
+# Fix storage permissions
+docker exec -it stiqrcanvas-be-prod chmod -R 775 storage bootstrap/cache
+docker exec -it stiqrcanvas-be-prod chown -R www-data:www-data storage bootstrap/cache
+```
 
 ## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Proprietary - All rights reserved.
