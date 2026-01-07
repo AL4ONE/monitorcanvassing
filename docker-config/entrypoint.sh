@@ -27,14 +27,28 @@ chmod -R 775 storage bootstrap/cache
 # ============================================================
 echo "🔍 Checking APP_KEY..."
 
-if ! grep -q "^APP_KEY=base64:" .env 2>/dev/null; then
-  echo "🔑 APP_KEY not found in .env, generating..."
-  php artisan key:generate --force
-  echo "✅ APP_KEY generated"
-else
-  echo "🔐 APP_KEY already exists, skipping"
-fi
+# 1️⃣ Jika APP_KEY sudah ada di environment → aman
+if [ -n "$APP_KEY" ]; then
+  echo "🔐 APP_KEY found in environment, skipping generation"
 
+else
+  echo "ℹ️ APP_KEY not set in environment"
+
+  # 2️⃣ Pastikan file .env ada
+  if [ ! -f ".env" ]; then
+    echo "📄 .env not found, creating from .env.example"
+    cp .env.example .env
+  fi
+
+  # 3️⃣ Cek APP_KEY di .env
+  if grep -q "^APP_KEY=base64:" .env; then
+    echo "🔐 APP_KEY already exists in .env, skipping"
+  else
+    echo "🔑 APP_KEY not found in .env, generating..."
+    php artisan key:generate --force
+    echo "✅ APP_KEY generated and saved to .env"
+  fi
+fi
 # ============================================================
 # 🧠 Laravel Cache
 # ============================================================
