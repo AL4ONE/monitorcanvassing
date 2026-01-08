@@ -38,6 +38,7 @@ services:
       - AWS_USE_PATH_STYLE_ENDPOINT=${AWS_USE_PATH_STYLE_ENDPOINT:-false}
       - ALLOW_FAKE_OCR=${ALLOW_FAKE_OCR:-false}
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      - CORS_NGINX=${CORS_NGINX:-true}
     volumes:
       - ./storage:/var/www/html/storage
     networks:
