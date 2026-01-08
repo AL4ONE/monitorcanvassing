@@ -3,7 +3,7 @@ version: '3.8'
 services:
   backend:
     # Build context hanya aktif jika APP_BUILD=true, jika tidak gunakan image dari APP_IMAGE
-    image: ${APP_IMAGE:-app:latest}
+    image: ${APP_IMAGE:-canvas-backend:latest}
     container_name: canvas-backend
     ports:
       - "80:80"
