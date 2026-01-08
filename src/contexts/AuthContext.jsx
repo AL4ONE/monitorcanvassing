@@ -18,21 +18,29 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const token = localStorage.getItem('auth_token');
     const savedUser = localStorage.getItem('user');
-    
-    if (token && savedUser) {
-      setUser(JSON.parse(savedUser));
-      // Verify token is still valid
-      api.get('/me')
-        .then((response) => {
-          setUser(response.data.user);
-          localStorage.setItem('user', JSON.stringify(response.data.user));
-        })
-        .catch(() => {
-          localStorage.removeItem('auth_token');
-          localStorage.removeItem('user');
-          setUser(null);
-        })
-        .finally(() => setLoading(false));
+
+    if (token && savedUser && savedUser !== 'undefined') {
+      try {
+        const parsedUser = JSON.parse(savedUser);
+        setUser(parsedUser);
+        // Verify token is still valid
+        api.get('/me')
+          .then((response) => {
+            setUser(response.data.user);
+            localStorage.setItem('user', JSON.stringify(response.data.user));
+          })
+          .catch(() => {
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('user');
+            setUser(null);
+          })
+          .finally(() => setLoading(false));
+      } catch (e) {
+        // Invalid JSON in localStorage, clear it
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('user');
+        setLoading(false);
+      }
     } else {
       setLoading(false);
     }
@@ -42,11 +50,11 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await api.post('/login', { email, password });
       const { token, user } = response.data;
-      
+
       localStorage.setItem('auth_token', token);
       localStorage.setItem('user', JSON.stringify(user));
       setUser(user);
-      
+
       return { success: true };
     } catch (error) {
       return {
