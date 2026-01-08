@@ -29,7 +29,7 @@ export default function Register() {
             if (response.data.user.role === 'supervisor') {
                 navigate('/dashboard');
             } else {
-                navigate('/staff-dashboard');
+                navigate('/dashboard');
             }
         } catch (err) {
             setError(err.response?.data?.message || 'Registration failed. Please try again.');
