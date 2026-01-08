@@ -12,12 +12,13 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // Enable CORS globally for ALL routes (web + api)
-        $middleware->prepend(\App\Http\Middleware\Cors::class);
-
-        // Also add to API routes for redundancy
-        $middleware->api(prepend: [
-            \App\Http\Middleware\Cors::class,
+        // Add security headers to both web and API groups
+        $middleware->web(append: [
+            \App\Http\Middleware\SecurityHeaders::class,
+        ]);
+        
+        $middleware->api(append: [
+            \App\Http\Middleware\SecurityHeaders::class,
         ]);
 
         // Exclude /login and /register from CSRF protection (API endpoints)

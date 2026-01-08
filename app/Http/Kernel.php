@@ -11,9 +11,8 @@ class Kernel extends HttpKernel
      * @var array
      */
     protected $middleware = [
-        // ...existing middleware...
         \Illuminate\Http\Middleware\HandleCors::class,
-        // ...existing middleware...
+        \App\Http\Middleware\SecurityHeaders::class,
     ];
 
     /**
@@ -28,7 +27,6 @@ class Kernel extends HttpKernel
 
         'api' => [
             \Illuminate\Http\Middleware\HandleCors::class,
-            // ...existing middleware...
         ],
     ];
 
@@ -39,6 +37,5 @@ class Kernel extends HttpKernel
      */
     protected $routeMiddleware = [
         'role' => \App\Http\Middleware\RoleMiddleware::class,
-        // ...existing middleware...
     ];
 }
