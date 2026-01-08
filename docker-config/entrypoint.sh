@@ -15,10 +15,9 @@ if [ "$CORS_NGINX" = "true" ]; then
 
   # Generate nginx.conf dari template hanya jika CORS_ALLOWED_ORIGINS di-set dan tidak kosong
   if [ -n "$CORS_ALLOWED_ORIGINS" ]; then
-    ORIGIN_REGEX=$(echo "$CORS_ALLOWED_ORIGINS" | sed 's/,/|/g')
     if [ -f "$NGINX_CONF_TEMPLATE" ]; then
       echo "🔄 Generating nginx.conf with CORS origins: $CORS_ALLOWED_ORIGINS"
-      sed "s/{{CORS_ORIGIN_REGEX}}/$ORIGIN_REGEX/g" "$NGINX_CONF_TEMPLATE" > "$NGINX_CONF_TARGET"
+      envsubst < "$NGINX_CONF_TEMPLATE" > "$NGINX_CONF_TARGET"
     else
       echo "⚠️ nginx.conf template not found: $NGINX_CONF_TEMPLATE"
     fi
