@@ -5,6 +5,7 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\File;
 use Illuminate\Http\Request;
+use Illuminate\Http\Middleware\TrustProxies;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -26,7 +27,7 @@ class AppServiceProvider extends ServiceProvider
             $proxies = explode(',', env('TRUSTED_PROXIES', '*'));
             Request::setTrustedProxies(
                 $proxies,
-                Request::HEADER_X_FORWARDED_ALL
+                TrustProxies::HEADER_X_FORWARDED_ALL
             );
         }
     }
