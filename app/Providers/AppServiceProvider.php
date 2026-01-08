@@ -22,12 +22,11 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         // Trust proxy headers for HTTPS detection in production
+        // Bit mask 31 = HEADER_X_FORWARDED_FOR | HEADER_X_FORWARDED_HOST | 
+        //              HEADER_X_FORWARDED_PROTO | HEADER_X_FORWARDED_PORT | HEADER_X_FORWARDED_FORWARDED
         if (app()->environment('production')) {
             $proxies = explode(',', env('TRUSTED_PROXIES', '*'));
-            SymfonyRequest::setTrustedProxies(
-                $proxies,
-                SymfonyRequest::HEADER_X_FORWARDED_ALL
-            );
+            SymfonyRequest::setTrustedProxies($proxies, 31);
         }
     }
 }
