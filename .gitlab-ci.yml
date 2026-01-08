@@ -116,6 +116,7 @@ laravel-test:
       rm -f docker-compose.override.yml
       export APP_IMAGE=$IMAGE_TAG_PRE  
       docker compose up -d
+      sleep 15
       docker compose exec canvas-backend php artisan test
       docker compose down
       
@@ -126,17 +127,7 @@ laravel-test:
     - staging
     - fix-build
 
-  allow_failure: true  # Pipeline tidak akan gagal meskipun job ini gagal
 
-
-test-direct:
-  stage: test
-  script:
-    - source variables.env
-    - docker pull "$IMAGE_TAG_PRE"
-    - docker run -d --name "$CI_REG_PROJECT_NAME" "$IMAGE_TAG_PRE"
-    - docker commit "$CI_REG_PROJECT_NAME" "$IMAGE_TAG_PRE-direct"
-    - docker push "$IMAGE_TAG_PRE-direct"
 
 release:
   stage: release
