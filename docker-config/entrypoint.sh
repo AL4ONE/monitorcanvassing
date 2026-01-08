@@ -6,26 +6,53 @@
 
 set -e
 # ============================================================
-# 🚦 Dynamic NGINX CORS Origin from ENV (template based)
+# 🚦 Dynamic NGINX CORS (env-driven include rules)
 # ============================================================
 if [ "$NGINX_CORS_ENABLE" = "true" ]; then
-  # Jika CORS_ALLOWED_ORIGINS tidak di-set, jangan generate config baru, biarkan nginx.conf bawaan yang dipakai
-  NGINX_CONF_TEMPLATE="/var/www/html/docker-config/nginx.conf.template"
-  NGINX_CONF_TARGET="/etc/nginx/http.d/default.conf"
+  CORS_INC="/etc/nginx/http.d/cors-allow.inc"
+  CORS_HEADERS_INC="/etc/nginx/http.d/cors-headers.inc"
+  CORS_OPTIONS_INC="/etc/nginx/http.d/cors-options.inc"
+  echo "🔄 Generating CORS allow rules into $CORS_INC"
+  : > "$CORS_INC"
 
-  # Generate nginx.conf dari template hanya jika CORS_ALLOWED_ORIGINS di-set dan tidak kosong
   if [ -n "$CORS_ALLOWED_ORIGINS" ]; then
-    if [ -f "$NGINX_CONF_TEMPLATE" ]; then
-      echo "🔄 Generating nginx.conf with CORS origins: $CORS_ALLOWED_ORIGINS"
-      envsubst '$CORS_ALLOWED_ORIGINS' < "$NGINX_CONF_TEMPLATE" > "$NGINX_CONF_TARGET"
-    else
-      echo "⚠️ nginx.conf template not found: $NGINX_CONF_TEMPLATE"
-    fi
+    IFS=, ; for ORG in $CORS_ALLOWED_ORIGINS; do
+      ORG_TRIM=$(printf '%s' "$ORG" | awk '{ $1=$1; print }')
+      if [ -n "$ORG_TRIM" ]; then
+        printf 'if ($http_origin = "%s") { set $cors_allow_origin $http_origin; }\n' "$ORG_TRIM" >> "$CORS_INC"
+      fi
+    done
+    unset IFS
+    echo "✅ CORS rules generated for origins: $CORS_ALLOWED_ORIGINS"
   else
-    echo "ℹ️ CORS_ALLOWED_ORIGINS not set, using default nginx.conf."
+    echo "ℹ️ CORS_ALLOWED_ORIGINS empty; leaving $CORS_INC blank (no origins allowed)."
+  fi
+
+  # Generate headers/include only when CORS is enabled
+  cat >"$CORS_HEADERS_INC" <<'NGINX'
+add_header Access-Control-Allow-Origin $cors_allow_origin always;
+add_header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS" always;
+add_header Access-Control-Allow-Headers "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization" always;
+add_header Access-Control-Expose-Headers "Content-Length,Content-Range" always;
+add_header Access-Control-Allow-Credentials "true" always;
+NGINX
+
+  cat >"$CORS_OPTIONS_INC" <<'NGINX'
+if ($request_method = OPTIONS) {
+    return 204;
+}
+NGINX
+
+  # Reload nginx only if it's already running; ignore errors (first boot)
+  if pidof nginx >/dev/null 2>&1; then
+    nginx -s reload || true
   fi
 else
-  echo "ℹ️ CORS_NGINX not true, skip dynamic nginx.conf generation."
+  echo "ℹ️ NGINX_CORS_ENABLE is not true; skipping dynamic CORS rules generation."
+  # Ensure includes are blank so Nginx does not emit CORS headers or short-circuit OPTIONS
+  : > "/etc/nginx/http.d/cors-allow.inc" || true
+  : > "/etc/nginx/http.d/cors-headers.inc" || true
+  : > "/etc/nginx/http.d/cors-options.inc" || true
 fi
 
 # Ensure LOG_FILE and BACKUP_DIR are set and directories exist
