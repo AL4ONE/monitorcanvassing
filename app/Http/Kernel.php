@@ -10,32 +10,5 @@ class Kernel extends HttpKernel
      *
      * @var array
      */
-    protected $middleware = [
-        \Illuminate\Http\Middleware\HandleCors::class,
-        \App\Http\Middleware\SecurityHeaders::class,
-    ];
-
-    /**
-     * The application's route middleware groups.
-     *
-     * @var array
-     */
-    protected $middlewareGroups = [
-        'web' => [
-            // ...existing middleware...
-        ],
-
-        'api' => [
-            \Illuminate\Http\Middleware\HandleCors::class,
-        ],
-    ];
-
-    /**
-     * The application's route middleware.
-     *
-     * @var array
-     */
-    protected $routeMiddleware = [
-        'role' => \App\Http\Middleware\RoleMiddleware::class,
-    ];
+    // Kernel config is not used in Laravel 11+. See bootstrap/app.php for middleware stack.
 }
