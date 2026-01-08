@@ -5,6 +5,29 @@
 
 
 set -e
+# ============================================================
+# 🚦 Dynamic NGINX CORS Origin from ENV (template based)
+# ============================================================
+if [ "$CORS_NGINX" = "true" ]; then
+  # Jika CORS_ALLOWED_ORIGINS tidak di-set, jangan generate config baru, biarkan nginx.conf bawaan yang dipakai
+  NGINX_CONF_TEMPLATE="/var/www/html/docker-config/nginx.conf.template"
+  NGINX_CONF_TARGET="/etc/nginx/http.d/default.conf"
+
+  # Generate nginx.conf dari template hanya jika CORS_ALLOWED_ORIGINS di-set dan tidak kosong
+  if [ -n "$CORS_ALLOWED_ORIGINS" ]; then
+    ORIGIN_REGEX=$(echo "$CORS_ALLOWED_ORIGINS" | sed 's/,/|/g')
+    if [ -f "$NGINX_CONF_TEMPLATE" ]; then
+      echo "🔄 Generating nginx.conf with CORS origins: $CORS_ALLOWED_ORIGINS"
+      sed "s/{{CORS_ORIGIN_REGEX}}/$ORIGIN_REGEX/g" "$NGINX_CONF_TEMPLATE" > "$NGINX_CONF_TARGET"
+    else
+      echo "⚠️ nginx.conf template not found: $NGINX_CONF_TEMPLATE"
+    fi
+  else
+    echo "ℹ️ CORS_ALLOWED_ORIGINS not set, using default nginx.conf."
+  fi
+else
+  echo "ℹ️ CORS_NGINX not true, skip dynamic nginx.conf generation."
+fi
 
 # Ensure LOG_FILE and BACKUP_DIR are set and directories exist
 LOG_FILE="/var/log/entrypoint.log"

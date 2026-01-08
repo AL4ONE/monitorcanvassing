@@ -27,6 +27,26 @@ Backend API untuk aplikasi STIQR Canvas - sistem manajemen canvassing dan follow
 - Git
 
 ## Quick Start
+## Dynamic CORS Origin (nginx)
+
+Nginx backend otomatis mengatur CORS origin sesuai value di `.env`:
+
+```
+CORS_ALLOWED_ORIGINS=https://api-canvas.stiqr.id,https://canvas.stiqr.id,http://localhost:3000
+```
+
+Saat container start, file `nginx.conf` akan digenerate dari template dan origin akan mengikuti value terbaru dari env. Jika ingin menambah/mengganti origin, cukup update variable di `.env` lalu restart container.
+
+**Template file:**
+- `docker-config/nginx.conf.template` (gunakan {{CORS_ORIGIN_REGEX}} sebagai placeholder)
+
+**Proses otomatis:**
+- Logic di `docker-config/entrypoint.sh` akan mengganti placeholder dengan value dari env.
+
+**Langkah update origin:**
+1. Edit `.env` → update `CORS_ALLOWED_ORIGINS`
+2. Restart container (agar entrypoint.sh generate ulang nginx.conf)
+3. CORS origin di nginx langsung terupdate
 
 ### 1. Clone Repository
 
