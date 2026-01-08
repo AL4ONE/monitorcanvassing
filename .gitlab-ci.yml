@@ -116,7 +116,7 @@ laravel-test:
       rm -f docker-compose.override.yml
       export APP_IMAGE=$IMAGE_TAG_PRE  
       docker compose up -d
-      docker compose exec app php artisan test
+      docker compose exec canvas-backend php artisan test
       docker compose down
       
   allow_failure: true  # Pipeline tidak akan gagal meskipun job ini gagal
