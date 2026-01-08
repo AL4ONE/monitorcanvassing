@@ -76,11 +76,15 @@ fi
 # ============================================================
 # 🧠 Laravel Cache
 # ============================================================
-echo "🧠 Caching Laravel configuration..."
-php artisan config:clear || true
-php artisan config:cache || true
-php artisan route:cache || true
-php artisan view:cache || true
+ARTISAN_CLEAR="${ARTISAN_CLEAR:-true}"
+if [ "$ARTISAN_CLEAR" = "true" ]; then
+  echo "🧠 Caching Laravel configuration..."
+  php artisan config:clear || true
+  php artisan config:cache || true
+  php artisan route:cache || true
+  php artisan view:cache || true
+  php artisan optimize:clear || true
+fi
 
 # ============================================================
 # 🔄 Controlled Database Migration

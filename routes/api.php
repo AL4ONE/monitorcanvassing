@@ -1,3 +1,4 @@
+
 <?php
 
 use App\Http\Controllers\AuthController;
@@ -60,3 +61,10 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 });
 
+// Version endpoint
+Route::get('/v1.0/version', function () {
+    return response()->json([
+        'version' => 'v1.0',
+        'date' => now()->toDateTimeString(),
+    ]);
+});

@@ -20,15 +20,17 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Force HTTPS scheme in production to avoid mixed content
+        if (app()->environment('production')) {
+            \URL::forceScheme('https');
+        }
+
         // Auto-create storage link if it doesn't exist (for Railway deployment)
-        // This will automatically create the symlink when the app starts
         $linkPath = public_path('storage');
         $targetPath = storage_path('app/public');
 
-        // Check if storage link doesn't exist or is broken
         if (!File::exists($linkPath) || (!is_link($linkPath) && File::isDirectory($linkPath))) {
             try {
-                // Remove broken link or directory if exists
                 if (File::exists($linkPath)) {
                     if (is_link($linkPath)) {
                         File::delete($linkPath);
@@ -38,24 +40,18 @@ class AppServiceProvider extends ServiceProvider
                         File::delete($linkPath);
                     }
                 }
-
-                // Ensure target directory exists
                 if (!File::exists($targetPath)) {
                     File::makeDirectory($targetPath, 0755, true);
                 }
-
-                // Create symlink
+                // Restore Windows-specific logic
                 if (PHP_OS_FAMILY === 'Windows') {
-                    // Windows doesn't support symlinks easily, use junction or copy
-                    // For Railway (Linux), this will work
+                    // Windows: use junction or fallback
                     symlink($targetPath, $linkPath);
                 } else {
-                    // Linux/Unix - create symlink
+                    // Linux/Unix: standard symlink
                     symlink($targetPath, $linkPath);
                 }
             } catch (\Exception $e) {
-                // Silently fail if can't create link (permissions issue)
-                // Log error but don't break the app
                 \Log::warning('Failed to create storage link: ' . $e->getMessage());
             }
         }
