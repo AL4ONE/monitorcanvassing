@@ -9,8 +9,6 @@ services:
     ports:
       - "80:80"
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
       - APP_NAME=${APP_NAME:-StiqrCanvas}
       - APP_ENV=${APP_ENV:-development}
