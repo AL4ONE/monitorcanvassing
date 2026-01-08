@@ -12,7 +12,7 @@ class Kernel extends HttpKernel
      */
     protected $middleware = [
         // ...existing middleware...
-        \App\Http\Middleware\Cors::class,
+        // CORS handled by Laravel config/cors.php
     ];
 
     /**
