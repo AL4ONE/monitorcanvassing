@@ -20,9 +20,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Force HTTPS scheme in production to avoid mixed content
+        // Trust proxy headers for HTTPS detection in production
         if (app()->environment('production')) {
-            \URL::forceScheme('https');
+            \Illuminate\Http\Request::setTrustedProxies([
+                // Trust all proxies (or specify your proxy IPs)
+                '*'
+            ], \Illuminate\Http\Request::HEADER_X_FORWARDED_ALL);
         }
     }
 }
