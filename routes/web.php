@@ -7,6 +7,10 @@ use Illuminate\Support\Facades\Route;
 Route::post('/login', [AuthController::class, 'login'])
     ->middleware(\App\Http\Middleware\Cors::class);
 
+// Add /register route with CORS middleware
+Route::post('/register', [AuthController::class, 'register'])
+    ->middleware(\App\Http\Middleware\Cors::class);
+
 Route::get('/', function () {
     return view('welcome');
 });

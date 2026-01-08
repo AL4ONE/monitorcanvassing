@@ -20,9 +20,10 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\Cors::class,
         ]);
 
-        // Exclude /login from CSRF protection (it's an API endpoint)
+        // Exclude /login and /register from CSRF protection (API endpoints)
         $middleware->validateCsrfTokens(except: [
             '/login',
+            '/register',
         ]);
 
         $middleware->alias([
