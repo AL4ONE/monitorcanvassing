@@ -111,9 +111,10 @@ laravel-test:
   script:
     - source variables.env
     - echo "Testing $CI_REG_PROJECT_NAME with Laravel test..."
+    - cp .env.example .env 
     - |
       rm -f docker-compose.override.yml
-      export APP_IMAGE=$IMAGE_TAG_PRE
+      export APP_IMAGE=$IMAGE_TAG_PRE  
       docker compose up -d
       docker compose exec app php artisan test
       docker compose down
