@@ -56,6 +56,29 @@ for dir in storage/app storage/framework storage/framework/cache storage/framewo
   chmod -R 775 "$dir"
 done
 
+# Create/repair public/storage symlink to storage/app/public
+LINK_PATH="${APP_DIR}/public/storage"
+TARGET_PATH="${APP_DIR}/storage/app/public"
+echo "🔗 Ensuring storage symlink: $LINK_PATH -> $TARGET_PATH"
+mkdir -p "$TARGET_PATH"
+if [ -L "$LINK_PATH" ]; then
+  CURRENT_TARGET=$(readlink "$LINK_PATH" || true)
+  if [ "$CURRENT_TARGET" != "$TARGET_PATH" ]; then
+    echo "↪️ Updating existing symlink (was: $CURRENT_TARGET)"
+    rm -f "$LINK_PATH"
+    ln -sfn "$TARGET_PATH" "$LINK_PATH"
+  else
+    echo "✅ Symlink already correct"
+  fi
+elif [ -e "$LINK_PATH" ]; then
+  echo "🧹 Removing non-symlink path at $LINK_PATH"
+  rm -rf "$LINK_PATH"
+  ln -sfn "$TARGET_PATH" "$LINK_PATH"
+else
+  ln -sfn "$TARGET_PATH" "$LINK_PATH"
+  echo "✅ Symlink created"
+fi
+
 # ============================================================
 # 🔑 Generate APP_KEY (jika APP_KEY di .env kosong)
 # ============================================================

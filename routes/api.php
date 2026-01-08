@@ -27,8 +27,16 @@ Route::get('/debug/migrate', function () {
     }
 });
 
-// Auth routes
-Route::post('/login', [AuthController::class, 'login']);
+// Debug: log all requests to /login
+Route::match(['OPTIONS', 'POST', 'GET'], '/login', function(\Illuminate\Http\Request $request) {
+    \Log::info('LOGIN DEBUG', [
+        'method' => $request->method(),
+        'origin' => $request->header('Origin'),
+        'headers' => $request->headers->all(),
+    ]);
+    return response()->json(['debug' => true, 'method' => $request->method()], 200);
+});
+//Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
 Route::get('/me', [AuthController::class, 'me'])->middleware('auth:sanctum');
