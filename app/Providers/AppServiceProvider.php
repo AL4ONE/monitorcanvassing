@@ -22,10 +22,11 @@ class AppServiceProvider extends ServiceProvider
     {
         // Trust proxy headers for HTTPS detection in production
         if (app()->environment('production')) {
-            \Illuminate\Http\Request::setTrustedProxies([
-                // Trust all proxies (or specify your proxy IPs)
-                '*'
-            ], \Illuminate\Http\Request::HEADER_X_FORWARDED_ALL);
+            $proxies = explode(',', env('TRUSTED_PROXIES', '*'));
+            Request::setTrustedProxies(
+                $proxies,
+                Request::HEADER_X_FORWARDED_ALL
+            );
         }
     }
 }
