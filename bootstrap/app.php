@@ -18,7 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->api(append: [
-            \Illuminate\Foundation\Http\Middleware\HandleCors::class,
+            \Illuminate\Http\Middleware\HandleCors::class,
             \App\Http\Middleware\SecurityHeaders::class,
         ]);
 

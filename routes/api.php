@@ -27,6 +27,11 @@ Route::get('/debug/migrate', function () {
     }
 });
 
+// Debug ping to verify JSON response
+Route::get('/debug/ping', function () {
+    return response()->json(['ok' => true]);
+});
+
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');

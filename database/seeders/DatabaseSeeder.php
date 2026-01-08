@@ -13,11 +13,19 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // Create supervisor (acts as admin)
+        User::create([
+            'name' => 'Admin',
+            'email' => 'admin@local.test',
+            'password' => 'password',
+            'role' => 'supervisor',
+        ]);
+
         // Create supervisor
         User::create([
             'name' => 'Supervisor',
             'email' => 'supervisor@stiqr.com',
-            'password' => Hash::make('password'),
+            'password' => 'password',
             'role' => 'supervisor',
         ]);
 
@@ -25,14 +33,14 @@ class DatabaseSeeder extends Seeder
         User::create([
             'name' => 'Staff 1',
             'email' => 'staff1@stiqr.com',
-            'password' => Hash::make('password'),
+            'password' => 'password',
             'role' => 'staff',
         ]);
 
         User::create([
             'name' => 'Staff 2',
             'email' => 'staff2@stiqr.com',
-            'password' => Hash::make('password'),
+            'password' => 'password',
             'role' => 'staff',
         ]);
     }
