@@ -113,6 +113,7 @@ laravel-test:
     - echo "Testing $CI_REG_PROJECT_NAME with Laravel test..."
     - |
       rm -f docker-compose.override.yml
+      export APP_IMAGE=$IMAGE_TAG_PRE
       docker compose up -d
       docker compose exec app php artisan test
       docker compose down
