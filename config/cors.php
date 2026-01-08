@@ -19,7 +19,15 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => array_filter(array_map('trim', explode(',', env('CORS_ALLOWED_ORIGINS', '*')))),
+    // Determine allowed origins from env; fallback to common dev/prod origins if not set
+    'allowed_origins' => (function () {
+        $envVal = env('CORS_ALLOWED_ORIGINS', '');
+        $origins = array_filter(array_map('trim', explode(',', $envVal)));
+        if (empty($origins)) {
+            $origins = ['http://localhost:5173', 'https://stiqrcanvas.tech'];
+        }
+        return $origins;
+    })(),
 
     'allowed_origins_patterns' => [],
 
@@ -29,6 +37,6 @@ return [
 
     'max_age' => 0,
 
-    'supports_credentials' => true,
+    'supports_credentials' => (bool) env('CORS_SUPPORTS_CREDENTIALS', true),
 
 ];

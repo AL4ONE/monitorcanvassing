@@ -12,6 +12,7 @@ class Kernel extends HttpKernel
      */
     protected $middleware = [
         // ...existing middleware...
+        \Illuminate\Http\Middleware\HandleCors::class,
         // ...existing middleware...
     ];
 
