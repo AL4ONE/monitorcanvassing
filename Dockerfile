@@ -92,7 +92,7 @@ RUN mkdir -p storage/framework/{sessions,views,cache} \
     && chmod -R 775 storage bootstrap/cache
 
 # Copy nginx configuration
-COPY docker-config/nginx.conf /etc/nginx/http.d/default.conf
+COPY docker-config/nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy supervisor configuration
 RUN mkdir -p /etc/supervisor/conf.d
