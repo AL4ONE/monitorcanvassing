@@ -8,7 +8,7 @@ set -e
 # ============================================================
 # 🚦 Dynamic NGINX CORS Origin from ENV (template based)
 # ============================================================
-if [ "$CORS_NGINX" = "true" ]; then
+if [ "$NGINX_CORS_ENABLE" = "true" ]; then
   # Jika CORS_ALLOWED_ORIGINS tidak di-set, jangan generate config baru, biarkan nginx.conf bawaan yang dipakai
   NGINX_CONF_TEMPLATE="/var/www/html/docker-config/nginx.conf.template"
   NGINX_CONF_TARGET="/etc/nginx/http.d/default.conf"
