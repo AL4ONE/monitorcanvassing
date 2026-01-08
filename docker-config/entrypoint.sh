@@ -11,7 +11,7 @@ set -e
 if [ "$NGINX_CORS_ENABLE" = "true" ]; then
   # Jika CORS_ALLOWED_ORIGINS tidak di-set, jangan generate config baru, biarkan nginx.conf bawaan yang dipakai
   NGINX_CONF_TEMPLATE="/var/www/html/docker-config/nginx.conf.template"
-  NGINX_CONF_TARGET="/etc/nginx/conf.d/default.conf"
+  NGINX_CONF_TARGET="/etc/nginx/httpd.d/default.conf"
 
   # Generate nginx.conf dari template hanya jika CORS_ALLOWED_ORIGINS di-set dan tidak kosong
   if [ -n "$CORS_ALLOWED_ORIGINS" ]; then
