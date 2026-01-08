@@ -4,8 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\File;
-use Illuminate\Http\Request;
-use Illuminate\Http\Middleware\TrustProxies;
+use Symfony\Component\HttpFoundation\Request as SymfonyRequest;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -25,9 +24,9 @@ class AppServiceProvider extends ServiceProvider
         // Trust proxy headers for HTTPS detection in production
         if (app()->environment('production')) {
             $proxies = explode(',', env('TRUSTED_PROXIES', '*'));
-            Request::setTrustedProxies(
+            SymfonyRequest::setTrustedProxies(
                 $proxies,
-                TrustProxies::HEADER_X_FORWARDED_ALL
+                SymfonyRequest::HEADER_X_FORWARDED_ALL
             );
         }
     }
