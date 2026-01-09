@@ -55,9 +55,11 @@ export default function Report() {
             if (endDate) params.end_date = endDate;
 
             const response = await api.get('/canvassing/report', { params });
-            setReportData(response.data);
+            // Ensure response.data is an array before setting
+            setReportData(Array.isArray(response.data) ? response.data : []);
         } catch (error) {
             console.error('Error fetching report:', error);
+            setReportData([]); // Set empty array on error
             alert('Gagal memuat laporan');
         } finally {
             setLoading(false);
