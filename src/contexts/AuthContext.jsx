@@ -29,10 +29,14 @@ export const AuthProvider = ({ children }) => {
             setUser(response.data.user);
             localStorage.setItem('user', JSON.stringify(response.data.user));
           })
-          .catch(() => {
-            localStorage.removeItem('auth_token');
-            localStorage.removeItem('user');
-            setUser(null);
+          .catch((error) => {
+            // Only logout if 401 (unauthorized), not on 404 or network errors
+            if (error.response?.status === 401) {
+              localStorage.removeItem('auth_token');
+              localStorage.removeItem('user');
+              setUser(null);
+            }
+            // Keep user logged in for other errors (404, 500, network)
           })
           .finally(() => setLoading(false));
       } catch (e) {
