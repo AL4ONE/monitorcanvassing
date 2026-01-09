@@ -208,9 +208,10 @@ class QualityCheckController extends Controller
             'qualityCheck.supervisor',
         ])->findOrFail($id);
 
-        // Generate full URL for screenshot
+        // Generate full URL for screenshot using configured storage disk
+        $disk = config('filesystems.default');
         $screenshotUrl = $message->screenshot_path
-            ? url('storage/' . $message->screenshot_path)
+            ? \Illuminate\Support\Facades\Storage::disk($disk)->url($message->screenshot_path)
             : null;
 
         return response()->json([

@@ -113,8 +113,9 @@ class CanvassingController extends Controller
 
             foreach ($validMessages as $message) {
                 // Delete image file file if exists
-                if ($message->screenshot_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($message->screenshot_path)) {
-                    \Illuminate\Support\Facades\Storage::disk('public')->delete($message->screenshot_path);
+                $disk = config('filesystems.default');
+                if ($message->screenshot_path && \Illuminate\Support\Facades\Storage::disk($disk)->exists($message->screenshot_path)) {
+                    \Illuminate\Support\Facades\Storage::disk($disk)->delete($message->screenshot_path);
                 }
 
                 $message->delete();
@@ -183,12 +184,13 @@ class CanvassingController extends Controller
             $cycles = $query->orderBy('start_date', 'desc')->get();
 
             // Transform data for frontend table
-            $reportData = $cycles->map(function ($cycle) {
+            $disk = config('filesystems.default');
+            $reportData = $cycles->map(function ($cycle) use ($disk) {
                 $messagesByStage = [];
                 foreach ($cycle->messages as $msg) {
                     $messagesByStage[$msg->stage] = [
                         'date' => $msg->submitted_at->format('Y-m-d'),
-                        'screenshot_url' => url('storage/' . $msg->screenshot_path),
+                        'screenshot_url' => \Illuminate\Support\Facades\Storage::disk($disk)->url($msg->screenshot_path),
                         'status' => $msg->validation_status,
                         'id' => $msg->id
                     ];
