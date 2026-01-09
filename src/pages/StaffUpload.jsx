@@ -82,6 +82,16 @@ export default function StaffUpload() {
         },
       });
 
+      // Check if backend returned success: false (even with 200 status)
+      if (!response.data.success) {
+        setMessage({
+          type: 'error',
+          text: response.data.message || 'Upload gagal',
+        });
+        setUploading(false);
+        return;
+      }
+
       setMessage({
         type: 'success',
         text: 'Screenshot berhasil diupload!',
