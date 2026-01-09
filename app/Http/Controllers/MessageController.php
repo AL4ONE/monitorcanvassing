@@ -139,9 +139,23 @@ class MessageController extends Controller
                     'date' => now()->toDateString(),
                 ];
             } else {
-                // Use stored file path (temp file is deleted after storeAs)
-                $storedFilePath = Storage::disk($disk)->path($filePath);
+                // For S3 storage, download file to temp location for OCR
+                // Storage::path() only works for local disk
+                if ($disk === 's3' || $disk === 'minio') {
+                    $tempOcrPath = sys_get_temp_dir() . '/' . $fileName;
+                    file_put_contents($tempOcrPath, Storage::disk($disk)->get($filePath));
+                    $storedFilePath = $tempOcrPath;
+                    Log::info('Downloaded S3 file for OCR', ['temp_path' => $tempOcrPath]);
+                } else {
+                    $storedFilePath = Storage::disk($disk)->path($filePath);
+                }
+
                 $ocrResult = $this->ocrService->extractData($storedFilePath, $expectedStage);
+
+                // Cleanup temp file
+                if (isset($tempOcrPath) && file_exists($tempOcrPath)) {
+                    unlink($tempOcrPath);
+                }
             }
 
             // Optional bypass for testing when no username is detected (e.g., dummy images)
