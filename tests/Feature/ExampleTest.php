@@ -1,7 +1,14 @@
+
 <?php
 
-it('returns a successful response', function () {
-    $response = $this->get('/');
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
 
-    $response->assertStatus(200);
-});
+class FeatureExampleTest extends TestCase
+{
+    public function testReturnsSuccessfulResponse()
+    {
+        $response = $this->get('/');
+        $response->assertStatus(200);
+    }
+}

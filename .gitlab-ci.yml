@@ -116,8 +116,9 @@ laravel-test:
       rm -f docker-compose.override.yml
       export APP_IMAGE=$IMAGE_TAG_PRE  
       docker compose up -d
-      sleep 15
-      docker compose exec canvas-backend php artisan test
+      sleep 10  # Tunggu sebentar agar container siap
+      docker compose exec backend sh -c "composer require --dev phpunit/phpunit"
+      docker compose exec backend sh -c "php artisan test"
       docker compose down
       
   allow_failure: true  # Pipeline tidak akan gagal meskipun job ini gagal
