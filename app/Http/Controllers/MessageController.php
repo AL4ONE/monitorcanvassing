@@ -279,14 +279,17 @@ class MessageController extends Controller
                 }
             }
 
-            // If contact number or instagram link provided and prospect exists, update it
-            if (($request->filled('contact_number') || $request->filled('instagram_link')) && $cycleResult['cycle']->prospect) {
+            // If contact number, instagram link, or lokasi provided and prospect exists, update it
+            if (($request->filled('contact_number') || $request->filled('instagram_link') || $request->filled('lokasi')) && $cycleResult['cycle']->prospect) {
                 $updateData = [];
                 if ($request->filled('contact_number')) {
                     $updateData['contact_number'] = $request->contact_number;
                 }
                 if ($request->filled('instagram_link')) {
                     $updateData['instagram_link'] = $request->instagram_link;
+                }
+                if ($request->filled('lokasi')) {
+                    $updateData['lokasi'] = $request->lokasi;
                 }
                 $cycleResult['cycle']->prospect->update($updateData);
             }

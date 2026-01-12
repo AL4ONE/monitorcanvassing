@@ -203,8 +203,9 @@ class CanvassingController extends Controller
                     'id' => $cycle->id,
                     'staff_name' => $cycle->staff->name,
                     'merchant_name' => $cycle->prospect->instagram_username ?? 'Unknown',
-                    'contact_number' => $cycle->prospect->contact_number ?? '-', // New field
-                    'channel' => $cycle->prospect->channel ?? '-', // Channel field
+                    'contact_number' => $cycle->prospect->contact_number ?? '-',
+                    'channel' => $cycle->prospect->channel ?? '-',
+                    'lokasi' => $cycle->prospect->lokasi ?? '-',
                     'category' => $category,
                     'status' => $cycle->status, // ongoing / converted / rejected
                     'current_stage' => $cycle->current_stage,
