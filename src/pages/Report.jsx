@@ -176,6 +176,7 @@ export default function Report() {
                             <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Kontak</th>
                             <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Link IG</th>
                             <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Channel</th>
+                            <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Lokasi</th>
                             <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Staff / Kategori</th>
                             <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Status & Action</th>
                             <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Dates</th>
@@ -223,6 +224,9 @@ export default function Report() {
                                     </td>
                                     <td className="px-4 py-4 whitespace-nowrap text-gray-500">
                                         {row.channel || '-'}
+                                    </td>
+                                    <td className="px-4 py-4 whitespace-nowrap text-gray-500">
+                                        {row.lokasi || '-'}
                                     </td>
                                     <td className="px-4 py-4 whitespace-nowrap text-gray-500">
                                         <div className="font-medium">{row.staff_name}</div>
