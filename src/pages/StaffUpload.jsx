@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
 
@@ -15,8 +15,33 @@ export default function StaffUpload() {
   const [channel, setChannel] = useState('');
   const [interactionStatus, setInteractionStatus] = useState('');
   const [lokasi, setLokasi] = useState('');
+  const [activeProspects, setActiveProspects] = useState([]);
+  const [selectedProspect, setSelectedProspect] = useState('');
+  const [showManualSelection, setShowManualSelection] = useState(false);
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
+
+  // Fetch active prospects when stage > 0 (follow-up)
+  useEffect(() => {
+    if (selectedStage > 0) {
+      fetchActiveProspects();
+    } else {
+      setActiveProspects([]);
+      setSelectedProspect('');
+      setShowManualSelection(false);
+    }
+  }, [selectedStage]);
+
+  const fetchActiveProspects = async () => {
+    try {
+      const response = await api.get('/messages/active-prospects');
+      if (response.data.success) {
+        setActiveProspects(response.data.data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch active prospects:', err);
+    }
+  };
 
   const stages = [
     { value: 0, label: 'Canvassing (Day 0)' },
@@ -77,6 +102,7 @@ export default function StaffUpload() {
       if (channel) formData.append('channel', channel);
       if (interactionStatus) formData.append('interaction_status', interactionStatus);
       if (lokasi) formData.append('lokasi', lokasi);
+      if (selectedProspect) formData.append('prospect_id', selectedProspect);
 
       const response = await api.post('/messages/upload', formData, {
         headers: {
@@ -109,6 +135,8 @@ export default function StaffUpload() {
       setChannel('');
       setInteractionStatus('');
       setLokasi('');
+      setSelectedProspect('');
+      setShowManualSelection(false);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -122,6 +150,10 @@ export default function StaffUpload() {
       if (errorData?.errors) {
         setErrors(errorData.errors);
       } else {
+        // Check if backend signals to show manual selection
+        if (errorData?.show_manual_selection && selectedStage > 0) {
+          setShowManualSelection(true);
+        }
         setMessage({
           type: 'error',
           text: errorData?.message || 'Upload gagal. Silakan coba lagi.',
@@ -159,6 +191,32 @@ export default function StaffUpload() {
               : `Pastikan sudah upload Follow Up ${selectedStage - 1} sebelumnya`}
           </p>
         </div>
+
+        {/* Manual Prospect Selection for Follow-up (shown when stage > 0) */}
+        {selectedStage > 0 && activeProspects.length > 0 && (
+          <div className={`mb-6 p-4 rounded-lg ${showManualSelection ? 'bg-yellow-50 border-2 border-yellow-400' : 'bg-gray-50 border border-gray-200'}`}>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              {showManualSelection ? '⚠️ OCR Gagal - Pilih Prospect Manual *' : 'Pilih Prospect Manual (Opsional)'}
+            </label>
+            <select
+              value={selectedProspect}
+              onChange={(e) => setSelectedProspect(e.target.value)}
+              className={`block w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 ${showManualSelection ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}`}
+            >
+              <option value="">-- Biarkan kosong jika OCR berhasil --</option>
+              {activeProspects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  @{p.instagram_username} (Stage {p.current_stage})
+                </option>
+              ))}
+            </select>
+            <p className="mt-2 text-sm text-gray-500">
+              {showManualSelection
+                ? 'OCR tidak mendeteksi username. Silakan pilih prospect yang ingin di-follow up dari daftar di atas.'
+                : 'Gunakan ini jika OCR gagal mendeteksi username dari screenshot.'}
+            </p>
+          </div>
+        )}
 
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-2">
