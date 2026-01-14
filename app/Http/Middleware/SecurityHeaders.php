@@ -60,18 +60,8 @@ class SecurityHeaders
             $response->header($header, $csp);
         }
 
-        // Explicitly add CORS headers if Origin present (for OPTIONS and API requests)
-        if ($request->headers->has('Origin')) {
-            $origin = $request->headers->get('Origin');
-            $allowedOrigins = config('cors.allowed_origins');
-            if (in_array($origin, $allowedOrigins) || in_array('*', $allowedOrigins)) {
-                $response->header('Access-Control-Allow-Origin', $origin);
-                $response->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-                $response->header('Access-Control-Allow-Headers', 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization');
-                $response->header('Access-Control-Expose-Headers', 'Content-Length,Content-Range');
-                $response->header('Access-Control-Allow-Credentials', 'true');
-            }
-        }
+        // CORS headers are handled by \Illuminate\Http\Middleware\HandleCors in bootstrap/app.php
+        // DO NOT add CORS headers here - it will cause duplicate headers
 
         return $response;
     }
