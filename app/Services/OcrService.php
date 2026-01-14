@@ -111,11 +111,11 @@ class OcrService
                 ->asMultipart()
                 ->attach('file', file_get_contents($imagePath), basename($imagePath))
                 ->post('https://api.ocr.space/parse/image', [
-                    'apikey' => $apiKey,
-                    'language' => 'eng', // English (works well for mixed Indonesian/English text)
-                    'OCREngine' => 2, // Use OCR Engine 2 for better accuracy
-                    'filetype' => $fileType, // Explicitly set file type to avoid detection errors
-                ]);
+                        'apikey' => $apiKey,
+                        'language' => 'eng', // English (works well for mixed Indonesian/English text)
+                        'OCREngine' => 2, // Use OCR Engine 2 for better accuracy
+                        'filetype' => $fileType, // Explicitly set file type to avoid detection errors
+                    ]);
 
             $status = $response->status();
             Log::info('OCR API Response Status', ['status' => $status]);
@@ -166,6 +166,21 @@ class OcrService
             'date' => null,
         ];
 
+        // Indonesian root words that are NEVER valid usernames (even with suffixes like -nya, -kan)
+        // These words or any string containing them should be rejected
+        $bannedRootWords = [
+            'kasir',
+            'aplikasi',
+            'transaksi',
+            'langganan',
+            'operasional',
+            'perkenalkan',
+            'menawarkan',
+            'pembuatan',
+            'kebutuhan',
+            'penggunaan',
+        ];
+
         // Normalize text - replace common OCR mistakes
         $normalizedText = $ocrText;
         $normalizedText = preg_replace('/\s+/', ' ', $normalizedText); // Normalize whitespace
@@ -186,6 +201,7 @@ class OcrService
         ]);
 
         // Common words that appear in messages (NOT usernames) - MUST filter these out
+        // Include word variations (Indonesian words often have suffixes like -nya, -kan, etc.)
         $commonWords = [
             'lihat',
             'profil',
@@ -195,6 +211,8 @@ class OcrService
             'event',
             'bazaar',
             'kasir',
+            'kasirnya',  // Added: kasir + nya suffix
+            'aplikasikasir', // Added: common word combination
             'qris',
             'aplikasi',
             'gratis',
@@ -204,10 +222,12 @@ class OcrService
             'bhanu',
             'transaksi',
             'transaks',
+            'transaksinya', // Added: transaksi + nya
             'whatsapp',
             'nomor',
             'nama',
             'usaha',
+            'usahanya',  // Added
             'langganan',
             'biaya',
             'operasional',
@@ -398,9 +418,8 @@ class OcrService
         // MUST search ONLY in header area
         if (preg_match('/memulai\s+obrolan\s+dengan\s+([a-zA-Z0-9._]{5,30})/i', $headerText, $matches)) {
             $potentialUsername = strtolower(trim($matches[1]));
-            // For both canvassing and follow-up: be lenient - just check it's not a common word
-            // This handles usernames without underscore (e.g., "kedaikopidavid")
-            if (!in_array($potentialUsername, $commonWords)) {
+            // Check both: not a common word AND not containing banned root words
+            if (!in_array($potentialUsername, $commonWords) && !$this->containsBannedRootWord($potentialUsername, $bannedRootWords)) {
                 $username = $potentialUsername;
                 Log::info('Found username via Pattern 1 (memulai obrolan)', ['username' => $username]);
             }
@@ -410,8 +429,8 @@ class OcrService
         // The username appears in the header but WITHOUT "memulai obrolan dengan" text
         elseif (preg_match('/([a-zA-Z0-9._]{5,30})\s+(?:Obrolan|obrolan)\s+(?:bisnis|business)/i', $headerText, $matches)) {
             $potentialUsername = strtolower(trim($matches[1]));
-            // Check it's not a common word and not a number-only string
-            if (!in_array($potentialUsername, $commonWords) && !is_numeric($potentialUsername)) {
+            // Check: not a common word, not only numbers, not containing banned root words
+            if (!in_array($potentialUsername, $commonWords) && !is_numeric($potentialUsername) && !$this->containsBannedRootWord($potentialUsername, $bannedRootWords)) {
                 $username = $potentialUsername;
                 Log::info('Found username via Pattern 1.5 (before Obrolan bisnis)', ['username' => $username]);
             }
@@ -421,9 +440,8 @@ class OcrService
         // MUST search ONLY in header area
         elseif (preg_match('/(?:obrolan|chat)\s+(?:dengan|with|bisnis|business)\s+([a-zA-Z0-9._]{5,30})/i', $headerText, $matches)) {
             $potentialUsername = strtolower(trim($matches[1]));
-            // For both canvassing and follow-up: be lenient - just check it's not a common word
-            // This handles usernames without underscore (e.g., "kedaikopidavid")
-            if (!in_array($potentialUsername, $commonWords)) {
+            // Check both: not a common word AND not containing banned root words
+            if (!in_array($potentialUsername, $commonWords) && !$this->containsBannedRootWord($potentialUsername, $bannedRootWords)) {
                 $username = $potentialUsername;
                 Log::info('Found username via Pattern 2 (obrolan dengan)', ['username' => $username]);
             }
@@ -432,9 +450,8 @@ class OcrService
         // Header area already extracted above (first 1000 chars)
         if (!$username && preg_match('/@\s*([a-zA-Z0-9._]{5,30})/', $headerText, $matches)) {
             $potentialUsername = strtolower(trim($matches[1]));
-            // For both canvassing and follow-up: be lenient - just check it's not a common word
-            // This handles usernames without underscore (e.g., "kedaikopidavid")
-            if (!in_array($potentialUsername, $commonWords)) {
+            // Check both: not a common word AND not containing banned root words
+            if (!in_array($potentialUsername, $commonWords) && !$this->containsBannedRootWord($potentialUsername, $bannedRootWords)) {
                 $username = $potentialUsername;
                 Log::info('Found username via Pattern 3 (@username)', ['username' => $username]);
             }
@@ -447,15 +464,15 @@ class OcrService
             // Removed 'k' and '\s' to prevent matching random words in messages
             if (preg_match('/(?:^|[\n\r])(?:[<←])\s*@?\s*([a-zA-Z0-9._]{8,30})/u', $headerText, $matches)) {
                 $potentialUsername = strtolower(trim($matches[1]));
-                // VALIDATE BEFORE ACCEPTING - must be at least 8 chars and not a common word
-                if (!in_array($potentialUsername, $commonWords) && strlen($potentialUsername) >= 8) {
+                // VALIDATE BEFORE ACCEPTING - must be at least 8 chars, not a common word, and not containing banned roots
+                if (!in_array($potentialUsername, $commonWords) && strlen($potentialUsername) >= 8 && !$this->containsBannedRootWord($potentialUsername, $bannedRootWords)) {
                     $username = $potentialUsername;
                     Log::info('Found username via Pattern 3c (back arrow)', ['username' => $username]);
                 } else {
                     Log::info('Pattern 3c matched but failed validation', [
                         'matched' => $potentialUsername,
                         'length' => strlen($potentialUsername),
-                        'reason' => strlen($potentialUsername) < 8 ? 'too_short' : 'common_word'
+                        'reason' => strlen($potentialUsername) < 8 ? 'too_short' : ($this->containsBannedRootWord($potentialUsername, $bannedRootWords) ? 'banned_root' : 'common_word')
                     ]);
                 }
             }
@@ -474,8 +491,8 @@ class OcrService
             // Match capitalized name followed by lowercase username (username can be followed by anything)
             if (preg_match('/(?:[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+([a-z0-9_]{8,30})(?=\s|$|[A-Z])/i', $headerTop, $matches)) {
                 $potentialUsername = strtolower(trim($matches[1]));
-                // Use the same commonWords array defined at the top
-                if (!in_array($potentialUsername, $commonWords) && strlen($potentialUsername) >= 8) {
+                // Use the same commonWords array defined at the top AND check banned root words
+                if (!in_array($potentialUsername, $commonWords) && strlen($potentialUsername) >= 8 && !$this->containsBannedRootWord($potentialUsername, $bannedRootWords)) {
                     // Check position - if very early (first 150 chars), accept regardless of what comes after
                     // This handles cases like "Kedai Kopi David kedaikopidavid langganan..." where
                     // username is in header but immediately followed by message text
@@ -499,8 +516,8 @@ class OcrService
                 if (preg_match_all('/\b([a-z0-9_]{8,30})\b/i', $headerTop250, $allMatches, PREG_SET_ORDER)) {
                     foreach ($allMatches as $match) {
                         $potentialUsername = strtolower(trim($match[1]));
-                        // Use the same commonWords array defined at the top
-                        if (!in_array($potentialUsername, $commonWords) && strlen($potentialUsername) >= 8) {
+                        // Use the same commonWords array defined at the top AND check banned root words
+                        if (!in_array($potentialUsername, $commonWords) && strlen($potentialUsername) >= 8 && !$this->containsBannedRootWord($potentialUsername, $bannedRootWords)) {
                             // Check if it's not part of a sentence (should be standalone)
                             $pos = stripos($headerTop250, $potentialUsername);
                             if ($pos !== false) {
@@ -912,6 +929,25 @@ class OcrService
         }
 
         return $result;
+    }
+
+    /**
+     * Check if a potential username contains banned Indonesian root words
+     * This prevents accepting words like "kasirnya", "aplikasikasir", "transaksinya" as usernames
+     */
+    private function containsBannedRootWord(string $username, array $bannedRoots): bool
+    {
+        $lowerUsername = strtolower($username);
+        foreach ($bannedRoots as $root) {
+            if (str_contains($lowerUsername, $root)) {
+                Log::info('Username rejected - contains banned root word', [
+                    'username' => $username,
+                    'banned_root' => $root,
+                ]);
+                return true;
+            }
+        }
+        return false;
     }
 }
 
