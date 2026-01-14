@@ -49,6 +49,8 @@ class MessageController extends Controller
             'instagram_link' => 'nullable|url|max:255',
             'channel' => 'nullable|string|in:instagram,tiktok,facebook,threads,whatsapp,other',
             'interaction_status' => 'nullable|string|in:no_response,menolak,tertarik,menerima',
+            'lokasi' => 'nullable|string|max:255',
+            'prospect_id' => 'nullable|integer|exists:prospects,id', // Manual prospect selection for follow-up when OCR fails
         ]);
 
         $user = Auth::user();
@@ -190,8 +192,10 @@ class MessageController extends Controller
                 }
             }
 
-            // Find or create cycle based on OCR result
-            if (!$bypass && !$ocrResult['instagram_username']) {
+            // Find or create cycle based on OCR result OR manual prospect selection
+            $manualProspectId = $request->input('prospect_id');
+
+            if (!$bypass && !$ocrResult['instagram_username'] && !$manualProspectId) {
                 Storage::disk($disk)->delete($filePath);
                 DB::rollBack();
 
@@ -217,20 +221,82 @@ class MessageController extends Controller
                     2. Tidak tertutup notifikasi. 
                     3. Format screenshot jelas.
                     
+                    Atau gunakan dropdown "Pilih Prospect Manual" untuk follow-up.
+                    
                     Text terdeteksi (Header): "' . substr($ocrResult['message_snippet'] ?? '', 0, 100) . '..."',
                     'debug' => [
                         'ocr_date' => $ocrResult['date'],
                         'expected_stage' => $expectedStage,
                         'is_followup' => $expectedStage > 0,
                     ],
+                    'show_manual_selection' => true, // Signal frontend to show manual prospect dropdown
                 ], 422);
             }
 
-            $cycleResult = $this->validationService->findOrCreateCycle(
-                $ocrResult['instagram_username'],
-                $user->id,
-                $expectedStage
-            );
+            // Use manual prospect selection (bypass OCR) OR OCR result
+            if ($manualProspectId && $expectedStage > 0) {
+                // Manual selection for follow-up
+                $prospect = \App\Models\Prospect::find($manualProspectId);
+                if (!$prospect) {
+                    Storage::disk($disk)->delete($filePath);
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Prospect tidak ditemukan',
+                    ], 422);
+                }
+
+                // Find active cycle for this prospect and staff
+                $cycle = CanvassingCycle::where('prospect_id', $prospect->id)
+                    ->where('staff_id', $user->id)
+                    ->whereIn('status', ['active', 'ongoing', 'sedang berlangsung'])
+                    ->first();
+
+                if (!$cycle) {
+                    Storage::disk($disk)->delete($filePath);
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Tidak ditemukan siklus canvassing aktif untuk prospect ini.',
+                    ], 422);
+                }
+
+                // Check previous stage exists
+                $previousMessage = Message::where('canvassing_cycle_id', $cycle->id)
+                    ->where('stage', $expectedStage - 1)
+                    ->first();
+
+                if (!$previousMessage) {
+                    Storage::disk($disk)->delete($filePath);
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Follow-up stage {$expectedStage} tidak valid. Stage sebelumnya belum ada.",
+                    ], 422);
+                }
+
+                $cycleResult = [
+                    'valid' => true,
+                    'cycle' => $cycle,
+                ];
+
+                Log::info('Using manual prospect selection for follow-up', [
+                    'prospect_id' => $manualProspectId,
+                    'prospect_username' => $prospect->instagram_username,
+                    'cycle_id' => $cycle->id,
+                    'stage' => $expectedStage,
+                ]);
+
+                // Set username for message record (from prospect, not OCR)
+                $ocrResult['instagram_username'] = $prospect->instagram_username;
+            } else {
+                // Normal flow: use OCR result
+                $cycleResult = $this->validationService->findOrCreateCycle(
+                    $ocrResult['instagram_username'],
+                    $user->id,
+                    $expectedStage
+                );
+            }
 
             if (!$cycleResult['valid']) {
                 Storage::disk($disk)->delete($filePath);
@@ -496,6 +562,41 @@ class MessageController extends Controller
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
+    }
+
+    /**
+     * Get active prospects for current staff user (for manual follow-up selection)
+     */
+    public function getActiveProspects()
+    {
+        $user = Auth::user();
+
+        if ($user->role !== 'staff') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Hanya staff yang dapat mengakses fitur ini',
+            ], 403);
+        }
+
+        // Get all active cycles for this staff with prospect data
+        $activeCycles = CanvassingCycle::where('staff_id', $user->id)
+            ->whereIn('status', ['active', 'ongoing', 'sedang berlangsung'])
+            ->with('prospect')
+            ->get();
+
+        $prospects = $activeCycles->map(function ($cycle) {
+            return [
+                'id' => $cycle->prospect->id,
+                'instagram_username' => $cycle->prospect->instagram_username,
+                'cycle_id' => $cycle->id,
+                'current_stage' => $cycle->current_stage,
+            ];
+        })->unique('id')->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => $prospects,
+        ]);
     }
 }
 

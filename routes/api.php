@@ -1,4 +1,3 @@
-
 <?php
 
 use App\Http\Controllers\AuthController;
@@ -44,6 +43,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Messages
     Route::post('/messages/upload', [MessageController::class, 'upload']);
     Route::get('/messages', [MessageController::class, 'index']);
+    Route::get('/messages/active-prospects', [MessageController::class, 'getActiveProspects']);
     Route::get('/messages/{id}', [MessageController::class, 'show'])->where('id', '[0-9]+');
     Route::delete('/messages/{id}', [MessageController::class, 'destroy'])->where('id', '[0-9]+');
 
