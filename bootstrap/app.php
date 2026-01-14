@@ -18,7 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->api(append: [
-            \Illuminate\Http\Middleware\HandleCors::class,
+            // CORS is handled by SecurityHeaders middleware - DO NOT add HandleCors here
             \App\Http\Middleware\SecurityHeaders::class,
         ]);
 
