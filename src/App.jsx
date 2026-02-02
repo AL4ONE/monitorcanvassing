@@ -9,6 +9,13 @@ import QualityCheck from './pages/QualityCheck';
 import Report from './pages/Report';
 import BulkImport from './pages/BulkImport';
 import Layout from './components/Layout';
+import CanvassingGroupList from './pages/CanvassingGroupList';
+import CanvassingGroupForm from './pages/CanvassingGroupForm';
+import CanvassingGroupDetail from './pages/CanvassingGroupDetail';
+import MyCanvassingGroups from './pages/MyCanvassingGroups';
+import CanvassingExecution from './pages/CanvassingExecution';
+import OnlineCanvassing from './pages/OnlineCanvassing';
+import SupervisorOnlineCanvassing from './pages/SupervisorOnlineCanvassing';
 
 function PrivateRoute({ children, requiredRole }) {
   const { user, loading } = useAuth();
@@ -90,6 +97,90 @@ function AppRoutes() {
           <PrivateRoute>
             <Layout>
               <BulkImport />
+            </Layout>
+          </PrivateRoute>
+        }
+      />
+
+      {/* Supervisor - Canvassing Groups */}
+      <Route
+        path="/canvassing-groups"
+        element={
+          <PrivateRoute requiredRole="supervisor">
+            <Layout>
+              <CanvassingGroupList />
+            </Layout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/canvassing-groups/create"
+        element={
+          <PrivateRoute requiredRole="supervisor">
+            <Layout>
+              <CanvassingGroupForm />
+            </Layout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/canvassing-groups/:id"
+        element={
+          <PrivateRoute requiredRole="supervisor">
+            <Layout>
+              <CanvassingGroupDetail />
+            </Layout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/supervisor-online-canvassing"
+        element={
+          <PrivateRoute requiredRole="supervisor">
+            <Layout>
+              <SupervisorOnlineCanvassing />
+            </Layout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/canvassing-groups/:id/edit"
+        element={
+          <PrivateRoute requiredRole="supervisor">
+            <Layout>
+              <CanvassingGroupForm />
+            </Layout>
+          </PrivateRoute>
+        }
+      />
+
+      {/* Staff - Canvassing Groups */}
+      <Route
+        path="/my-canvassing-groups"
+        element={
+          <PrivateRoute requiredRole="staff">
+            <Layout>
+              <MyCanvassingGroups />
+            </Layout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/canvassing-execution/:groupId"
+        element={
+          <PrivateRoute requiredRole="staff">
+            <Layout>
+              <CanvassingExecution />
+            </Layout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/online-canvassing"
+        element={
+          <PrivateRoute requiredRole="staff">
+            <Layout>
+              <OnlineCanvassing />
             </Layout>
           </PrivateRoute>
         }

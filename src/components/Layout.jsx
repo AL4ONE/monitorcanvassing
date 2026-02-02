@@ -18,9 +18,11 @@ export default function Layout({ children }) {
           <div className="flex justify-between h-16">
             <div className="flex">
               <div className="flex-shrink-0 flex items-center">
-                <h1 className="text-xl font-bold text-indigo-600">
-                  MCS
-                </h1>
+                <img
+                  className="h-12 w-auto"
+                  src="/logo_mcs.png"
+                  alt="MCS Logo"
+                />
               </div>
               <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
                 <Link
@@ -52,6 +54,24 @@ export default function Layout({ children }) {
                     >
                       Bulk Import
                     </Link>
+                    <Link
+                      to="/my-canvassing-groups"
+                      className={`${location.pathname.startsWith('/my-canvassing-groups') || location.pathname.startsWith('/canvassing-execution')
+                        ? 'border-indigo-500 text-gray-900'
+                        : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                        } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
+                    >
+                      Tugas Canvassing
+                    </Link>
+                    <Link
+                      to="/online-canvassing"
+                      className={`${location.pathname === '/online-canvassing'
+                        ? 'border-indigo-500 text-gray-900'
+                        : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                        } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
+                    >
+                      Report Online
+                    </Link>
                   </>
                 )}
                 {user?.role === 'supervisor' && (
@@ -82,6 +102,24 @@ export default function Layout({ children }) {
                         } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
                     >
                       Bulk Import
+                    </Link>
+                    <Link
+                      to="/canvassing-groups"
+                      className={`${location.pathname.startsWith('/canvassing-groups')
+                        ? 'border-indigo-500 text-gray-900'
+                        : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                        } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
+                    >
+                      Canvassing Groups
+                    </Link>
+                    <Link
+                      to="/supervisor-online-canvassing"
+                      className={`${location.pathname === '/supervisor-online-canvassing'
+                        ? 'border-indigo-500 text-gray-900'
+                        : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                        } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
+                    >
+                      Report Online (Direct)
                     </Link>
                   </>
                 )}
