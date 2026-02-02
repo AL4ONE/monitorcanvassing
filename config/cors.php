@@ -24,7 +24,7 @@ return [
         $envVal = env('CORS_ALLOWED_ORIGINS', '');
         $origins = array_filter(array_map('trim', explode(',', $envVal)));
         if (empty($origins)) {
-            $origins = ['http://localhost:80', 'https://canvas.stiqr.id', 'https://api-canvas.stiqr.id'];
+            $origins = ['http://localhost:80', 'http://localhost:5173', 'http://127.0.0.1:5173', 'https://canvas.stiqr.id', 'https://api-canvas.stiqr.id'];
         }
         return $origins;
     })(),

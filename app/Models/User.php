@@ -47,4 +47,30 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    /**
+     * Get canvassing groups assigned to this user (staff)
+     */
+    public function assignedCanvassingGroups()
+    {
+        return $this->belongsToMany(CanvassingGroup::class, 'canvassing_group_staff', 'staff_id', 'canvassing_group_id')
+            ->withPivot('assigned_start_date', 'assigned_end_date')
+            ->withTimestamps();
+    }
+
+    /**
+     * Get canvassing groups created by this user (supervisor)
+     */
+    public function createdCanvassingGroups()
+    {
+        return $this->hasMany(CanvassingGroup::class, 'created_by');
+    }
+
+    /**
+     * Get prospects created by this user in canvassing groups
+     */
+    public function canvassingGroupProspects()
+    {
+        return $this->hasMany(CanvassingGroupProspect::class, 'staff_id');
+    }
 }

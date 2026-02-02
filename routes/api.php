@@ -62,7 +62,29 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/canvassing/cleanup-valid', [\App\Http\Controllers\CanvassingController::class, 'cleanupValid']);
         Route::get('/canvassing/report', [\App\Http\Controllers\CanvassingController::class, 'report']);
         Route::patch('/canvassing/{id}/status', [\App\Http\Controllers\CanvassingController::class, 'updateStatus']);
+
+        // Canvassing Groups Management (Supervisor)
+        Route::apiResource('canvassing-groups', \App\Http\Controllers\CanvassingGroupController::class)->except(['show']);
+        Route::post('/canvassing-groups/{id}/assign-staff', [\App\Http\Controllers\CanvassingGroupController::class, 'assignStaff']);
+        Route::delete('/canvassing-groups/{id}/remove-staff/{staffId}', [\App\Http\Controllers\CanvassingGroupController::class, 'removeStaff']);
+        Route::get('/canvassing-groups/{id}/report', [\App\Http\Controllers\CanvassingGroupController::class, 'report']);
+        Route::get('/canvassing-groups/{id}/available-staff', [\App\Http\Controllers\CanvassingGroupController::class, 'availableStaff']);
     });
+
+    // Shared - Canvassing Group Detail
+    Route::get('/canvassing-groups/{id}', [\App\Http\Controllers\CanvassingGroupController::class, 'show']);
+
+    // Staff - Canvassing Groups
+    Route::get('/my-canvassing-groups', [\App\Http\Controllers\CanvassingGroupController::class, 'myGroups']);
+    Route::get('/canvassing-groups/{groupId}/prospects', [\App\Http\Controllers\CanvassingGroupProspectController::class, 'index']);
+    Route::post('/canvassing-groups/{groupId}/prospects', [\App\Http\Controllers\CanvassingGroupProspectController::class, 'store']);
+    Route::get('/canvassing-groups/{groupId}/today-stats', [\App\Http\Controllers\CanvassingGroupProspectController::class, 'todayStats']);
+    Route::put('/prospects/{id}', [\App\Http\Controllers\CanvassingGroupProspectController::class, 'update']);
+    Route::patch('/prospects/{id}/status', [\App\Http\Controllers\CanvassingGroupProspectController::class, 'updateStatus']);
+    Route::delete('/prospects/{id}', [\App\Http\Controllers\CanvassingGroupProspectController::class, 'destroy']);
+
+    // Online Canvassing (Staff)
+    Route::apiResource('online-canvassing', \App\Http\Controllers\OnlineCanvassingController::class)->except(['create', 'edit', 'show']);
 });
 
 // Version endpoint
