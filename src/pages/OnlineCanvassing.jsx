@@ -332,7 +332,6 @@ export default function OnlineCanvassing() {
                   <input
                     type="file"
                     ref={fileInputRef}
-                    accept="image/*"
                     onChange={handlePhotoChange}
                     className="w-full border border-gray-300 rounded-md px-3 py-2"
                   />
