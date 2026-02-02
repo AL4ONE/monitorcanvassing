@@ -47,7 +47,7 @@ export default function Layout({ children }) {
           <NavLink to="/upload" mobile={mobile}>Upload</NavLink>
           <NavLink to="/bulk-import" mobile={mobile}>Bulk Import</NavLink>
           <NavLink to="/my-canvassing-groups" mobile={mobile}>Tugas Canvassing</NavLink>
-          <NavLink to="/online-canvassing" mobile={mobile}>Report Online</NavLink>
+          <NavLink to="/online-canvassing" mobile={mobile}>Report Offline</NavLink>
         </>
       )}
       {user?.role === 'supervisor' && (
@@ -56,7 +56,7 @@ export default function Layout({ children }) {
           <NavLink to="/report" mobile={mobile}>Laporan</NavLink>
           <NavLink to="/bulk-import" mobile={mobile}>Bulk Import</NavLink>
           <NavLink to="/canvassing-groups" mobile={mobile}>Canvassing Groups</NavLink>
-          <NavLink to="/supervisor-online-canvassing" mobile={mobile}>Report Online (Direct)</NavLink>
+          <NavLink to="/supervisor-online-canvassing" mobile={mobile}>Report Offline (Direct)</NavLink>
         </>
       )}
     </>

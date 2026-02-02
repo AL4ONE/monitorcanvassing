@@ -141,8 +141,8 @@ export default function OnlineCanvassing() {
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold">Online Canvassing Report</h1>
-          <p className="text-gray-500">Laporan aktivitas prospecting online</p>
+          <h1 className="text-2xl font-bold">Laporan Canvassing Offline</h1>
+          <p className="text-gray-500">Buat laporan kunjungan langsung (tanpa group)</p>
         </div>
         <button
           onClick={() => setShowForm(true)}

@@ -56,7 +56,7 @@ export default function SupervisorOnlineCanvassing() {
     <div className="max-w-7xl mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold">Laporan Canvassing Online (Direct)</h1>
+          <h1 className="text-2xl font-bold">Laporan Canvassing Offline (Direct)</h1>
           <p className="text-gray-500">Monitoring laporan staff tanpa group</p>
         </div>
       </div>
