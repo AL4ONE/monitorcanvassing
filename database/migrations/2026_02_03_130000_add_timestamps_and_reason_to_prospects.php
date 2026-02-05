@@ -25,8 +25,13 @@ return new class extends Migration {
         });
 
         // 2. Modify enum using raw SQL (standard for MySQL)
-        if (DB::getDriverName() !== 'sqlite') {
+        if (DB::getDriverName() === 'mysql') {
             DB::statement("ALTER TABLE canvassing_group_prospects MODIFY COLUMN status ENUM('on_progress', 'registered', 'rejected') DEFAULT 'on_progress'");
+        } elseif (DB::getDriverName() === 'pgsql') {
+            // Drop the old check constraint
+            DB::statement("ALTER TABLE canvassing_group_prospects DROP CONSTRAINT IF EXISTS canvassing_group_prospects_status_check");
+            // Add the new check constraint including 'rejected'
+            DB::statement("ALTER TABLE canvassing_group_prospects ADD CONSTRAINT canvassing_group_prospects_status_check CHECK (status IN ('on_progress', 'registered', 'rejected'))");
         }
     }
 
@@ -43,6 +48,11 @@ return new class extends Migration {
         // Convert 'rejected' to 'on_progress' first to avoid data truncation error
         DB::table('canvassing_group_prospects')->where('status', 'rejected')->update(['status' => 'on_progress']);
 
-        DB::statement("ALTER TABLE canvassing_group_prospects MODIFY COLUMN status ENUM('on_progress', 'registered') DEFAULT 'on_progress'");
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE canvassing_group_prospects MODIFY COLUMN status ENUM('on_progress', 'registered') DEFAULT 'on_progress'");
+        } elseif (DB::getDriverName() === 'pgsql') {
+            DB::statement("ALTER TABLE canvassing_group_prospects DROP CONSTRAINT IF EXISTS canvassing_group_prospects_status_check");
+            DB::statement("ALTER TABLE canvassing_group_prospects ADD CONSTRAINT canvassing_group_prospects_status_check CHECK (status IN ('on_progress', 'registered'))");
+        }
     }
 };
