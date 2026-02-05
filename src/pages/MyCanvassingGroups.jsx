@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api';
+import { useToast } from '../context/ToastContext';
 
 export default function MyCanvassingGroups() {
+  const { showToast } = useToast();
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeOnly, setActiveOnly] = useState(false); // Show all by default
@@ -29,7 +31,7 @@ export default function MyCanvassingGroups() {
       setGroups(response.data.data || []);
     } catch (error) {
       console.error('Error fetching groups:', error);
-      alert('Gagal memuat data: ' + (error.response?.data?.message || error.message));
+      showToast('Gagal memuat data: ' + (error.response?.data?.message || error.message), 'error');
     } finally {
       setLoading(false);
     }
@@ -53,12 +55,12 @@ export default function MyCanvassingGroups() {
     };
     const labels = {
       open: 'Open',
-      on_progress: 'On Progress',
+      on_progress: 'Progress',
       closed: 'Closed',
       cancelled: 'Cancelled',
     };
     return (
-      <span className={`px-2 py-1 text-xs rounded-full ${styles[status] || 'bg-gray-100'}`}>
+      <span className={`px-2 py-1 text-xs rounded-full whitespace-nowrap ${styles[status] || 'bg-gray-100'}`}>
         {labels[status] || status}
       </span>
     );
@@ -69,9 +71,9 @@ export default function MyCanvassingGroups() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Tugas Canvassing Saya</h1>
+    <div className="max-w-7xl mx-auto p-4 md:p-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <h1 className="text-xl md:text-2xl font-bold">Tugas Canvassing Saya</h1>
         <label className="flex items-center gap-2">
           <input
             type="checkbox"
@@ -79,7 +81,7 @@ export default function MyCanvassingGroups() {
             onChange={(e) => setActiveOnly(e.target.checked)}
             className="rounded border-gray-300"
           />
-          <span className="text-sm text-gray-700">Tampilkan aktif saja</span>
+          <span className="text-sm text-gray-700 whitespace-nowrap">Aktif saja</span>
         </label>
       </div>
 

@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import api from '../api';
+import { useToast } from '../context/ToastContext';
+import { useConfirm } from '../context/ConfirmContext';
 
 export default function CanvassingGroupDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { showToast } = useToast();
+  const { confirm } = useConfirm();
   const [group, setGroup] = useState(null);
   const [dailyStats, setDailyStats] = useState([]);
   const [staffStats, setStaffStats] = useState([]);
@@ -18,10 +22,24 @@ export default function CanvassingGroupDetail() {
   });
   const [assigning, setAssigning] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
+  
+  // Filter states
+  const [prospects, setProspects] = useState([]);
+  const [filters, setFilters] = useState({
+    staff_id: '',
+    date: '',
+  });
+  const [loadingProspects, setLoadingProspects] = useState(false);
 
   useEffect(() => {
     fetchGroup();
   }, [id]);
+
+  useEffect(() => {
+    if (group) {
+        fetchProspects();
+    }
+  }, [group, filters]);
 
   const fetchGroup = async () => {
     try {
@@ -31,11 +49,32 @@ export default function CanvassingGroupDetail() {
       setDailyStats(response.data.daily_stats || []);
       setStaffStats(response.data.staff_stats || []);
     } catch (error) {
-      alert('Gagal memuat data: ' + (error.response?.data?.message || error.message));
+      showToast('Gagal memuat data: ' + (error.response?.data?.message || error.message), 'error');
       navigate('/canvassing-groups');
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchProspects = async () => {
+    try {
+      setLoadingProspects(true);
+      const params = { per_page: 100 }; // Increase limit or implement pagination if needed
+      if (filters.staff_id) params.staff_id = filters.staff_id;
+      if (filters.date) params.date = filters.date;
+
+      const response = await api.get(`/canvassing-groups/${id}/prospects`, { params });
+      setProspects(response.data.data.data || []);
+    } catch (error) {
+      console.error('Error fetching prospects:', error);
+    } finally {
+      setLoadingProspects(false);
+    }
+  };
+
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({ ...prev, [name]: value }));
   };
 
   const fetchAvailableStaff = async () => {
@@ -77,32 +116,39 @@ export default function CanvassingGroupDetail() {
 
   const handleAssignStaff = async () => {
     if (!assignForm.staff_id || !assignForm.assigned_start_date || !assignForm.assigned_end_date) {
-      alert('Mohon isi semua field');
+      showToast('Mohon isi semua field', 'warning');
       return;
     }
 
     try {
       setAssigning(true);
       await api.post(`/canvassing-groups/${id}/assign-staff`, assignForm);
-      alert('Staff berhasil ditugaskan');
+      showToast('Staff berhasil ditugaskan', 'success');
       setShowAssignModal(false);
       fetchGroup();
     } catch (error) {
-      alert('Gagal menugaskan staff: ' + (error.response?.data?.message || error.message));
+      showToast('Gagal menugaskan staff: ' + (error.response?.data?.message || error.message), 'error');
     } finally {
       setAssigning(false);
     }
   };
 
   const handleRemoveStaff = async (staffId, staffName) => {
-    if (!confirm(`Hapus ${staffName} dari group ini?`)) return;
+    const confirmed = await confirm({
+      title: 'Hapus Staff',
+      message: `Apakah Anda yakin ingin menghapus ${staffName} dari group ini?`,
+      confirmText: 'Ya, Hapus',
+      cancelText: 'Batal',
+      variant: 'danger'
+    });
+    if (!confirmed) return;
 
     try {
       await api.delete(`/canvassing-groups/${id}/remove-staff/${staffId}`);
-      alert('Staff berhasil dihapus');
+      showToast('Staff berhasil dihapus', 'success');
       fetchGroup();
     } catch (error) {
-      alert('Gagal menghapus staff: ' + (error.response?.data?.message || error.message));
+      showToast('Gagal menghapus staff: ' + (error.response?.data?.message || error.message), 'error');
     }
   };
 
@@ -112,6 +158,17 @@ export default function CanvassingGroupDetail() {
       day: '2-digit',
       month: 'short',
       year: 'numeric',
+    });
+  };
+
+  const formatDateTime = (dateStr) => {
+    if (!dateStr) return '-';
+    return new Date(dateStr).toLocaleString('id-ID', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
     });
   };
 
@@ -148,9 +205,9 @@ export default function CanvassingGroupDetail() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
+    <div className="max-w-7xl mx-auto p-4 md:p-6">
       {/* Header */}
-      <div className="flex justify-between items-start mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-6">
         <div>
           <Link to="/canvassing-groups" className="text-gray-500 hover:text-indigo-600 mb-2 inline-flex items-center gap-1 transition-colors duration-200">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -158,19 +215,19 @@ export default function CanvassingGroupDetail() {
             </svg>
             Kembali
           </Link>
-          <h1 className="text-2xl font-bold">{group.name}</h1>
-          <p className="text-gray-500">{group.city}{group.district ? `, ${group.district}` : ''}</p>
+          <h1 className="text-xl md:text-2xl font-bold">{group.name}</h1>
+          <p className="text-gray-500 text-sm">{group.city}{group.district ? `, ${group.district}` : ''}{group.village ? `, ${group.village}` : ''}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {getStatusBadge(group.status)}
           <Link
             to={`/canvassing-groups/${id}/edit`}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm hover:shadow transition-all duration-200"
+            className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm hover:shadow transition-all duration-200"
           >
-            <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
-            Edit Group
+            Edit
           </Link>
         </div>
       </div>
@@ -199,7 +256,10 @@ export default function CanvassingGroupDetail() {
           </p>
           <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
             <div
-              className="bg-green-600 h-2 rounded-full"
+              className={`h-2 rounded-full ${
+                (group.achievement_stats?.percentage || 0) >= 80 ? 'bg-green-500' :
+                (group.achievement_stats?.percentage || 0) >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+              }`}
               style={{ width: `${Math.min(100, group.achievement_stats?.percentage || 0)}%` }}
             ></div>
           </div>
@@ -257,11 +317,17 @@ export default function CanvassingGroupDetail() {
                     <td className="px-4 py-3 align-middle">
                       <div className="w-full bg-gray-200 rounded-full h-2.5">
                         <div 
-                          className="bg-green-600 h-2.5 rounded-full" 
+                          className={`h-2.5 rounded-full ${
+                            staff.progress_percentage >= 80 ? 'bg-green-500' :
+                            staff.progress_percentage >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+                          }`}
                           style={{ width: `${Math.min(100, staff.progress_percentage)}%` }}
                         ></div>
                       </div>
-                      <div className="text-xs text-gray-500 mt-1 text-right">{staff.progress_percentage}%</div>
+                      <div className={`text-xs mt-1 text-right font-medium ${
+                        staff.progress_percentage >= 80 ? 'text-green-600' :
+                        staff.progress_percentage >= 50 ? 'text-yellow-600' : 'text-red-600'
+                      }`}>{staff.progress_percentage}%</div>
                     </td>
                     <td className="px-4 py-3 text-center">
                       <button
@@ -314,62 +380,213 @@ export default function CanvassingGroupDetail() {
         </div>
       </div>
 
-      {/* Prospects Table */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-lg font-semibold mb-4">Daftar Prospect ({group.prospects?.length || 0})</h2>
-        {group.prospects?.length === 0 ? (
+      {/* Prospects Tables by Status */}
+      <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
+            <h2 className="text-base md:text-lg font-semibold">Daftar Merchant ({prospects.length})</h2>
+            <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                <select
+                    name="staff_id"
+                    value={filters.staff_id}
+                    onChange={handleFilterChange}
+                    className="flex-1 sm:flex-none border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 min-w-0"
+                >
+                    <option value="">Semua Staff</option>
+                    {staffStats.map(staff => (
+                        <option key={staff.id} value={staff.id}>{staff.name}</option>
+                    ))}
+                </select>
+                <input
+                    type="date"
+                    name="date"
+                    value={filters.date}
+                    onChange={handleFilterChange}
+                    className="flex-1 sm:flex-none border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 min-w-0"
+                />
+            </div>
+        </div>
+        
+        {loadingProspects ? (
+            <div className="text-center py-4">Memuat prospect...</div>
+        ) : prospects.length === 0 ? (
           <p className="text-gray-500 text-center py-4">Belum ada prospect</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Foto</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nama Usaha</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">PIC</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Kontak</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Staff</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Tanggal</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {group.prospects?.map((prospect) => (
-                  <tr key={prospect.id}>
-                    <td className="px-4 py-3">
-                      {prospect.photo_url ? (
-                        <img
-                          src={prospect.photo_url}
-                          alt="Thumbnail"
-                          className="w-10 h-10 object-cover rounded cursor-pointer hover:opacity-80 transition-opacity"
-                          onClick={() => openImageModal(prospect.photo_url)}
-                        />
-                      ) : (
-                        <div className="w-10 h-10 bg-gray-200 rounded flex items-center justify-center text-gray-400">
-                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-sm font-medium">{prospect.business_name}</td>
-                    <td className="px-4 py-3 text-sm text-gray-500">{prospect.contact_name || '-'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-500">{prospect.contact_number || '-'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-500">{prospect.staff?.name}</td>
-                    <td className="px-4 py-3 text-sm text-gray-500">{formatDate(prospect.visit_date)}</td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        prospect.status === 'registered' 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {prospect.status === 'registered' ? 'Registered' : 'On Progress'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="space-y-8">
+            {/* On Progress Table */}
+            {(() => {
+              const onProgressProspects = prospects.filter(p => p.status === 'on_progress');
+              return onProgressProspects.length > 0 && (
+                <div>
+                  <h3 className="text-md font-semibold mb-3 flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-yellow-400"></span>
+                    On Progress ({onProgressProspects.length})
+                  </h3>
+                  <div className="overflow-x-auto border border-yellow-200 rounded-lg">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-yellow-50">
+                        <tr>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Foto</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nama Usaha</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Alamat</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">PIC</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Kontak</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Staff</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Tanggal Kunjungan</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 bg-white">
+                        {onProgressProspects.map((prospect) => (
+                          <tr key={prospect.id} className="hover:bg-yellow-50">
+                            <td className="px-4 py-3">
+                              {prospect.photo_url ? (
+                                <img
+                                  src={prospect.photo_url}
+                                  alt="Thumbnail"
+                                  className="w-10 h-10 object-cover rounded cursor-pointer hover:opacity-80 transition-opacity"
+                                  onClick={() => openImageModal(prospect.photo_url)}
+                                />
+                              ) : (
+                                <div className="w-10 h-10 bg-gray-200 rounded flex items-center justify-center text-gray-400">
+                                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                  </svg>
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-sm font-medium">{prospect.business_name}</td>
+                            <td className="px-4 py-3 text-sm text-gray-500 truncate max-w-xs">{prospect.address || '-'}</td>
+                            <td className="px-4 py-3 text-sm text-gray-500">{prospect.contact_name || '-'}</td>
+                            <td className="px-4 py-3 text-sm text-gray-500">{prospect.contact_number || '-'}</td>
+                            <td className="px-4 py-3 text-sm text-gray-500">{prospect.staff?.name}</td>
+                            <td className="px-4 py-3 text-sm text-gray-500">{formatDate(prospect.visit_date)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Rejected Table */}
+            {(() => {
+              const rejectedProspects = prospects.filter(p => p.status === 'rejected');
+              return rejectedProspects.length > 0 && (
+                <div>
+                  <h3 className="text-md font-semibold mb-3 flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-red-400"></span>
+                    Rejected ({rejectedProspects.length})
+                  </h3>
+                  <div className="overflow-x-auto border border-red-200 rounded-lg">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-red-50">
+                        <tr>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Foto</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nama Usaha</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Alamat</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">PIC</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Kontak</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Staff</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Tanggal Kunjungan</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Waktu Reject</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Alasan</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 bg-white">
+                        {rejectedProspects.map((prospect) => (
+                          <tr key={prospect.id} className="hover:bg-red-50">
+                            <td className="px-4 py-3">
+                              {prospect.photo_url ? (
+                                <img
+                                  src={prospect.photo_url}
+                                  alt="Thumbnail"
+                                  className="w-10 h-10 object-cover rounded cursor-pointer hover:opacity-80 transition-opacity"
+                                  onClick={() => openImageModal(prospect.photo_url)}
+                                />
+                              ) : (
+                                <div className="w-10 h-10 bg-gray-200 rounded flex items-center justify-center text-gray-400">
+                                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                  </svg>
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-sm font-medium">{prospect.business_name}</td>
+                            <td className="px-4 py-3 text-sm text-gray-500 truncate max-w-xs">{prospect.address || '-'}</td>
+                            <td className="px-4 py-3 text-sm text-gray-500">{prospect.contact_name || '-'}</td>
+                            <td className="px-4 py-3 text-sm text-gray-500">{prospect.contact_number || '-'}</td>
+                            <td className="px-4 py-3 text-sm text-gray-500">{prospect.staff?.name}</td>
+                            <td className="px-4 py-3 text-sm text-gray-500">{formatDate(prospect.visit_date)}</td>
+                            <td className="px-4 py-3 text-sm text-gray-500">{formatDateTime(prospect.rejected_at)}</td>
+                            <td className="px-4 py-3 text-sm text-red-600 italic max-w-xs truncate" title={prospect.rejection_reason}>
+                              {prospect.rejection_reason || '-'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Registered Table */}
+            {(() => {
+              const registeredProspects = prospects.filter(p => p.status === 'registered');
+              return registeredProspects.length > 0 && (
+                <div>
+                  <h3 className="text-md font-semibold mb-3 flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-green-400"></span>
+                    Registered ({registeredProspects.length})
+                  </h3>
+                  <div className="overflow-x-auto border border-green-200 rounded-lg">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-green-50">
+                        <tr>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Foto</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nama Usaha</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Alamat</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">PIC</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Kontak</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Staff</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Tanggal Kunjungan</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Waktu Registered</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 bg-white">
+                        {registeredProspects.map((prospect) => (
+                          <tr key={prospect.id} className="hover:bg-green-50">
+                            <td className="px-4 py-3">
+                              {prospect.photo_url ? (
+                                <img
+                                  src={prospect.photo_url}
+                                  alt="Thumbnail"
+                                  className="w-10 h-10 object-cover rounded cursor-pointer hover:opacity-80 transition-opacity"
+                                  onClick={() => openImageModal(prospect.photo_url)}
+                                />
+                              ) : (
+                                <div className="w-10 h-10 bg-gray-200 rounded flex items-center justify-center text-gray-400">
+                                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                  </svg>
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-sm font-medium">{prospect.business_name}</td>
+                            <td className="px-4 py-3 text-sm text-gray-500 truncate max-w-xs">{prospect.address || '-'}</td>
+                            <td className="px-4 py-3 text-sm text-gray-500">{prospect.contact_name || '-'}</td>
+                            <td className="px-4 py-3 text-sm text-gray-500">{prospect.contact_number || '-'}</td>
+                            <td className="px-4 py-3 text-sm text-gray-500">{prospect.staff?.name}</td>
+                            <td className="px-4 py-3 text-sm text-gray-500">{formatDate(prospect.visit_date)}</td>
+                            <td className="px-4 py-3 text-sm text-green-600">{formatDateTime(prospect.registered_at)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
       </div>

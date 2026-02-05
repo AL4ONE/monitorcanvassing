@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react';
 import api from '../api';
+import { useToast } from '../context/ToastContext';
+import { useConfirm } from '../context/ConfirmContext';
 
 export default function Report() {
+    const { showToast } = useToast();
+    const { confirm } = useConfirm();
     const [reportData, setReportData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [users, setUsers] = useState([]);
@@ -60,25 +64,30 @@ export default function Report() {
         } catch (error) {
             console.error('Error fetching report:', error);
             setReportData([]); // Set empty array on error
-            alert('Gagal memuat laporan');
+            showToast('Gagal memuat laporan', 'error');
         } finally {
             setLoading(false);
         }
     };
 
     const handleCleanupValid = async () => {
-        if (!window.confirm('PERINGATAN: Apakah Anda yakin ingin menghapus SEMUA data yang statusnya VALID? Data ini akan hilang dari laporan dan tidak dapat dikembalikan.')) {
-            return;
-        }
+        const confirmed = await confirm({
+            title: 'Hapus Data Valid',
+            message: 'PERINGATAN: Apakah Anda yakin ingin menghapus SEMUA data yang statusnya VALID? Data ini akan hilang dari laporan dan tidak dapat dikembalikan.',
+            confirmText: 'Ya, Hapus Semua',
+            cancelText: 'Batal',
+            variant: 'danger'
+        });
+        if (!confirmed) return;
 
         try {
             setLoading(true);
             const response = await api.delete('/canvassing/cleanup-valid');
-            alert(response.data.message);
+            showToast(response.data.message, 'success');
             fetchReport();
         } catch (error) {
             console.error('Error cleanup valid:', error);
-            alert('Gagal menghapus data: ' + (error.response?.data?.message || error.message));
+            showToast('Gagal menghapus data: ' + (error.response?.data?.message || error.message), 'error');
         } finally {
             setLoading(false);
         }
@@ -104,12 +113,12 @@ export default function Report() {
         try {
             setLoading(true);
             const response = await api.patch(`/canvassing/${id}/status`, editForm);
-            alert('Berhasil memperbarui data');
+            showToast('Berhasil memperbarui data', 'success');
             setEditingId(null);
             fetchReport(); // Refresh data
         } catch (error) {
             console.error('Error saving edit:', error);
-            alert('Gagal menyimpan: ' + (error.response?.data?.message || error.message));
+            showToast('Gagal menyimpan: ' + (error.response?.data?.message || error.message), 'error');
         } finally {
             setLoading(false);
         }
@@ -121,49 +130,51 @@ export default function Report() {
     };
 
     return (
-        <div className="max-w-full mx-auto p-4">
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold">Laporan Canvassing</h1>
+        <div className="max-w-full mx-auto p-3 md:p-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 md:mb-6">
+                <h1 className="text-xl md:text-2xl font-bold">Laporan Canvassing</h1>
                 <button
                     onClick={handleCleanupValid}
-                    className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 text-sm font-medium"
+                    className="bg-red-600 text-white px-3 py-1.5 md:px-4 md:py-2 rounded hover:bg-red-700 text-xs md:text-sm font-medium whitespace-nowrap"
                 >
                     Hapus Data Valid
                 </button>
             </div>
 
             {/* Filters */}
-            <div className="bg-white p-4 rounded-lg shadow mb-6 flex flex-wrap gap-4 items-end">
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Staff</label>
-                    <select
-                        value={selectedStaff}
-                        onChange={(e) => setSelectedStaff(e.target.value)}
-                        className="border border-gray-300 rounded-md px-3 py-2 min-w-[200px]"
-                    >
-                        <option value="">Semua Staff</option>
-                        {users.map(u => (
-                            <option key={u.id} value={u.id}>{u.name}</option>
-                        ))}
-                    </select>
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Dari Tanggal</label>
-                    <input
-                        type="date"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        className="border border-gray-300 rounded-md px-3 py-2"
-                    />
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Sampai Tanggal</label>
-                    <input
-                        type="date"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        className="border border-gray-300 rounded-md px-3 py-2"
-                    />
+            <div className="bg-white p-3 md:p-4 rounded-lg shadow mb-4 md:mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
+                    <div>
+                        <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">Staff</label>
+                        <select
+                            value={selectedStaff}
+                            onChange={(e) => setSelectedStaff(e.target.value)}
+                            className="border border-gray-300 rounded-md px-2 py-1.5 md:px-3 md:py-2 w-full text-sm"
+                        >
+                            <option value="">Semua Staff</option>
+                            {users.map(u => (
+                                <option key={u.id} value={u.id}>{u.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">Dari Tanggal</label>
+                        <input
+                            type="date"
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                            className="border border-gray-300 rounded-md px-2 py-1.5 md:px-3 md:py-2 w-full text-sm"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">Sampai Tanggal</label>
+                        <input
+                            type="date"
+                            value={endDate}
+                            onChange={(e) => setEndDate(e.target.value)}
+                            className="border border-gray-300 rounded-md px-2 py-1.5 md:px-3 md:py-2 w-full text-sm"
+                        />
+                    </div>
                 </div>
             </div>
 

@@ -56,7 +56,7 @@ export default function SupervisorOnlineCanvassing() {
     <div className="max-w-7xl mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold">Laporan Canvassing Offline (Direct)</h1>
+          <h1 className="text-2xl font-bold">Laporan Canvassing Out Group (Direct)</h1>
           <p className="text-gray-500">Monitoring laporan staff tanpa group</p>
         </div>
       </div>
@@ -110,6 +110,7 @@ export default function SupervisorOnlineCanvassing() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Staff</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Usaha</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Alamat</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PIC & Kontak</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Catatan</th>
@@ -119,7 +120,7 @@ export default function SupervisorOnlineCanvassing() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {reports.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan="8" className="px-6 py-12 text-center text-gray-500">
                       Tidak ada laporan pada tanggal ini
                     </td>
                   </tr>
@@ -134,6 +135,9 @@ export default function SupervisorOnlineCanvassing() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm font-medium text-gray-900">{report.business_name}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-gray-500 max-w-xs">{report.address || '-'}</div>
                     </td>
                     <td className="px-6 py-4">
                       {report.contact_name && <div className="text-sm text-gray-900">{report.contact_name}</div>}

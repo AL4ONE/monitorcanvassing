@@ -1,8 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api';
+import { useToast } from '../context/ToastContext';
+import { useConfirm } from '../context/ConfirmContext';
 
 export default function StaffDashboard() {
+  const { showToast } = useToast();
+  const { confirm } = useConfirm();
   const [stats, setStats] = useState(null);
   const [recentMessages, setRecentMessages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -29,18 +33,23 @@ export default function StaffDashboard() {
   };
 
   const handleDelete = async (messageId) => {
-    if (!confirm('Apakah Anda yakin ingin menghapus laporan ini?')) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: 'Hapus Laporan',
+      message: 'Apakah Anda yakin ingin menghapus laporan ini?',
+      confirmText: 'Ya, Hapus',
+      cancelText: 'Batal',
+      variant: 'danger'
+    });
+    if (!confirmed) return;
 
     try {
       setDeleting(messageId);
       await api.delete(`/messages/${messageId}`);
-      alert('Laporan berhasil dihapus');
+      showToast('Laporan berhasil dihapus', 'success');
       fetchDashboard(); // Refresh data
     } catch (error) {
       const errorMessage = error.response?.data?.message || 'Gagal menghapus laporan';
-      alert(errorMessage);
+      showToast(errorMessage, 'error');
     } finally {
       setDeleting(null);
     }
@@ -72,19 +81,19 @@ export default function StaffDashboard() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
-        <div className="flex gap-4">
+    <div className="max-w-7xl mx-auto p-4 md:p-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 md:mb-6">
+        <h1 className="text-xl md:text-2xl font-bold">Dashboard</h1>
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
           <input
             type="date"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
-            className="border border-gray-300 rounded-md px-3 py-2"
+            className="border border-gray-300 rounded-md px-2 py-1.5 md:px-3 md:py-2 text-sm flex-1 sm:flex-none min-w-0"
           />
           <Link
             to="/upload"
-            className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
+            className="bg-indigo-600 text-white px-3 py-1.5 md:px-4 md:py-2 rounded-md hover:bg-indigo-700 text-sm whitespace-nowrap text-center flex-1 sm:flex-none"
           >
             Upload Screenshot
           </Link>
@@ -92,21 +101,21 @@ export default function StaffDashboard() {
       </div>
 
       {/* Target Cards - Dynamic for all stages */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
         {Object.entries(targetsPerStage).map(([stage, data]) => (
-          <div key={stage} className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-lg font-semibold mb-4">{getStageLabel(parseInt(stage))}</h2>
+          <div key={stage} className="bg-white rounded-lg shadow-md p-4 md:p-6">
+            <h2 className="text-base md:text-lg font-semibold mb-2 md:mb-4">{getStageLabel(parseInt(stage))}</h2>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-3xl font-bold">
+                <p className="text-2xl md:text-3xl font-bold">
                   {data.count || 0} / {data.target || 50}
                 </p>
-                <p className="text-sm text-gray-600 mt-2">
-                  Target: {data.target || 50} per hari
+                <p className="text-xs md:text-sm text-gray-600 mt-1 md:mt-2">
+                  Target: {data.target || 50}/hari
                 </p>
               </div>
               <div
-                className={`text-4xl ${data.met ? 'text-green-500' : 'text-red-500'
+                className={`text-3xl md:text-4xl ${data.met ? 'text-green-500' : 'text-red-500'
                   }`}
               >
                 {data.met ? '✓' : '✗'}

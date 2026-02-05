@@ -85,6 +85,19 @@ export default function Login() {
               {loading ? 'Memproses...' : 'Masuk'}
             </button>
           </div>
+
+          <div className="text-center">
+            <p className="text-sm text-gray-600">
+              Belum punya akun?{' '}
+              <button
+                type="button"
+                onClick={() => navigate('/register-staff')}
+                className="font-medium text-indigo-600 hover:text-indigo-500"
+              >
+                Daftar sebagai Staff
+              </button>
+            </p>
+          </div>
         </form>
       </div>
     </div>

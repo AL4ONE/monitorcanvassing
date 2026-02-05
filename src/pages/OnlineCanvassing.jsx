@@ -1,7 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import api from '../api';
+import { compressImage } from '../utils/imageUtils';
+import { useToast } from '../context/ToastContext';
 
 export default function OnlineCanvassing() {
+  const { showToast } = useToast();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -32,7 +35,7 @@ export default function OnlineCanvassing() {
       setReports(res.data.data.data || []);
     } catch (error) {
       console.error('Error fetching reports:', error);
-      alert('Gagal memuat laporan: ' + (error.response?.data?.message || error.message));
+      showToast('Gagal memuat laporan: ' + (error.response?.data?.message || error.message), 'error');
     } finally {
       setLoading(false);
     }
@@ -43,11 +46,20 @@ export default function OnlineCanvassing() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handlePhotoChange = (e) => {
+  const handlePhotoChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      setFormData((prev) => ({ ...prev, photo: file }));
-      setPhotoPreview(URL.createObjectURL(file));
+      try {
+        // Compress image if it's too large (max 1.5MB)
+        const compressedFile = await compressImage(file, 1.5);
+        setFormData((prev) => ({ ...prev, photo: compressedFile }));
+        setPhotoPreview(URL.createObjectURL(compressedFile));
+      } catch (error) {
+        console.error('Failed to compress image:', error);
+        // Fallback to original file if compression fails
+        setFormData((prev) => ({ ...prev, photo: file }));
+        setPhotoPreview(URL.createObjectURL(file));
+      }
     }
   };
 
@@ -89,7 +101,7 @@ export default function OnlineCanvassing() {
     e.preventDefault();
     
     if (!formData.business_name) {
-      alert('Nama usaha harus diisi');
+      showToast('Nama usaha harus diisi', 'warning');
       return;
     }
 
@@ -121,12 +133,12 @@ export default function OnlineCanvassing() {
         });
       }
 
-      alert(isEditing ? 'Laporan berhasil diperbarui' : 'Laporan berhasil dikirim');
+      showToast(isEditing ? 'Laporan berhasil diperbarui' : 'Laporan berhasil dikirim', 'success');
       resetForm();
       setShowForm(false);
       fetchReports();
     } catch (error) {
-      alert('Gagal menyimpan: ' + (error.response?.data?.message || error.message));
+      showToast('Gagal menyimpan: ' + (error.response?.data?.message || error.message), 'error');
     } finally {
       setSubmitting(false);
     }
@@ -137,18 +149,18 @@ export default function OnlineCanvassing() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
+    <div className="max-w-6xl mx-auto p-4 md:p-6">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 md:mb-6">
         <div>
-          <h1 className="text-2xl font-bold">Laporan Canvassing Offline</h1>
-          <p className="text-gray-500">Buat laporan kunjungan langsung (tanpa group)</p>
+          <h1 className="text-xl md:text-2xl font-bold">Laporan Canvassing Offline</h1>
+          <p className="text-gray-500 text-sm">Buat laporan kunjungan langsung (tanpa group)</p>
         </div>
         <button
           onClick={() => setShowForm(true)}
-          className="bg-indigo-600 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-indigo-700 flex items-center gap-2 shadow-md hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5"
+          className="w-full sm:w-auto bg-indigo-600 text-white px-4 py-2 md:px-5 md:py-2.5 rounded-lg font-semibold hover:bg-indigo-700 flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all duration-200 text-sm md:text-base"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
           Buat Laporan Baru

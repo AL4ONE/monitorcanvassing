@@ -2,36 +2,39 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import api from '../api';
+import { useToast } from '../context/ToastContext';
 
 export default function SupervisorDashboard() {
+  const { showToast } = useToast();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [viewMode, setViewMode] = useState('daily'); // 'daily' or 'weekly'
+  const [statsType, setStatsType] = useState('online'); // 'online' or 'offline'
 
   useEffect(() => {
-    fetchDashboard();
-  }, [selectedDate, viewMode]);
+    const fetchDashboard = async () => {
+      try {
+        setLoading(true);
+        const response = await api.get('/dashboard', {
+          params: {
+            date: selectedDate,
+            view_mode: viewMode
+          },
+        });
+        console.log('Dashboard data:', response.data); // Debug log
+        setData(response.data);
+      } catch (error) {
+        console.error('Error fetching dashboard:', error);
+        console.error('Error details:', error.response?.data); // Debug log
+        showToast('Gagal memuat dashboard: ' + (error.response?.data?.message || error.message), 'error');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const fetchDashboard = async () => {
-    try {
-      setLoading(true);
-      const response = await api.get('/dashboard', {
-        params: {
-          date: selectedDate,
-          view_mode: viewMode
-        },
-      });
-      console.log('Dashboard data:', response.data); // Debug log
-      setData(response.data);
-    } catch (error) {
-      console.error('Error fetching dashboard:', error);
-      console.error('Error details:', error.response?.data); // Debug log
-      alert('Gagal memuat dashboard: ' + (error.response?.data?.message || error.message));
-    } finally {
-      setLoading(false);
-    }
-  };
+    fetchDashboard();
+  }, [selectedDate, viewMode, showToast]);
 
 
 
@@ -44,6 +47,29 @@ export default function SupervisorDashboard() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Dashboard Supervisor</h1>
         <div className="flex gap-4">
+            <div className="bg-gray-100 p-1 rounded-lg flex">
+                <button
+                    onClick={() => setStatsType('online')}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    statsType === 'online' 
+                        ? 'bg-white text-indigo-600 shadow-sm' 
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                    Online Canvassing
+                </button>
+                <button
+                    onClick={() => setStatsType('offline')}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    statsType === 'offline' 
+                        ? 'bg-white text-indigo-600 shadow-sm' 
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                    Offline Visits
+                </button>
+            </div>
+
           <input
             type="date"
             value={selectedDate}
@@ -61,17 +87,17 @@ export default function SupervisorDashboard() {
           </select>
 
           <Link
-            to="/report"
-            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+             to="/report"
+             className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
           >
             Laporan
           </Link>
-          <Link
-            to="/quality-check"
-            className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
-          >
-            Quality Check
-          </Link>
+           <Link
+             to="/quality-check"
+             className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
+           >
+             Quality Check
+           </Link>
         </div>
       </div>
 
@@ -98,6 +124,7 @@ export default function SupervisorDashboard() {
                 <Legend />
                 <Bar dataKey="total_messages" name={`Total Pesan (${viewMode === 'weekly' ? 'Mingguan' : 'Harian'})`} fill="#4F46E5" />
                 <Bar dataKey="success_cycles" name="Success Cycle" fill="#10B981" />
+                <Bar dataKey="offline_visits" name="Offline Visits" fill="#F59E0B" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -112,18 +139,40 @@ export default function SupervisorDashboard() {
             <h3 className="text-sm font-medium text-gray-600">Total Staff</h3>
             <p className="text-3xl font-bold mt-2">{data.overall_stats.total_staff}</p>
           </div>
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-sm font-medium text-gray-600">Total Canvassing</h3>
-            <p className="text-3xl font-bold mt-2">{data.overall_stats.total_canvassing}</p>
-          </div>
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-sm font-medium text-gray-600">Total Follow Up</h3>
-            <p className="text-3xl font-bold mt-2">{data.overall_stats.total_follow_up}</p>
-          </div>
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-sm font-medium text-gray-600">Pending QC</h3>
-            <p className="text-3xl font-bold mt-2">{data.overall_stats.pending_quality_checks}</p>
-          </div>
+          
+          {statsType === 'offline' && (
+              <>
+                <div className="bg-white rounded-lg shadow-md p-6">
+                    <h3 className="text-sm font-medium text-gray-600">Group Berjalan</h3>
+                    <p className="text-3xl font-bold mt-2">{data.overall_stats.total_active_groups || 0}</p>
+                </div>
+                <div className="bg-white rounded-lg shadow-md p-6">
+                    <h3 className="text-sm font-medium text-gray-600">Offline (In Group)</h3>
+                    <p className="text-3xl font-bold mt-2">{data.overall_stats.total_offline_in_group || 0}</p>
+                </div>
+                <div className="bg-white rounded-lg shadow-md p-6">
+                    <h3 className="text-sm font-medium text-gray-600">Offline (Out Group)</h3>
+                    <p className="text-3xl font-bold mt-2">{data.overall_stats.total_offline_out_group || 0}</p>
+                </div>
+              </>
+          )}
+
+          {statsType === 'online' && (
+              <>
+                <div className="bg-white rounded-lg shadow-md p-6">
+                    <h3 className="text-sm font-medium text-gray-600">Total Canvassing</h3>
+                    <p className="text-3xl font-bold mt-2">{data.overall_stats.total_canvassing}</p>
+                </div>
+                <div className="bg-white rounded-lg shadow-md p-6">
+                    <h3 className="text-sm font-medium text-gray-600">Total Follow Up</h3>
+                    <p className="text-3xl font-bold mt-2">{data.overall_stats.total_follow_up}</p>
+                </div>
+                <div className="bg-white rounded-lg shadow-md p-6">
+                    <h3 className="text-sm font-medium text-gray-600">Pending QC</h3>
+                    <p className="text-3xl font-bold mt-2">{data.overall_stats.pending_quality_checks}</p>
+                </div>
+              </>
+          )}
         </div>
       ) : (
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
@@ -148,51 +197,87 @@ export default function SupervisorDashboard() {
       {/* Staff Stats */}
       {data?.staff_stats && data.staff_stats.length > 0 ? (
         <div className="space-y-6">
-          {data.staff_stats.map((staffStat) => (
-            <div key={staffStat.staff.id} className="bg-white rounded-lg shadow-md p-6">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h2 className="text-xl font-semibold">{staffStat.staff.name}</h2>
-                  <p className="text-sm text-gray-600">{staffStat.staff.email}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2 mb-4">
-                {staffStat.targets_per_stage && Object.entries(staffStat.targets_per_stage).map(([stage, targetData]) => (
-                  <div key={stage} className="border rounded-lg p-3">
-                    <h3 className="text-xs font-medium text-gray-600 mb-1">
-                      {stage === '0' ? 'Canvassing' : `FU-${stage}`}
-                    </h3>
-                    <div className="flex items-center justify-between">
-                      <span className="text-lg font-bold">
-                        {targetData.count || 0}/{targetData.target || 50}
-                      </span>
-                      <span
-                        className={`text-sm ${targetData.met ? 'text-green-500' : 'text-red-500'
-                          }`}
-                      >
-                        {targetData.met ? '✓' : '✗'}
-                      </span>
+          {statsType === 'online' ? (
+              <>
+                {data.staff_stats.map((staffStat) => (
+                    <div key={staffStat.staff.id} className="bg-white rounded-lg shadow-md p-6">
+                    <div className="flex justify-between items-start mb-4">
+                        <div>
+                        <h2 className="text-xl font-semibold">{staffStat.staff.name}</h2>
+                        <p className="text-sm text-gray-600">{staffStat.staff.email}</p>
+                        </div>
                     </div>
-                  </div>
-                ))}
-              </div>
 
-              {/* Red Flags */}
-              {staffStat.red_flags && staffStat.red_flags.length > 0 && (
-                <div className="mt-4">
-                  <h3 className="text-sm font-medium text-red-600 mb-2">Red Flags:</h3>
-                  <ul className="list-disc list-inside space-y-1">
-                    {staffStat.red_flags.map((flag, index) => (
-                      <li key={index} className="text-sm text-red-600">
-                        {flag.message}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          ))}
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2 mb-4">
+                        {staffStat.targets_per_stage && Object.entries(staffStat.targets_per_stage).map(([stage, targetData]) => (
+                        <div key={stage} className="border rounded-lg p-3">
+                            <h3 className="text-xs font-medium text-gray-600 mb-1">
+                            {stage === '0' ? 'Canvassing' : `FU-${stage}`}
+                            </h3>
+                            <div className="flex items-center justify-between">
+                            <span className="text-lg font-bold">
+                                {targetData.count || 0}/{targetData.target || 50}
+                            </span>
+                            <span
+                                className={`text-sm ${targetData.met ? 'text-green-500' : 'text-red-500'
+                                }`}
+                            >
+                                {targetData.met ? '✓' : '✗'}
+                            </span>
+                            </div>
+                        </div>
+                        ))}
+                    </div>
+
+                    {/* Red Flags */}
+                    {staffStat.red_flags && staffStat.red_flags.length > 0 && (
+                        <div className="mt-4">
+                        <h3 className="text-sm font-medium text-red-600 mb-2">Red Flags:</h3>
+                        <ul className="list-disc list-inside space-y-1">
+                            {staffStat.red_flags.map((flag, index) => (
+                            <li key={index} className="text-sm text-red-600">
+                                {flag.message}
+                            </li>
+                            ))}
+                        </ul>
+                        </div>
+                    )}
+                    </div>
+                ))}
+              </>
+          ) : (
+              <>
+                {data.staff_stats.map((staffStat) => (
+                    <div key={staffStat.staff.id} className="bg-white rounded-lg shadow-md p-6">
+                    <div className="flex justify-between items-start mb-4">
+                        <div>
+                        <h2 className="text-xl font-semibold">{staffStat.staff.name}</h2>
+                        <p className="text-sm text-gray-600">{staffStat.staff.email}</p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                        <div className="border rounded-lg p-3 bg-indigo-50 border-indigo-100">
+                            <h3 className="text-xs font-medium text-gray-600 mb-1">Total Kunjungan</h3>
+                            <div className="text-2xl font-bold text-indigo-700">{staffStat.offline_stats?.total || 0}</div>
+                        </div>
+                        <div className="border rounded-lg p-3">
+                            <h3 className="text-xs font-medium text-gray-600 mb-1">In Group</h3>
+                            <div className="text-2xl font-bold text-gray-800">{staffStat.offline_stats?.in_group || 0}</div>
+                        </div>
+                        <div className="border rounded-lg p-3">
+                            <h3 className="text-xs font-medium text-gray-600 mb-1">Out Group</h3>
+                            <div className="text-2xl font-bold text-gray-800">{staffStat.offline_stats?.out_group || 0}</div>
+                        </div>
+                        <div className="border rounded-lg p-3 bg-green-50 border-green-100">
+                            <h3 className="text-xs font-medium text-gray-600 mb-1">Registered</h3>
+                            <div className="text-2xl font-bold text-green-700">{staffStat.offline_stats?.registered || 0}</div>
+                        </div>
+                    </div>
+                    </div>
+                ))}
+            </>
+          )}
         </div>
       ) : (
         <div className="bg-white rounded-lg shadow-md p-6">

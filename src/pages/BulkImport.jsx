@@ -1,8 +1,10 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
+import { useToast } from '../context/ToastContext';
 
 export default function BulkImport() {
+    const { showToast } = useToast();
     const [file, setFile] = useState(null);
     const [uploading, setUploading] = useState(false);
     const [result, setResult] = useState(null);
@@ -44,12 +46,12 @@ export default function BulkImport() {
         ];
 
         if (!validTypes.includes(selectedFile.type)) {
-            alert('Format file tidak valid. Gunakan Excel (.xlsx, .xls) atau CSV');
+            showToast('Format file tidak valid. Gunakan Excel (.xlsx, .xls) atau CSV', 'warning');
             return;
         }
 
         if (selectedFile.size > 10 * 1024 * 1024) { // 10MB
-            alert('File terlalu besar. Maksimal 10MB');
+            showToast('File terlalu besar. Maksimal 10MB', 'warning');
             return;
         }
 
@@ -61,7 +63,7 @@ export default function BulkImport() {
         e.preventDefault();
 
         if (!file) {
-            alert('Pilih file terlebih dahulu');
+            showToast('Pilih file terlebih dahulu', 'warning');
             return;
         }
 
@@ -114,7 +116,7 @@ export default function BulkImport() {
             link.click();
             link.remove();
         } catch (error) {
-            alert('Gagal download template');
+            showToast('Gagal download template', 'error');
         }
     };
 

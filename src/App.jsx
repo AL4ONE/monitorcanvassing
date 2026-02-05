@@ -1,7 +1,10 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ToastProvider } from './context/ToastContext';
+import { ConfirmProvider } from './context/ConfirmContext';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import RegisterStaff from './pages/RegisterStaff';
 import StaffDashboard from './pages/StaffDashboard';
 import StaffUpload from './pages/StaffUpload';
 import SupervisorDashboard from './pages/SupervisorDashboard';
@@ -41,7 +44,8 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Login />} />
-      <Route path="/register" element={user ? <Navigate to="/dashboard" /> : <Register />} />
+      {/* <Route path="/register" element={user ? <Navigate to="/dashboard" /> : <Register />} /> */}
+      <Route path="/register-staff" element={user ? <Navigate to="/dashboard" /> : <RegisterStaff />} />
 
       <Route
         path="/dashboard"
@@ -194,11 +198,16 @@ function AppRoutes() {
 function App() {
   return (
     <Router>
-      <AuthProvider>
-        <AppRoutes />
-      </AuthProvider>
+      <ToastProvider>
+        <ConfirmProvider>
+          <AuthProvider>
+            <AppRoutes />
+          </AuthProvider>
+        </ConfirmProvider>
+      </ToastProvider>
     </Router>
   );
 }
 
 export default App;
+

@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react';
 import api from '../api';
+import { useToast } from '../context/ToastContext';
+import { useConfirm } from '../context/ConfirmContext';
 
 export default function QualityCheck() {
+  const { showToast } = useToast();
+  const { confirm } = useConfirm();
   const [messages, setMessages] = useState([]);
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -94,25 +98,30 @@ export default function QualityCheck() {
       fetchMessages();
     } catch (error) {
       console.error('Error reviewing message:', error);
-      alert('Gagal melakukan review');
+      showToast('Gagal melakukan review', 'error');
     } finally {
       setReviewing(false);
     }
   };
 
   const handleApproveAll = async () => {
-    if (!window.confirm('Apakah Anda yakin ingin menyetujui SEMUA pesan yang pending?')) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: 'Approve All',
+      message: 'Apakah Anda yakin ingin menyetujui SEMUA pesan yang pending?',
+      confirmText: 'Ya, Approve Semua',
+      cancelText: 'Batal',
+      variant: 'warning'
+    });
+    if (!confirmed) return;
 
     try {
       setLoading(true);
       const response = await api.post('/quality-checks/approve-all');
-      alert(response.data.message);
+      showToast(response.data.message, 'success');
       fetchMessages();
     } catch (error) {
       console.error('Error approving all:', error);
-      alert('Gagal melakukan approve all: ' + (error.response?.data?.message || error.message));
+      showToast('Gagal melakukan approve all: ' + (error.response?.data?.message || error.message), 'error');
     } finally {
       setLoading(false);
     }

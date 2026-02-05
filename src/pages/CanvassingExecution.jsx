@@ -1,9 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../api';
+import { compressImage } from '../utils/imageUtils';
+import { useToast } from '../context/ToastContext';
 
 export default function CanvassingExecution() {
   const { groupId } = useParams();
+  const { showToast } = useToast();
   const [group, setGroup] = useState(null);
   const [todayStats, setTodayStats] = useState(null);
   const [prospects, setProspects] = useState([]);
@@ -12,14 +15,18 @@ export default function CanvassingExecution() {
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     business_name: '',
+    address: '',
     photo: null,
     contact_name: '',
     contact_number: '',
     status: 'on_progress',
     notes: '',
+    rejection_reason: '',
   });
   const [photoPreview, setPhotoPreview] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
+  const [rejectingId, setRejectingId] = useState(null);
+  const [rejectReasonInput, setRejectReasonInput] = useState('');
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -42,7 +49,7 @@ export default function CanvassingExecution() {
       setProspects(prospectsRes.data.data?.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
-      alert('Gagal memuat data: ' + (error.response?.data?.message || error.message));
+      showToast('Gagal memuat data: ' + (error.response?.data?.message || error.message), 'error');
     } finally {
       setLoading(false);
     }
@@ -53,17 +60,27 @@ export default function CanvassingExecution() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handlePhotoChange = (e) => {
+  const handlePhotoChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      setFormData((prev) => ({ ...prev, photo: file }));
-      setPhotoPreview(URL.createObjectURL(file));
+      try {
+        // Compress image if it's too large (max 1.5MB)
+        const compressedFile = await compressImage(file, 1.5);
+        setFormData((prev) => ({ ...prev, photo: compressedFile }));
+        setPhotoPreview(URL.createObjectURL(compressedFile));
+      } catch (error) {
+        console.error('Failed to compress image:', error);
+        // Fallback to original file if compression fails
+        setFormData((prev) => ({ ...prev, photo: file }));
+        setPhotoPreview(URL.createObjectURL(file));
+      }
     }
   };
 
   const resetForm = () => {
     setFormData({
       business_name: '',
+      address: '',
       photo: null,
       contact_name: '',
       contact_number: '',
@@ -80,7 +97,12 @@ export default function CanvassingExecution() {
     e.preventDefault();
     
     if (!formData.business_name) {
-      alert('Nama usaha harus diisi');
+      showToast('Nama usaha harus diisi', 'warning');
+      return;
+    }
+    
+    if (!formData.address) {
+      showToast('Alamat harus diisi', 'warning');
       return;
     }
 
@@ -89,9 +111,13 @@ export default function CanvassingExecution() {
       
       const data = new FormData();
       data.append('business_name', formData.business_name);
+      data.append('address', formData.address);
       data.append('status', formData.status);
       data.append('visit_date', new Date().toISOString().split('T')[0]);
       
+      if (formData.status === 'rejected' && formData.rejection_reason) {
+        data.append('rejection_reason', formData.rejection_reason);
+      }
       if (formData.photo) data.append('photo', formData.photo);
       if (formData.contact_name) data.append('contact_name', formData.contact_name);
       if (formData.contact_number) data.append('contact_number', formData.contact_number);
@@ -101,12 +127,12 @@ export default function CanvassingExecution() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
-      alert('Prospect berhasil ditambahkan');
+      showToast('Prospect berhasil ditambahkan', 'success');
       resetForm();
       setShowForm(false);
       fetchData();
     } catch (error) {
-      alert('Gagal menyimpan: ' + (error.response?.data?.message || error.message));
+      showToast('Gagal menyimpan: ' + (error.response?.data?.message || error.message), 'error');
     } finally {
       setSubmitting(false);
     }
@@ -117,7 +143,30 @@ export default function CanvassingExecution() {
       await api.patch(`/prospects/${prospectId}/status`, { status: newStatus });
       fetchData();
     } catch (error) {
-      alert('Gagal update status: ' + (error.response?.data?.message || error.message));
+      showToast('Gagal update status: ' + (error.response?.data?.message || error.message), 'error');
+    }
+  };
+
+  const openRejectModal = (prospectId) => {
+    setRejectingId(prospectId);
+    setRejectReasonInput('');
+  };
+
+  const submitReject = async () => {
+    if (!rejectReasonInput.trim()) {
+      showToast('Alasan penolakan harus diisi', 'warning');
+      return;
+    }
+
+    try {
+      await api.patch(`/prospects/${rejectingId}/status`, { 
+        status: 'rejected',
+        rejection_reason: rejectReasonInput
+      });
+      fetchData();
+      setRejectingId(null);
+    } catch (error) {
+      showToast('Gagal update status: ' + (error.response?.data?.message || error.message), 'error');
     }
   };
 
@@ -126,35 +175,35 @@ export default function CanvassingExecution() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className="max-w-4xl mx-auto p-4 md:p-6">
       {/* Header */}
-      <div className="mb-6">
-        <Link to="/my-canvassing-groups" className="text-indigo-600 hover:text-indigo-800 mb-2 inline-block">
+      <div className="mb-4 md:mb-6">
+        <Link to="/my-canvassing-groups" className="text-indigo-600 hover:text-indigo-800 mb-2 inline-block text-sm">
           ← Kembali
         </Link>
-        <h1 className="text-2xl font-bold">{group?.name}</h1>
-        <p className="text-gray-500">{group?.city}{group?.district ? `, ${group?.district}` : ''}</p>
+        <h1 className="text-xl md:text-2xl font-bold">{group?.name}</h1>
+        <p className="text-gray-500 text-sm">{group?.city}{group?.district ? `, ${group?.district}` : ''}</p>
       </div>
 
       {/* Today's Progress */}
-      <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg p-6 mb-6">
-        <h2 className="text-lg font-semibold mb-4">Progress Hari Ini</h2>
-        <div className="grid grid-cols-4 gap-4 text-center">
+      <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg p-4 md:p-6 mb-4 md:mb-6">
+        <h2 className="text-base md:text-lg font-semibold mb-3 md:mb-4">Progress Hari Ini</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4 text-center">
           <div>
-            <p className="text-3xl font-bold">{todayStats?.target || 0}</p>
-            <p className="text-indigo-200 text-sm">Target</p>
+            <p className="text-2xl md:text-3xl font-bold">{todayStats?.target || 0}</p>
+            <p className="text-indigo-200 text-xs md:text-sm">Target</p>
           </div>
           <div>
-            <p className="text-3xl font-bold">{todayStats?.total_visits || 0}</p>
-            <p className="text-indigo-200 text-sm">Total Visit</p>
+            <p className="text-2xl md:text-3xl font-bold">{todayStats?.total_visits || 0}</p>
+            <p className="text-indigo-200 text-xs md:text-sm">Visit</p>
           </div>
           <div>
-            <p className="text-3xl font-bold text-green-300">{todayStats?.registered || 0}</p>
-            <p className="text-indigo-200 text-sm">Registered</p>
+            <p className="text-2xl md:text-3xl font-bold text-green-300">{todayStats?.registered || 0}</p>
+            <p className="text-indigo-200 text-xs md:text-sm">Registered</p>
           </div>
           <div>
-            <p className="text-3xl font-bold text-yellow-300">{todayStats?.remaining || 0}</p>
-            <p className="text-indigo-200 text-sm">Sisa Target</p>
+            <p className="text-2xl md:text-3xl font-bold text-yellow-300">{todayStats?.remaining || 0}</p>
+            <p className="text-indigo-200 text-xs md:text-sm">Sisa</p>
           </div>
         </div>
         
@@ -162,12 +211,12 @@ export default function CanvassingExecution() {
         <div className="mt-4">
           <div className="flex justify-between text-sm mb-1">
             <span>Progress</span>
-            <span>{Math.round(((todayStats?.registered || 0) / (todayStats?.target || 1)) * 100)}%</span>
+            <span>{Math.round(((todayStats?.total_visits || 0) / (todayStats?.target || 1)) * 100)}%</span>
           </div>
           <div className="w-full bg-indigo-400 rounded-full h-3">
             <div
               className="bg-white h-3 rounded-full transition-all"
-              style={{ width: `${Math.min(100, ((todayStats?.registered || 0) / (todayStats?.target || 1)) * 100)}%` }}
+              style={{ width: `${Math.min(100, ((todayStats?.total_visits || 0) / (todayStats?.target || 1)) * 100)}%` }}
             ></div>
           </div>
         </div>
@@ -229,18 +278,28 @@ export default function CanvassingExecution() {
                   <span className={`px-3 py-1 text-xs rounded-full ${
                     prospect.status === 'registered' 
                       ? 'bg-green-100 text-green-800' 
+                      : prospect.status === 'rejected'
+                      ? 'bg-red-100 text-red-800'
                       : 'bg-yellow-100 text-yellow-800'
                   }`}>
-                    {prospect.status === 'registered' ? 'Registered' : 'On Progress'}
+                    {prospect.status === 'registered' ? 'Registered' : prospect.status === 'rejected' ? 'Rejected' : 'On Progress'}
                   </span>
                   
                   {prospect.status === 'on_progress' && (
-                    <button
-                      onClick={() => handleUpdateStatus(prospect.id, 'registered')}
-                      className="text-xs text-green-600 hover:text-green-800"
-                    >
-                      Set Registered
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => openRejectModal(prospect.id)}
+                        className="text-xs text-red-600 hover:text-red-800"
+                      >
+                        Set Rejected
+                      </button>
+                      <button
+                        onClick={() => handleUpdateStatus(prospect.id, 'registered')}
+                        className="text-xs text-green-600 hover:text-green-800"
+                      >
+                        Set Registered
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -269,6 +328,22 @@ export default function CanvassingExecution() {
                     onChange={handleChange}
                     className="w-full border border-gray-300 rounded-md px-3 py-2"
                     placeholder="Contoh: Warung Makan Barokah"
+                  />
+                </div>
+
+                {/* Address */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Alamat <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    name="address"
+                    value={formData.address}
+                    onChange={handleChange}
+                    rows={2}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                    placeholder="Alamat lengkap..."
+                    required
                   />
                 </div>
 
@@ -327,27 +402,56 @@ export default function CanvassingExecution() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Status <span className="text-red-500">*</span>
                   </label>
-                  <div className="flex gap-4">
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="radio"
-                        name="status"
-                        value="on_progress"
-                        checked={formData.status === 'on_progress'}
-                        onChange={handleChange}
-                      />
-                      <span>On Progress</span>
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="radio"
-                        name="status"
-                        value="registered"
-                        checked={formData.status === 'registered'}
-                        onChange={handleChange}
-                      />
-                      <span>Registered</span>
-                    </label>
+                  <div className="space-y-3">
+                    <div className="flex gap-4">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="status"
+                          value="on_progress"
+                          checked={formData.status === 'on_progress'}
+                          onChange={handleChange}
+                        />
+                        <span>On Progress</span>
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="status"
+                          value="registered"
+                          checked={formData.status === 'registered'}
+                          onChange={handleChange}
+                        />
+                        <span>Registered</span>
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="status"
+                          value="rejected"
+                          checked={formData.status === 'rejected'}
+                          onChange={handleChange}
+                        />
+                        <span>Rejected</span>
+                      </label>
+                    </div>
+
+                    {formData.status === 'rejected' && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Alasan Penolakan <span className="text-red-500">*</span>
+                        </label>
+                        <textarea
+                          name="rejection_reason"
+                          value={formData.rejection_reason}
+                          onChange={handleChange}
+                          rows={2}
+                          className="w-full border border-gray-300 rounded-md px-3 py-2"
+                          placeholder="Kenapa ditolak?"
+                          required
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -411,6 +515,36 @@ export default function CanvassingExecution() {
               className="max-w-full max-h-[85vh] rounded-lg shadow-2xl"
               onClick={(e) => e.stopPropagation()} 
             />
+          </div>
+        </div>
+      )}
+
+      {/* Rejection Modal */}
+      {rejectingId && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-sm p-6">
+            <h3 className="text-lg font-semibold mb-4">Alasan Penolakan</h3>
+            <textarea
+              value={rejectReasonInput}
+              onChange={(e) => setRejectReasonInput(e.target.value)}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 mb-4"
+              rows={3}
+              placeholder="Masukkan alasan..."
+            />
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setRejectingId(null)}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md"
+              >
+                Batal
+              </button>
+              <button
+                onClick={submitReject}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+              >
+                Simpan
+              </button>
+            </div>
           </div>
         </div>
       )}
