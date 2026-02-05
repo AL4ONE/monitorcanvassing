@@ -107,12 +107,26 @@ class CanvassingGroupProspectController extends Controller
             ], 422);
         }
 
+        // Validate duplicates in this group
+        $existing = CanvassingGroupProspect::where('canvassing_group_id', $groupId)
+            ->where('business_name', 'LIKE', $request->business_name)
+            ->exists();
+
+        if ($existing) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Nama usaha sudah terdaftar di group ini',
+            ], 422);
+        }
+
         $validated = $request->validate([
             'business_name' => 'required|string|max:255',
+            'address' => 'required|string',
             'photo' => 'nullable|image|mimes:jpeg,png,jpg|max:5120', // 5MB max
             'contact_name' => 'nullable|string|max:255',
             'contact_number' => 'nullable|string|max:50',
-            'status' => 'required|in:on_progress,registered',
+            'status' => 'required|in:on_progress,registered,rejected',
+            'rejection_reason' => 'required_if:status,rejected|nullable|string',
             'notes' => 'nullable|string|max:1000',
             'visit_date' => 'nullable|date',
         ]);
@@ -133,17 +147,29 @@ class CanvassingGroupProspectController extends Controller
                 ]);
             }
 
-            $prospect = CanvassingGroupProspect::create([
+            // Prepare data
+            $data = [
                 'canvassing_group_id' => $group->id,
                 'staff_id' => $user->id,
                 'business_name' => $validated['business_name'],
+                'address' => $validated['address'],
                 'photo' => $photoPath,
                 'contact_name' => $validated['contact_name'] ?? null,
                 'contact_number' => $validated['contact_number'] ?? null,
                 'status' => $validated['status'],
                 'notes' => $validated['notes'] ?? null,
                 'visit_date' => $visitDate,
-            ]);
+            ];
+
+            // Set timestamps based on status
+            if ($validated['status'] === 'registered') {
+                $data['registered_at'] = now();
+            } elseif ($validated['status'] === 'rejected') {
+                $data['rejected_at'] = now();
+                $data['rejection_reason'] = $validated['rejection_reason'] ?? null;
+            }
+
+            $prospect = CanvassingGroupProspect::create($data);
 
             // Update group status to on_progress if it's open
             if ($group->status === 'open') {
@@ -185,10 +211,12 @@ class CanvassingGroupProspectController extends Controller
 
         $validated = $request->validate([
             'business_name' => 'sometimes|string|max:255',
+            'address' => 'sometimes|string',
             'photo' => 'nullable|image|mimes:jpeg,png,jpg|max:5120',
             'contact_name' => 'nullable|string|max:255',
             'contact_number' => 'nullable|string|max:50',
-            'status' => 'sometimes|in:on_progress,registered',
+            'status' => 'sometimes|in:on_progress,registered,rejected',
+            'rejection_reason' => 'required_if:status,rejected|nullable|string',
             'notes' => 'nullable|string|max:1000',
         ]);
 
@@ -210,6 +238,17 @@ class CanvassingGroupProspectController extends Controller
                     'disk' => $disk,
                     'visibility' => 'public',
                 ]);
+            }
+
+            // Handle timestamps if status is changing
+            if (isset($validated['status'])) {
+                if ($validated['status'] === 'registered' && $prospect->status !== 'registered') {
+                    $validated['registered_at'] = now();
+                } elseif ($validated['status'] === 'rejected') {
+                    // Always update rejection info if status is rejected (user might correct reason)
+                    $validated['rejected_at'] = now();
+                    // rejection_reason is already in $validated
+                }
             }
 
             $prospect->update($validated);
@@ -248,11 +287,22 @@ class CanvassingGroupProspectController extends Controller
         }
 
         $validated = $request->validate([
-            'status' => 'required|in:on_progress,registered',
+            'status' => 'required|in:on_progress,registered,rejected',
+            'rejection_reason' => 'required_if:status,rejected|nullable|string',
         ]);
 
         try {
-            $prospect->update(['status' => $validated['status']]);
+            $data = ['status' => $validated['status']];
+
+            // Handle timestamps
+            if ($validated['status'] === 'registered') {
+                $data['registered_at'] = now();
+            } elseif ($validated['status'] === 'rejected') {
+                $data['rejected_at'] = now();
+                $data['rejection_reason'] = $validated['rejection_reason'];
+            }
+
+            $prospect->update($data);
 
             return response()->json([
                 'success' => true,
@@ -346,7 +396,7 @@ class CanvassingGroupProspectController extends Controller
                 'total_visits' => $todayProspects->count(),
                 'registered' => $todayProspects->where('status', 'registered')->count(),
                 'on_progress' => $todayProspects->where('status', 'on_progress')->count(),
-                'remaining' => max(0, $group->target_per_day - $todayProspects->where('status', 'registered')->count()),
+                'remaining' => max(0, $group->target_per_day - $todayProspects->count()),
             ],
         ]);
     }

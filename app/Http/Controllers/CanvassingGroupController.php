@@ -25,7 +25,7 @@ class CanvassingGroupController extends Controller
 
         $user = Auth::user();
 
-        $query = CanvassingGroup::with(['creator', 'staff'])
+        $query = CanvassingGroup::with(['creator', 'staff', 'prospects'])
             ->withCount('prospects');
 
         // Filter by status
@@ -46,8 +46,35 @@ class CanvassingGroupController extends Controller
         $groups = $query->orderBy('created_at', 'desc')
             ->paginate($request->get('per_page', 15));
 
+        // Add staff_stats to each group
+        $groups->getCollection()->transform(function ($group) {
+            $group->staff_stats = $group->staff->map(function ($staff) use ($group) {
+                $startDate = \Carbon\Carbon::parse($staff->pivot->assigned_start_date);
+                $endDate = \Carbon\Carbon::parse($staff->pivot->assigned_end_date);
+                $days = $startDate->diffInDays($endDate) + 1;
+                $target = $days * $group->target_per_day;
+
+                $myProspects = $group->prospects->where('staff_id', $staff->id);
+                $totalVisits = $myProspects->count();
+
+                return [
+                    'id' => $staff->id,
+                    'name' => $staff->name,
+                    'email' => $staff->email,
+                    'assigned_start_date' => $staff->pivot->assigned_start_date,
+                    'assigned_end_date' => $staff->pivot->assigned_end_date,
+                    'total_days' => $days,
+                    'total_visit' => $totalVisits,
+                    'target' => $target,
+                    'progress_percentage' => $target > 0 ? round(($totalVisits / $target) * 100, 1) : 0,
+                ];
+            });
+            return $group;
+        });
+
         return response()->json($groups);
     }
+
 
     /**
      * Create a new canvassing group
@@ -70,21 +97,41 @@ class CanvassingGroupController extends Controller
             'start_date' => 'required|date|after_or_equal:today',
             'end_date' => 'required|date|after_or_equal:start_date',
             'city' => 'required|string|max:255',
-            'district' => 'nullable|string|max:255',
+            'district' => 'required|string|max:255', // Now required per new flow logic usually, or nullable? Let's keep existing logic but add village.
+            'village' => 'nullable|string|max:255',
+            'staff_ids' => 'nullable|array',
+            'staff_ids.*' => 'integer|exists:users,id',
         ]);
 
         $validated['created_by'] = $user->id;
         $validated['status'] = 'open';
 
         try {
+            DB::beginTransaction();
+
             $group = CanvassingGroup::create($validated);
+
+            // Assign staff if provided
+            if (!empty($validated['staff_ids'])) {
+                $attachData = [];
+                foreach ($validated['staff_ids'] as $staffId) {
+                    $attachData[$staffId] = [
+                        'assigned_start_date' => $validated['start_date'],
+                        'assigned_end_date' => $validated['end_date'],
+                    ];
+                }
+                $group->staff()->attach($attachData);
+            }
+
+            DB::commit();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Canvassing group berhasil dibuat',
-                'data' => $group->load('creator'),
+                'data' => $group->load('creator', 'staff'),
             ], 201);
         } catch (\Exception $e) {
+            DB::rollBack();
             Log::error('Failed to create canvassing group: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
@@ -159,6 +206,7 @@ class CanvassingGroupController extends Controller
             'cancel_reason' => 'nullable|string|max:500',
             'city' => 'sometimes|string|max:255',
             'district' => 'nullable|string|max:255',
+            'village' => 'nullable|string|max:255',
         ]);
 
         // Require cancel_reason if status is cancelled
@@ -262,6 +310,9 @@ class CanvassingGroupController extends Controller
             $validated['staff_id'],
             $validated['assigned_start_date'],
             $validated['assigned_end_date'],
+            $group->city,
+            $group->district,
+            $group->village,
             $id // Exclude current group for update scenarios
         );
 
@@ -472,8 +523,16 @@ class CanvassingGroupController extends Controller
         $allStaff = User::where('role', 'staff')->get();
 
         // Check availability for each staff
-        $staffWithAvailability = $allStaff->map(function ($staff) use ($startDate, $endDate, $id) {
-            $availability = CanvassingGroup::canAssignStaff($staff->id, $startDate, $endDate, $id);
+        $staffWithAvailability = $allStaff->map(function ($staff) use ($startDate, $endDate, $id, $group) {
+            $availability = CanvassingGroup::canAssignStaff(
+                $staff->id,
+                $startDate,
+                $endDate,
+                $group->city,
+                $group->district,
+                $group->village,
+                $id // Exclude current group
+            );
             return [
                 'id' => $staff->id,
                 'name' => $staff->name,
@@ -486,6 +545,71 @@ class CanvassingGroupController extends Controller
         return response()->json([
             'success' => true,
             'data' => $staffWithAvailability,
+        ]);
+    }
+    /**
+     * Check available staff for new group creation
+     */
+    public function checkAvailableStaff(Request $request)
+    {
+        $user = Auth::user();
+
+        if ($user->role !== 'supervisor') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Hanya supervisor yang dapat melihat daftar staff',
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date',
+            'city' => 'required|string',
+            'district' => 'nullable|string',
+            'village' => 'nullable|string',
+            'group_id' => 'nullable|integer', // Optional, for excluding current group in edit mode if needed
+        ]);
+
+        $startDate = $validated['start_date'];
+        $endDate = $validated['end_date'];
+        $city = $validated['city'];
+        $district = $validated['district'] ?? null;
+        $village = $validated['village'] ?? null;
+        $excludeGroupId = $validated['group_id'] ?? null;
+
+        // Get all staff
+        $allStaff = User::where('role', 'staff')->get();
+
+        // Check availability for each staff
+        $staffWithAvailability = $allStaff->map(function ($staff) use ($startDate, $endDate, $city, $district, $village, $excludeGroupId) {
+            $availability = CanvassingGroup::canAssignStaff(
+                $staff->id,
+                $startDate,
+                $endDate,
+                $city,
+                $district,
+                $village,
+                $excludeGroupId
+            );
+            return [
+                'id' => $staff->id,
+                'name' => $staff->name,
+                'email' => $staff->email,
+                'available' => $availability['can_assign'],
+                'conflict' => $availability['conflict'] ?? null,
+            ];
+        });
+
+        // Determine assignment dates (same as group dates)
+        $assignmentDates = [
+            'assigned_start_date' => $startDate,
+            'assigned_end_date' => $endDate,
+        ];
+
+        return response()->json([
+            'success' => true,
+            'data' => $staffWithAvailability,
+            'assignment_dates' => $assignmentDates,
         ]);
     }
 }

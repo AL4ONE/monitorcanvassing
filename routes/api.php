@@ -63,7 +63,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/canvassing/report', [\App\Http\Controllers\CanvassingController::class, 'report']);
         Route::patch('/canvassing/{id}/status', [\App\Http\Controllers\CanvassingController::class, 'updateStatus']);
 
+        // Categories (Supervisor)
+        Route::get('/categories', [\App\Http\Controllers\CategoryController::class, 'index']);
+        Route::post('/categories', [\App\Http\Controllers\CategoryController::class, 'store']);
+
         // Canvassing Groups Management (Supervisor)
+        Route::get('/canvassing-groups/check-available-staff', [\App\Http\Controllers\CanvassingGroupController::class, 'checkAvailableStaff']);
         Route::apiResource('canvassing-groups', \App\Http\Controllers\CanvassingGroupController::class)->except(['show']);
         Route::post('/canvassing-groups/{id}/assign-staff', [\App\Http\Controllers\CanvassingGroupController::class, 'assignStaff']);
         Route::delete('/canvassing-groups/{id}/remove-staff/{staffId}', [\App\Http\Controllers\CanvassingGroupController::class, 'removeStaff']);
@@ -85,6 +90,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Online Canvassing (Staff)
     Route::apiResource('online-canvassing', \App\Http\Controllers\OnlineCanvassingController::class)->except(['create', 'edit', 'show']);
+
+    // Region Data
+    Route::get('/regions/provinces', [\App\Http\Controllers\RegionController::class, 'provinces']);
+    Route::get('/regions/cities/{provinceId}', [\App\Http\Controllers\RegionController::class, 'cities']);
+    Route::get('/regions/districts/{cityId}', [\App\Http\Controllers\RegionController::class, 'districts']);
 });
 
 // Version endpoint

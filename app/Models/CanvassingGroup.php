@@ -23,6 +23,7 @@ class CanvassingGroup extends Model
         'cancel_reason',
         'city',
         'district',
+        'village',
         'created_by',
     ];
 
@@ -140,9 +141,10 @@ class CanvassingGroup extends Model
     }
 
     /**
-     * Check if a staff can be assigned (no date overlap)
+     * Check if a staff can be assigned (no date overlap OR same location)
+     * "Daerah" is interpreted as City and District matching.
      */
-    public static function canAssignStaff(int $staffId, string $startDate, string $endDate, ?int $excludeGroupId = null): array
+    public static function canAssignStaff(int $staffId, string $startDate, string $endDate, string $targetCity, ?string $targetDistrict = null, ?string $targetVillage = null, ?int $excludeGroupId = null): array
     {
         $query = \DB::table('canvassing_group_staff')
             ->where('staff_id', $staffId)
@@ -158,19 +160,45 @@ class CanvassingGroup extends Model
             $query->where('canvassing_group_id', '!=', $excludeGroupId);
         }
 
-        $conflicting = $query->join('canvassing_groups', 'canvassing_groups.id', '=', 'canvassing_group_staff.canvassing_group_id')
-            ->select('canvassing_groups.name', 'canvassing_group_staff.assigned_start_date', 'canvassing_group_staff.assigned_end_date')
-            ->first();
+        // Join to get location of overlapping groups
+        $conflicts = $query->join('canvassing_groups', 'canvassing_groups.id', '=', 'canvassing_group_staff.canvassing_group_id')
+            ->select(
+                'canvassing_groups.name',
+                'canvassing_groups.city',
+                'canvassing_groups.district',
+                'canvassing_groups.village',
+                'canvassing_group_staff.assigned_start_date',
+                'canvassing_group_staff.assigned_end_date'
+            )
+            ->get();
 
-        if ($conflicting) {
-            return [
-                'can_assign' => false,
-                'conflict' => [
-                    'group_name' => $conflicting->name,
-                    'start_date' => $conflicting->assigned_start_date,
-                    'end_date' => $conflicting->assigned_end_date,
-                ],
-            ];
+        foreach ($conflicts as $conflict) {
+            // Check if location matches
+            // If City or District is different, then it is a hard conflict.
+            $isSameLocation = strcasecmp($conflict->city, $targetCity) === 0;
+
+            // If targetDistrict is provided, check strict equality. 
+            // If one has district and other doesn't, treat as different for safety, or loose match?
+            // User said "selagi daerahnya sama". Let's assume strict match of what is defined.
+            if ($targetDistrict && $conflict->district) {
+                $isSameLocation = $isSameLocation && (strcasecmp($conflict->district, $targetDistrict) === 0);
+            }
+
+            if ($targetVillage && $conflict->village) {
+                $isSameLocation = $isSameLocation && (strcasecmp($conflict->village, $targetVillage) === 0);
+            }
+
+            if (!$isSameLocation) {
+                return [
+                    'can_assign' => false,
+                    'conflict' => [
+                        'group_name' => $conflict->name,
+                        'location' => $conflict->city . ($conflict->district ? ', ' . $conflict->district : '') . ($conflict->village ? ', ' . $conflict->village : ''),
+                        'start_date' => $conflict->assigned_start_date,
+                        'end_date' => $conflict->assigned_end_date,
+                    ],
+                ];
+            }
         }
 
         return ['can_assign' => true];

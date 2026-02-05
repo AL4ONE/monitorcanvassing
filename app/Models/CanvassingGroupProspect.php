@@ -15,16 +15,22 @@ class CanvassingGroupProspect extends Model
         'canvassing_group_id',
         'staff_id',
         'business_name',
+        'address',
         'photo',
         'contact_name',
         'contact_number',
         'status',
         'notes',
+        'registered_at',
+        'rejected_at',
+        'rejection_reason',
         'visit_date',
     ];
 
     protected $casts = [
         'visit_date' => 'date',
+        'registered_at' => 'datetime',
+        'rejected_at' => 'datetime',
     ];
 
     protected $appends = ['photo_url'];

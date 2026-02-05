@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Message;
 use App\Models\User;
+use App\Models\CanvassingGroup;
+use App\Models\CanvassingGroupProspect;
 use App\Services\MessageValidationService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -160,6 +162,22 @@ class DashboardController extends Controller
                     ];
                 }
 
+                // Get Offline Stats for this staff
+                $offlineInGroup = CanvassingGroupProspect::where('staff_id', $staff->id)
+                    ->whereNotNull('canvassing_group_id')
+                    ->whereBetween('visit_date', [$startDate, $endDate])
+                    ->count();
+
+                $offlineOutGroup = CanvassingGroupProspect::where('staff_id', $staff->id)
+                    ->whereNull('canvassing_group_id')
+                    ->whereBetween('visit_date', [$startDate, $endDate])
+                    ->count();
+
+                $offlineRegistered = CanvassingGroupProspect::where('staff_id', $staff->id)
+                    ->where('status', 'registered')
+                    ->whereBetween('visit_date', [$startDate, $endDate])
+                    ->count();
+
                 // Get red flags (only for daily view usually, but logic kept same)
                 $redFlags = $this->getRedFlags($staff->id, $date); // Red flags logic might need review for weekly but keep simpler for now
 
@@ -170,6 +188,12 @@ class DashboardController extends Controller
                         'email' => $staff->email,
                     ],
                     'targets_per_stage' => $targetsPerStage,
+                    'offline_stats' => [
+                        'in_group' => $offlineInGroup,
+                        'out_group' => $offlineOutGroup,
+                        'total' => $offlineInGroup + $offlineOutGroup,
+                        'registered' => $offlineRegistered,
+                    ],
                     'red_flags' => $redFlags, // Red flags might be specific to specific date, but ok to show for now
                 ];
             }
@@ -197,8 +221,10 @@ class DashboardController extends Controller
                 'total_staff' => $staffs->count(),
                 'total_canvassing' => $totalCanvassing,
                 'total_follow_up' => $totalFollowUp,
-                'pending_quality_checks' => Message::where('validation_status', 'pending')
-                    ->count(), // All pending, not filtered by date
+                'pending_quality_checks' => Message::where('validation_status', 'pending')->count(),
+                'total_active_groups' => CanvassingGroup::where('status', '!=', 'cancelled')->count(),
+                'total_offline_in_group' => CanvassingGroupProspect::whereNotNull('canvassing_group_id')->count(),
+                'total_offline_out_group' => CanvassingGroupProspect::whereNull('canvassing_group_id')->count(),
             ];
 
             // Chart Data (Last 7 days)
@@ -212,16 +238,15 @@ class DashboardController extends Controller
 
                 $dailyTotal = Message::whereDate('submitted_at', $dateString)->count();
                 $dailySuccess = \App\Models\CanvassingCycle::where('status', 'success')
-                    ->whereDate('updated_at', $dateString) // Assuming updated_at reflects when it became success
+                    ->whereDate('updated_at', $dateString)
                     ->count();
-
-                // If updated_at isn't reliable for success date, we might query messages where stage reached final
-                // But for now let's use updated_at of cycle for "success" event
+                $dailyOffline = CanvassingGroupProspect::whereDate('visit_date', $dateString)->count();
 
                 $chartData[] = [
                     'date' => $displayDate,
                     'total_messages' => $dailyTotal,
                     'success_cycles' => $dailySuccess,
+                    'offline_visits' => $dailyOffline,
                 ];
             }
 
