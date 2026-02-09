@@ -373,8 +373,8 @@ class CanvassingGroupProspectController extends Controller
         $group = CanvassingGroup::findOrFail($groupId);
 
         // Check if staff is assigned
-        $isAssigned = $group->staff()->where('staff_id', $user->id)->exists();
-        if (!$isAssigned) {
+        $assignment = $group->staff()->where('staff_id', $user->id)->first();
+        if (!$assignment) {
             return response()->json([
                 'success' => false,
                 'message' => 'Anda tidak ditugaskan di group ini',
@@ -382,21 +382,54 @@ class CanvassingGroupProspectController extends Controller
         }
 
         $today = now()->toDateString();
+        $dailyTarget = $group->target_per_day;
 
+        // Get today's prospects
         $todayProspects = $group->prospects()
             ->where('staff_id', $user->id)
             ->whereDate('visit_date', $today)
             ->get();
 
+        // Calculate backlog (accumulated remaining from previous days)
+        $startDate = $assignment->pivot->assigned_start_date ?? $group->created_at->toDateString();
+        $startDateTime = \Carbon\Carbon::parse($startDate)->startOfDay();
+        $yesterday = now()->subDay()->startOfDay();
+        $todayCarbon = now()->startOfDay();
+
+        $backlog = 0;
+        if ($startDateTime->lt($todayCarbon)) {
+            // Get all prospects from start date until yesterday
+            $pastProspects = $group->prospects()
+                ->where('staff_id', $user->id)
+                ->whereDate('visit_date', '>=', $startDate)
+                ->whereDate('visit_date', '<', $today)
+                ->count();
+
+            // Calculate how many days have passed (from start to yesterday, inclusive)
+            $daysPassed = (int) $startDateTime->diffInDays($todayCarbon);
+
+            // Expected total from past days
+            $expectedPast = $daysPassed * $dailyTarget;
+
+            // Backlog = expected - actual
+            $backlog = (int) max(0, $expectedPast - $pastProspects);
+        }
+
+        $totalTarget = $dailyTarget + $backlog;
+        $todayVisits = $todayProspects->count();
+
         return response()->json([
             'success' => true,
             'data' => [
                 'date' => $today,
-                'target' => $group->target_per_day,
-                'total_visits' => $todayProspects->count(),
+                'daily_target' => $dailyTarget,        // Target per hari (tetap)
+                'backlog' => $backlog,                  // Sisa akumulasi dari hari sebelumnya
+                'total_target' => $totalTarget,         // Total tugas hari ini (daily + backlog)
+                'target' => $totalTarget,               // Backward compatibility
+                'total_visits' => $todayVisits,
                 'registered' => $todayProspects->where('status', 'registered')->count(),
                 'on_progress' => $todayProspects->where('status', 'on_progress')->count(),
-                'remaining' => max(0, $group->target_per_day - $todayProspects->count()),
+                'remaining' => max(0, $totalTarget - $todayVisits),
             ],
         ]);
     }
