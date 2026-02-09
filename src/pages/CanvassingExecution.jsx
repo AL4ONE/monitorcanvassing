@@ -188,9 +188,31 @@ export default function CanvassingExecution() {
       {/* Today's Progress */}
       <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg p-4 md:p-6 mb-4 md:mb-6">
         <h2 className="text-base md:text-lg font-semibold mb-3 md:mb-4">Progress Hari Ini</h2>
+        
+        {/* Target Info Row */}
+        {todayStats?.backlog > 0 && (
+          <div className="bg-white/10 rounded-lg p-3 mb-4">
+            <div className="grid grid-cols-3 gap-2 text-center text-sm">
+              <div>
+                <p className="text-lg font-bold">{todayStats?.daily_target || 0}</p>
+                <p className="text-indigo-200 text-xs">Target/Hari</p>
+              </div>
+              <div className="border-l border-r border-white/20">
+                <p className="text-lg font-bold text-orange-300">+{todayStats?.backlog || 0}</p>
+                <p className="text-indigo-200 text-xs">Sisa Kemarin</p>
+              </div>
+              <div>
+                <p className="text-lg font-bold text-cyan-300">{todayStats?.total_target || 0}</p>
+                <p className="text-indigo-200 text-xs">Total Tugas</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Main Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4 text-center">
           <div>
-            <p className="text-2xl md:text-3xl font-bold">{todayStats?.target || 0}</p>
+            <p className="text-2xl md:text-3xl font-bold">{todayStats?.total_target || todayStats?.target || 0}</p>
             <p className="text-indigo-200 text-xs md:text-sm">Target</p>
           </div>
           <div>
@@ -211,12 +233,12 @@ export default function CanvassingExecution() {
         <div className="mt-4">
           <div className="flex justify-between text-sm mb-1">
             <span>Progress</span>
-            <span>{Math.round(((todayStats?.total_visits || 0) / (todayStats?.target || 1)) * 100)}%</span>
+            <span>{Math.round(((todayStats?.total_visits || 0) / (todayStats?.total_target || todayStats?.target || 1)) * 100)}%</span>
           </div>
           <div className="w-full bg-indigo-400 rounded-full h-3">
             <div
               className="bg-white h-3 rounded-full transition-all"
-              style={{ width: `${Math.min(100, ((todayStats?.total_visits || 0) / (todayStats?.target || 1)) * 100)}%` }}
+              style={{ width: `${Math.min(100, ((todayStats?.total_visits || 0) / (todayStats?.total_target || todayStats?.target || 1)) * 100)}%` }}
             ></div>
           </div>
         </div>

@@ -18,8 +18,14 @@ export default function StaffUpload() {
   const [activeProspects, setActiveProspects] = useState([]);
   const [selectedProspect, setSelectedProspect] = useState('');
   const [showManualSelection, setShowManualSelection] = useState(false);
+  const [prospectSearchQuery, setProspectSearchQuery] = useState('');
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
+
+  // Filter prospects based on search query
+  const filteredProspects = activeProspects.filter((p) =>
+    p.instagram_username?.toLowerCase().includes(prospectSearchQuery.toLowerCase())
+  );
 
   // Fetch active prospects when stage > 0 (follow-up)
   useEffect(() => {
@@ -198,22 +204,56 @@ export default function StaffUpload() {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               {showManualSelection ? '⚠️ OCR Gagal - Pilih Prospect Manual *' : 'Pilih Prospect Manual (Opsional)'}
             </label>
+            
+            {/* Search Input */}
+            <div className="relative mb-2">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              <input
+                type="text"
+                value={prospectSearchQuery}
+                onChange={(e) => setProspectSearchQuery(e.target.value)}
+                placeholder="Cari username..."
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              />
+              {prospectSearchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setProspectSearchQuery('')}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+
+            {/* Filtered Dropdown */}
             <select
               value={selectedProspect}
               onChange={(e) => setSelectedProspect(e.target.value)}
               className={`block w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 ${showManualSelection ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}`}
             >
               <option value="">-- Biarkan kosong jika OCR berhasil --</option>
-              {activeProspects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  @{p.instagram_username} (Stage {p.current_stage})
-                </option>
-              ))}
+              {filteredProspects.length > 0 ? (
+                filteredProspects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    @{p.instagram_username} (Stage {p.current_stage})
+                  </option>
+                ))
+              ) : prospectSearchQuery ? (
+                <option disabled>Tidak ditemukan</option>
+              ) : null}
             </select>
+            
             <p className="mt-2 text-sm text-gray-500">
               {showManualSelection
                 ? 'OCR tidak mendeteksi username. Silakan pilih prospect yang ingin di-follow up dari daftar di atas.'
-                : 'Gunakan ini jika OCR gagal mendeteksi username dari screenshot.'}
+                : `Ketik username untuk mencari. Total: ${activeProspects.length} prospect aktif.`}
             </p>
           </div>
         )}
