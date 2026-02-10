@@ -68,13 +68,13 @@ export default function StaffUpload() {
         setFile(null); // Reset file first
         const originalSize = (selectedFile.size / 1024).toFixed(0);
 
-        // Only compress if > 2MB (Server limit is 20MB, but we want to save bandwidth/storage)
-        // Also avoids "black image" bug on some mobile browsers for small files
-        if (selectedFile.size > 2 * 1024 * 1024) {
+        // Compress if > 500KB (Seems server/proxy has strict limit around 1MB or less)
+        // 720KB failed, 100KB works. So we target < 300KB result.
+        if (selectedFile.size > 500 * 1024) {
              setMessage({ type: 'info', text: '📷 Sedang memproses & kompres gambar...' });
              
-             // Compress image (max 1500px, 0.8 quality)
-             const compressed = await compressImage(selectedFile, 1500, 0.8);
+             // Compress image (max 1280px, 0.7 quality) -> Target ~100-300KB
+             const compressed = await compressImage(selectedFile, 1280, 0.7);
              const compressedSize = (compressed.size / 1024).toFixed(0);
              
              setFile(compressed);
@@ -85,7 +85,7 @@ export default function StaffUpload() {
              reader.onloadend = () => setPreview(reader.result);
              reader.readAsDataURL(compressed);
         } else {
-             // Use original file
+             // Use original file if very small (< 500KB)
              setFile(selectedFile);
              setMessage({ type: 'success', text: `✅ Siap upload! (Size: ${originalSize}KB)` });
              setErrors([]);

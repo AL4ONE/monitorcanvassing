@@ -27,6 +27,10 @@ export const compressImage = (file, maxWidth = 1280, quality = 0.7) => {
         elem.height = height;
 
         const ctx = elem.getContext('2d');
+        // Fill white background to prevent black image for transparent PNGs
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, width, height);
+        
         ctx.drawImage(img, 0, 0, width, height);
 
         // Compress
