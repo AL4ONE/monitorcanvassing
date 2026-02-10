@@ -120,7 +120,9 @@ export default function OnlineCanvassing() {
       if (formData.status === 'rejected' && formData.rejection_reason) {
         data.append('rejection_reason', formData.rejection_reason);
       }
-      data.append('visit_date', new Date().toISOString().split('T')[0]);
+      const now = new Date();
+      const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      data.append('visit_date', localDate);
       
       if (formData.photo) data.append('photo', formData.photo);
       if (formData.notes) data.append('notes', formData.notes);

@@ -16,11 +16,6 @@ export const compressImage = async (file) => {
     preserveExif: false,         // Strip metadata to save space
   };
 
-  try {
-    const compressedFile = await imageCompression(file, options);
-    return compressedFile;
-  } catch (error) {
-    console.error('Compression failed:', error);
-    return file; // Fallback
-  }
+  const compressedFile = await imageCompression(file, options);
+  return compressedFile;
 };

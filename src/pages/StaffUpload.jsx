@@ -69,32 +69,52 @@ export default function StaffUpload() {
         setFile(null); // Reset file first
         const originalSize = (selectedFile.size / 1024).toFixed(0);
 
-        // Compress if > 500KB to ensure we get a reasonable size (target < 2MB)
+        // Compress if > 500KB (Seems server/proxy has strict limit around 1MB or less)
+        // 720KB failed, 100KB works. So we target < 300KB result.
         if (selectedFile.size > 500 * 1024) {
              setMessage({ type: 'info', text: '📷 Sedang memproses & kompres gambar...' });
              
-             // Compress to get under 500KB
-             let compressed = await compressImage(selectedFile);
+             // Compress with retry (mobile Canvas can fail intermittently)
+             let compressed = null;
+             let attempt = 0;
+             const maxAttempts = 3;
              
-             // Retry if still too big? valid question. For now, trust the improved settings (0.5MB max)
+             while (attempt < maxAttempts) {
+               attempt++;
+               setMessage({ type: 'info', text: `📷 Memproses gambar... ${attempt > 1 ? `(percobaan ${attempt})` : ''}` });
+               compressed = await compressImage(selectedFile);
+               
+               // If result is > 150KB, compression succeeded (enough quality for OCR)
+               if (compressed.size > 150 * 1024) break;
+             }
+
              const compressedSize = (compressed.size / 1024).toFixed(0);
              
-             setFile(compressed);
-             setMessage({ type: 'success', text: `✅ Siap upload! (${originalSize}KB ➡️ ${compressedSize}KB)` });
-             
-             const reader = new FileReader();
-             reader.onloadend = () => setPreview(reader.result);
-             reader.readAsDataURL(compressed);
+              if (compressed.size < 150 * 1024) {
+                  // All retries failed, warn user
+                  setFile(selectedFile);
+                  setMessage({ type: 'warning', text: `⚠️ Kompresi gagal ${maxAttempts}x. Coba tutup app lain dulu, lalu pilih ulang gambar.` });
+                  const reader = new FileReader();
+                  reader.onloadend = () => setPreview(reader.result);
+                  reader.readAsDataURL(selectedFile);
+             } else {
+                  setFile(compressed);
+                  setMessage({ type: 'success', text: `✅ Siap upload! [${selectedFile.type}] (${originalSize}KB ➡️ ${compressedSize}KB)` });
+                  const reader = new FileReader();
+                  reader.onloadend = () => setPreview(reader.result);
+                  reader.readAsDataURL(compressed);
+             }
         } else {
-             // Use original file if small enough (< 500KB)
+             // Use original file if very small (< 500KB)
              setFile(selectedFile);
-             setMessage({ type: 'success', text: `✅ Siap upload! (${originalSize}KB)` });
+             setMessage({ type: 'success', text: `✅ Siap upload! (Size: ${originalSize}KB)` });
+             setErrors([]);
              
+             // Preview original
              const reader = new FileReader();
              reader.onloadend = () => setPreview(reader.result);
              reader.readAsDataURL(selectedFile);
         }
-        setErrors([]);
       } catch (error) {
         console.error('Compression failed:', error);
         // Fallback to original file

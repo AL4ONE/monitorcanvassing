@@ -36,11 +36,14 @@ export default function CanvassingExecution() {
   const fetchData = async () => {
     try {
       setLoading(true);
+      const now = new Date();
+      const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      
       const [groupRes, statsRes, prospectsRes] = await Promise.all([
         api.get(`/canvassing-groups/${groupId}`),
         api.get(`/canvassing-groups/${groupId}/today-stats`),
         api.get(`/canvassing-groups/${groupId}/prospects`, { 
-          params: { date: new Date().toISOString().split('T')[0] }
+          params: { date: localDate }
         }),
       ]);
       
@@ -113,7 +116,9 @@ export default function CanvassingExecution() {
       data.append('business_name', formData.business_name);
       data.append('address', formData.address);
       data.append('status', formData.status);
-      data.append('visit_date', new Date().toISOString().split('T')[0]);
+      const now = new Date();
+      const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      data.append('visit_date', localDate);
       
       if (formData.status === 'rejected' && formData.rejection_reason) {
         data.append('rejection_reason', formData.rejection_reason);
