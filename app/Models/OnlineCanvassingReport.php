@@ -13,6 +13,7 @@ class OnlineCanvassingReport extends Model
     protected $fillable = [
         'staff_id',
         'business_name',
+        'address',
         'contact_name',
         'contact_number',
         'status',

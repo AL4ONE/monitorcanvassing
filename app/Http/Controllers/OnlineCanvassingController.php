@@ -56,6 +56,7 @@ class OnlineCanvassingController extends Controller
 
         $validated = $request->validate([
             'business_name' => 'required|string|max:255',
+            'address' => 'required|string',
             'contact_name' => 'nullable|string|max:255',
             'contact_number' => 'nullable|string|max:255',
             'status' => 'required|in:on_progress,registered,rejected',
@@ -82,6 +83,7 @@ class OnlineCanvassingController extends Controller
             $report = OnlineCanvassingReport::create([
                 'staff_id' => $user->id,
                 'business_name' => $validated['business_name'],
+                'address' => $validated['address'],
                 'contact_name' => $validated['contact_name'],
                 'contact_number' => $validated['contact_number'],
                 'status' => $validated['status'],
@@ -115,6 +117,7 @@ class OnlineCanvassingController extends Controller
 
         $validated = $request->validate([
             'business_name' => 'sometimes|string|max:255',
+            'address' => 'sometimes|string',
             'contact_name' => 'nullable|string|max:255',
             'contact_number' => 'nullable|string|max:255',
             'status' => 'sometimes|in:on_progress,registered,rejected',
