@@ -7,6 +7,12 @@ import imageCompression from 'browser-image-compression';
  * @returns {Promise<File>} - Compressed file (~300-500KB)
  */
 export const compressImage = async (file) => {
+  // If file is already < 1.5MB, skip compression to preserve max quality
+  if (file.size / 1024 / 1024 < 1.5) {
+    console.log('Skipping compression, file is small enough:', (file.size / 1024).toFixed(2), 'KB');
+    return file;
+  }
+
   const options = {
     maxSizeMB: 2.0,              // Increased to 2MB to ensure max detail
     maxWidthOrHeight: 3840,      // 4K resolution limit (basically keep original size)
@@ -16,6 +22,11 @@ export const compressImage = async (file) => {
     preserveExif: false,         // Strip metadata to save space
   };
 
-  const compressedFile = await imageCompression(file, options);
-  return compressedFile;
+  try {
+    const compressedFile = await imageCompression(file, options);
+    return compressedFile;
+  } catch (error) {
+    console.error('Compression failed:', error);
+    return file; // Fallback to original if compression crashes
+  }
 };

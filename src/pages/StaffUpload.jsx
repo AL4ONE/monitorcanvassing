@@ -69,51 +69,41 @@ export default function StaffUpload() {
         setFile(null); // Reset file first
         const originalSize = (selectedFile.size / 1024).toFixed(0);
 
-        // Compress if > 500KB (Seems server/proxy has strict limit around 1MB or less)
-        // 720KB failed, 100KB works. So we target < 300KB result.
-        if (selectedFile.size > 500 * 1024) {
-             setMessage({ type: 'info', text: '📷 Sedang memproses & kompres gambar...' });
-             
-             // Compress with retry (mobile Canvas can fail intermittently)
-             let compressed = null;
-             let attempt = 0;
-             const maxAttempts = 3;
-             
-             while (attempt < maxAttempts) {
-               attempt++;
-               setMessage({ type: 'info', text: `📷 Memproses gambar... ${attempt > 1 ? `(percobaan ${attempt})` : ''}` });
-               compressed = await compressImage(selectedFile);
-               
-               // If result is > 150KB, compression succeeded (enough quality for OCR)
-               if (compressed.size > 150 * 1024) break;
-             }
+        // Smart Compression: The util now skips compression if file < 1.5MB
+        // We just call it and trust it returns the best version (original or compressed)
+        setMessage({ type: 'info', text: '📷 Memproses gambar...' });
+        
+        let compressed = await compressImage(selectedFile);
+        const compressedSize = (compressed.size / 1024).toFixed(0);
 
-             const compressedSize = (compressed.size / 1024).toFixed(0);
-             
-              if (compressed.size < 150 * 1024) {
-                  // All retries failed, warn user
-                  setFile(selectedFile);
-                  setMessage({ type: 'warning', text: `⚠️ Kompresi gagal ${maxAttempts}x. Coba tutup app lain dulu, lalu pilih ulang gambar.` });
-                  const reader = new FileReader();
-                  reader.onloadend = () => setPreview(reader.result);
-                  reader.readAsDataURL(selectedFile);
-             } else {
-                  setFile(compressed);
-                  setMessage({ type: 'success', text: `✅ Siap upload! [${selectedFile.type}] (${originalSize}KB ➡️ ${compressedSize}KB)` });
-                  const reader = new FileReader();
-                  reader.onloadend = () => setPreview(reader.result);
-                  reader.readAsDataURL(compressed);
-             }
-        } else {
-             // Use original file if very small (< 500KB)
+        // Sanity check: if result is suspiciously small (< 50KB) and original was large (> 200KB)
+        // This usually means mobile canvas failed/crashed
+        if (compressed.size < 50 * 1024 && selectedFile.size > 200 * 1024) {
+             // Retry once more
+             console.log('Suspiciously small result, retrying...');
+             compressed = await compressImage(selectedFile);
+        }
+
+        // If still suspiciously small, revert to original (better to upload large file than blank one)
+        if (compressed.size < 50 * 1024 && selectedFile.size > 200 * 1024) {
              setFile(selectedFile);
-             setMessage({ type: 'success', text: `✅ Siap upload! (Size: ${originalSize}KB)` });
-             setErrors([]);
-             
-             // Preview original
+             setMessage({ type: 'warning', text: `⚠️ Kompresi bermasalah. Menggunakan file asli (${originalSize}KB).` });
              const reader = new FileReader();
              reader.onloadend = () => setPreview(reader.result);
              reader.readAsDataURL(selectedFile);
+        } else {
+             setFile(compressed);
+             // Show "Original" if size didn't change (skipped), or "Compressed" if it did
+             if (compressed.size === selectedFile.size) {
+                 setMessage({ type: 'success', text: `✅ Siap upload! (${originalSize}KB)` });
+             } else {
+                 setMessage({ type: 'success', text: `✅ Siap upload! (${originalSize}KB ➡️ ${compressedSize}KB)` });
+             }
+             setErrors([]);
+             
+             const reader = new FileReader();
+             reader.onloadend = () => setPreview(reader.result);
+             reader.readAsDataURL(compressed);
         }
       } catch (error) {
         console.error('Compression failed:', error);
