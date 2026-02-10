@@ -2,19 +2,18 @@ import imageCompression from 'browser-image-compression';
 
 /**
  * Compress image using browser-image-compression library
- * Battle-tested on thousands of mobile devices
+ * Tuned for OCR readability: higher resolution + quality
  * @param {File} file - The image file to compress
- * @param {number} maxSizeMB - Max output file size in MB (default 0.15 = ~150KB)
- * @param {number} maxWidthOrHeight - Max width or height (default 1024px)
- * @returns {Promise<File>} - Compressed file
+ * @returns {Promise<File>} - Compressed file (~200-400KB)
  */
-export const compressImage = async (file, maxWidthOrHeight = 1024, quality = 0.6) => {
+export const compressImage = async (file) => {
   const options = {
-    maxSizeMB: 0.15,             // Target ~150KB
-    maxWidthOrHeight: maxWidthOrHeight,
-    useWebWorker: true,          // Use web worker for better performance
+    maxSizeMB: 0.4,              // Target ~400KB (enough for OCR text readability)
+    maxWidthOrHeight: 1600,      // Keep resolution high for sharp text
+    useWebWorker: false,         // Main thread for stability on mobile
     fileType: 'image/jpeg',      // Always output JPEG
-    initialQuality: quality,
+    initialQuality: 0.8,         // Higher quality for text clarity
+    preserveExif: false,         // Strip metadata to save space
   };
 
   const compressedFile = await imageCompression(file, options);
