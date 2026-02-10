@@ -37,13 +37,20 @@ class MessageController extends Controller
     {
         ini_set('memory_limit', '512M'); // Increase memory limit for image processing and OCR matching
 
-        Log::info('Upload request started', [
-            'has_file' => $request->hasFile('screenshot'),
-            'content_length' => $_SERVER['CONTENT_LENGTH'] ?? 'unknown',
-        ]);
+        if ($request->hasFile('screenshot')) {
+            $file = $request->file('screenshot');
+            Log::info('File details:', [
+                'original_name' => $file->getClientOriginalName(),
+                'mime_type' => $file->getMimeType(),
+                'size' => $file->getSize(),
+                'extension' => $file->getClientOriginalExtension(),
+            ]);
+        } else {
+            Log::warning('No screenshot file in request');
+        }
 
         $request->validate([
-            'screenshot' => 'required|image|mimes:jpeg,png,jpg,gif|max:10240', // 10MB max
+            'screenshot' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:20480', // 20MB max
             'stage' => 'nullable|integer|min:0|max:7',
             'contact_number' => 'nullable|string|max:50',
             'instagram_link' => 'nullable|url|max:255',
@@ -174,9 +181,8 @@ class MessageController extends Controller
                 }
             }
 
-            // Validate message content matches expected stage (soft validation for stage > 0)
-            // OCR text can have errors, so we log a warning instead of blocking the upload
-            $templateWarning = null;
+            // Validate message content matches expected stage (ALWAYS validate for stage > 0)
+            // This ensures the message contains the correct template for the selected day
             if (!$bypass && $expectedStage > 0 && $ocrResult['message_snippet']) {
                 $messageValidation = $this->templateService->validateMessageForStage(
                     $ocrResult['message_snippet'],
@@ -184,46 +190,53 @@ class MessageController extends Controller
                 );
 
                 if (!$messageValidation['valid']) {
-                    $templateWarning = "Template mismatch: expected Day {$expectedStage}, detected: " . ($messageValidation['detected_stage'] !== null ? "Day {$messageValidation['detected_stage']}" : 'Tidak terdeteksi');
-                    Log::warning('Template validation soft-failed (allowing upload)', [
-                        'expected_stage' => $expectedStage,
-                        'detected_stage' => $messageValidation['detected_stage'],
-                        'score' => $messageValidation['score'] ?? null,
-                        'warning' => $templateWarning,
-                        'user_id' => $user->id,
-                    ]);
+                    Storage::disk($disk)->delete($filePath);
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Pesan tidak sesuai dengan template Day {$expectedStage}. Pesan harus mengandung template yang sesuai dengan Day {$expectedStage}. Detected: " . ($messageValidation['detected_stage'] !== null ? "Day {$messageValidation['detected_stage']}" : "Tidak terdeteksi"),
+                    ], 422);
                 }
             }
 
-            // Find or create cycle based on manual prospect selection OR OCR result
+            // Find or create cycle based on OCR result OR manual prospect selection
             $manualProspectId = $request->input('prospect_id');
 
-            // For follow-ups: Check manual prospect FIRST (before checking OCR username)
-            // This way, staff who pre-selected a prospect won't get rejected by OCR failures
-            if ($manualProspectId && $expectedStage > 0) {
-                // Manual selection for follow-up — handled below
-            } elseif (!$bypass && !$ocrResult['instagram_username'] && !$manualProspectId) {
+            if (!$bypass && !$ocrResult['instagram_username'] && !$manualProspectId) {
                 Storage::disk($disk)->delete($filePath);
                 DB::rollBack();
 
-                Log::error('OCR failed to extract username - returning error to user', [
+                // Log OCR result for debugging with extensive details
+                \Illuminate\Support\Facades\Log::error('OCR failed to extract username - returning error to user', [
                     'user_id' => $user->id,
                     'user_name' => $user->name,
                     'expected_stage' => $expectedStage,
                     'is_followup' => $expectedStage > 0,
                     'ocr_result' => $ocrResult,
+                    'ocr_message_length' => strlen($ocrResult['message_snippet'] ?? ''),
+                    'ocr_date' => $ocrResult['date'],
                     'file_path' => $filePath,
+                    'note' => 'Check Railway logs for detailed OCR parsing logs (header area, patterns tried, potential usernames)',
                 ]);
 
+                // Always include debug info in response (not just when APP_DEBUG=true)
+                // This helps debugging OCR issues in production
                 return response()->json([
                     'success' => false,
-                    'message' => 'Gagal mendeteksi username Instagram dari screenshot.',
+                    'message' => 'Gagal mendeteksi username Instagram. Pastikan: 
+                    1. Username terlihat di bagian ATAS screenshot. 
+                    2. Tidak tertutup notifikasi. 
+                    3. Format screenshot jelas.
+                    
+                    Atau gunakan dropdown "Pilih Prospect Manual" untuk follow-up.
+                    
+                    Text terdeteksi (Header): "' . substr($ocrResult['message_snippet'] ?? '', 0, 100) . '..."',
                     'debug' => [
                         'ocr_date' => $ocrResult['date'],
                         'expected_stage' => $expectedStage,
                         'is_followup' => $expectedStage > 0,
                     ],
-                    'show_manual_selection' => true,
+                    'show_manual_selection' => true, // Signal frontend to show manual prospect dropdown
                 ], 422);
             }
 
@@ -252,7 +265,6 @@ class MessageController extends Controller
                     return response()->json([
                         'success' => false,
                         'message' => 'Tidak ditemukan siklus canvassing aktif untuk prospect ini.',
-                        'show_manual_selection' => true,
                     ], 422);
                 }
 
@@ -267,7 +279,6 @@ class MessageController extends Controller
                     return response()->json([
                         'success' => false,
                         'message' => "Follow-up stage {$expectedStage} tidak valid. Stage sebelumnya belum ada.",
-                        'show_manual_selection' => true,
                     ], 422);
                 }
 
@@ -300,7 +311,6 @@ class MessageController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => $cycleResult['error'],
-                    'show_manual_selection' => $expectedStage > 0,
                 ], 422);
             }
 
@@ -363,13 +373,12 @@ class MessageController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Screenshot berhasil diupload' . ($templateWarning ? ' (Warning: ' . $templateWarning . ')' : ''),
+                'message' => 'Screenshot berhasil diupload',
                 'data' => [
                     'id' => $message->id,
                     'stage' => $message->stage,
                     'ocr_result' => $ocrResult,
                     'validation_status' => $message->validation_status,
-                    'template_warning' => $templateWarning,
                 ],
             ], 201);
 
