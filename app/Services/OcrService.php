@@ -80,7 +80,7 @@ class OcrService
     }
 
     /**
-     * Extract using OCR.space API
+     * Extract using OCR.space API (with retry logic)
      */
     private function extractWithOcrSpace(string $imagePath): ?string
     {
@@ -101,51 +101,78 @@ class OcrService
             return null;
         }
 
-        try {
-            // Get file extension for filetype parameter
-            $extension = strtolower(pathinfo($imagePath, PATHINFO_EXTENSION));
-            $fileType = $extension === 'jpg' ? 'JPG' : strtoupper($extension);
+        $maxRetries = 2;
+        $lastError = null;
 
-            /** @var \Illuminate\Http\Client\Response $response */
-            $response = Http::timeout(30)
-                ->asMultipart()
-                ->attach('file', file_get_contents($imagePath), basename($imagePath))
-                ->post('https://api.ocr.space/parse/image', [
+        for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
+            try {
+                // Get file extension for filetype parameter
+                $extension = strtolower(pathinfo($imagePath, PATHINFO_EXTENSION));
+                $fileType = $extension === 'jpg' ? 'JPG' : strtoupper($extension);
+
+                /** @var \Illuminate\Http\Client\Response $response */
+                $response = Http::timeout(30)
+                    ->asMultipart()
+                    ->attach('file', file_get_contents($imagePath), basename($imagePath))
+                    ->post('https://api.ocr.space/parse/image', [
                         'apikey' => $apiKey,
                         'language' => 'eng', // English (works well for mixed Indonesian/English text)
                         'OCREngine' => 2, // Use OCR Engine 2 for better accuracy
                         'filetype' => $fileType, // Explicitly set file type to avoid detection errors
                     ]);
 
-            $status = $response->status();
-            Log::info('OCR API Response Status', ['status' => $status]);
+                $status = $response->status();
+                Log::info('OCR API Response Status', ['status' => $status, 'attempt' => $attempt]);
 
-            if ($status === 200) {
-                $data = $response->json();
-                Log::info('OCR API Response Data', [
-                    'has_parsed_results' => isset($data['ParsedResults']),
-                    'results_count' => isset($data['ParsedResults']) ? count($data['ParsedResults']) : 0,
-                    'error_message' => $data['ErrorMessage'] ?? null,
-                ]);
+                if ($status === 200) {
+                    $data = $response->json();
+                    Log::info('OCR API Response Data', [
+                        'has_parsed_results' => isset($data['ParsedResults']),
+                        'results_count' => isset($data['ParsedResults']) ? count($data['ParsedResults']) : 0,
+                        'error_message' => $data['ErrorMessage'] ?? null,
+                        'attempt' => $attempt,
+                    ]);
 
-                if (isset($data['ParsedResults'][0]['ParsedText'])) {
-                    $text = $data['ParsedResults'][0]['ParsedText'];
-                    Log::info('OCR Text Extracted', ['length' => strlen($text), 'preview' => substr($text, 0, 300)]);
-                    return $text;
+                    if (isset($data['ParsedResults'][0]['ParsedText'])) {
+                        $text = $data['ParsedResults'][0]['ParsedText'];
+                        if (trim($text) !== '') {
+                            Log::info('OCR Text Extracted', ['length' => strlen($text), 'preview' => substr($text, 0, 300), 'attempt' => $attempt]);
+                            return $text;
+                        }
+                        // Empty text - will retry
+                        Log::warning('OCR returned empty ParsedText', ['attempt' => $attempt]);
+                    } else {
+                        Log::warning('OCR API returned no ParsedText', ['data' => $data, 'attempt' => $attempt]);
+                    }
                 } else {
-                    Log::warning('OCR API returned no ParsedText', ['data' => $data]);
+                    $errorData = $response->json();
+                    Log::error('OCR API Error', [
+                        'status' => $status,
+                        'response' => $errorData,
+                        'attempt' => $attempt,
+                    ]);
                 }
-            } else {
-                $errorData = $response->json();
-                Log::error('OCR API Error', [
-                    'status' => $status,
-                    'response' => $errorData,
+            } catch (\Exception $e) {
+                $lastError = $e;
+                Log::warning('OCR.space API attempt failed', [
+                    'attempt' => $attempt,
+                    'max_retries' => $maxRetries,
+                    'error' => $e->getMessage(),
                 ]);
             }
-        } catch (\Exception $e) {
-            Log::error('OCR.space API error: ' . $e->getMessage(), [
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
+
+            // Wait before retry (only if not the last attempt)
+            if ($attempt < $maxRetries) {
+                Log::info('Retrying OCR API', ['next_attempt' => $attempt + 1, 'delay_ms' => 1000]);
+                usleep(1000000); // 1 second delay
+            }
+        }
+
+        if ($lastError) {
+            Log::error('OCR.space API failed after all retries: ' . $lastError->getMessage(), [
+                'file' => $lastError->getFile(),
+                'line' => $lastError->getLine(),
+                'total_attempts' => $maxRetries,
             ]);
         }
 
