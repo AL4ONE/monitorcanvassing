@@ -73,17 +73,36 @@ export default function StaffUpload() {
         if (selectedFile.size > 500 * 1024) {
              setMessage({ type: 'info', text: '📷 Sedang memproses & kompres gambar...' });
              
-             // Compress image (library handles quality/size automatically)
-             const compressed = await compressImage(selectedFile);
+             // Compress with retry (mobile Canvas can fail intermittently)
+             let compressed = null;
+             let attempt = 0;
+             const maxAttempts = 3;
+             
+             while (attempt < maxAttempts) {
+               attempt++;
+               setMessage({ type: 'info', text: `📷 Memproses gambar... ${attempt > 1 ? `(percobaan ${attempt})` : ''}` });
+               compressed = await compressImage(selectedFile);
+               
+               // If result is > 150KB, compression succeeded (enough quality for OCR)
+               if (compressed.size > 150 * 1024) break;
+             }
+
              const compressedSize = (compressed.size / 1024).toFixed(0);
              
-             setFile(compressed);
-             setMessage({ type: 'success', text: `✅ Siap upload! [${selectedFile.type}] (${originalSize}KB ➡️ ${compressedSize}KB)` });
-
-             // Preview compressed
-             const reader = new FileReader();
-             reader.onloadend = () => setPreview(reader.result);
-             reader.readAsDataURL(compressed);
+              if (compressed.size < 150 * 1024) {
+                  // All retries failed, warn user
+                  setFile(selectedFile);
+                  setMessage({ type: 'warning', text: `⚠️ Kompresi gagal ${maxAttempts}x. Coba tutup app lain dulu, lalu pilih ulang gambar.` });
+                  const reader = new FileReader();
+                  reader.onloadend = () => setPreview(reader.result);
+                  reader.readAsDataURL(selectedFile);
+             } else {
+                  setFile(compressed);
+                  setMessage({ type: 'success', text: `✅ Siap upload! [${selectedFile.type}] (${originalSize}KB ➡️ ${compressedSize}KB)` });
+                  const reader = new FileReader();
+                  reader.onloadend = () => setPreview(reader.result);
+                  reader.readAsDataURL(compressed);
+             }
         } else {
              // Use original file if very small (< 500KB)
              setFile(selectedFile);
