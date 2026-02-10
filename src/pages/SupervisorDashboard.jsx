@@ -122,7 +122,7 @@ export default function SupervisorDashboard() {
                 <Tooltip />
                 <Legend />
                 <Legend />
-                <Bar dataKey="total_messages" name={`Total Pesan (${viewMode === 'weekly' ? 'Mingguan' : 'Harian'})`} fill="#4F46E5" />
+                <Bar dataKey="total_messages" name={`Canvassing Online (${viewMode === 'weekly' ? 'Mingguan' : 'Harian'})`} fill="#4F46E5" />
                 <Bar dataKey="success_cycles" name="Success Cycle" fill="#10B981" />
                 <Bar dataKey="offline_visits" name="Offline Visits" fill="#F59E0B" />
               </BarChart>

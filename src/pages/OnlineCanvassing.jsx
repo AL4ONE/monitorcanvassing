@@ -11,6 +11,7 @@ export default function OnlineCanvassing() {
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     business_name: '',
+    address: '',
     contact_name: '',
     contact_number: '',
     status: 'on_progress',
@@ -66,6 +67,7 @@ export default function OnlineCanvassing() {
   const resetForm = () => {
     setFormData({
       business_name: '',
+      address: '',
       contact_name: '',
       contact_number: '',
       status: 'on_progress',
@@ -84,6 +86,7 @@ export default function OnlineCanvassing() {
   const handleEdit = (report) => {
     setFormData({
       business_name: report.business_name,
+      address: report.address || '',
       contact_name: report.contact_name || '',
       contact_number: report.contact_number || '',
       status: report.status,
@@ -100,8 +103,8 @@ export default function OnlineCanvassing() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!formData.business_name) {
-      showToast('Nama usaha harus diisi', 'warning');
+    if (!formData.business_name || !formData.address) {
+      showToast('Nama usaha dan Alamat harus diisi', 'warning');
       return;
     }
 
@@ -110,6 +113,7 @@ export default function OnlineCanvassing() {
       
       const data = new FormData();
       data.append('business_name', formData.business_name);
+      data.append('address', formData.address);
       if (formData.contact_name) data.append('contact_name', formData.contact_name);
       if (formData.contact_number) data.append('contact_number', formData.contact_number);
       data.append('status', formData.status);
@@ -175,6 +179,7 @@ export default function OnlineCanvassing() {
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Business Info</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Alamat</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kontak</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bukti</th>
@@ -184,7 +189,7 @@ export default function OnlineCanvassing() {
             <tbody className="bg-white divide-y divide-gray-200">
               {reports.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan="7" className="px-6 py-12 text-center text-gray-500">
                     Belum ada laporan online canvassing
                   </td>
                 </tr>
@@ -197,6 +202,9 @@ export default function OnlineCanvassing() {
                     <td className="px-6 py-4">
                       <div className="text-sm font-medium text-gray-900">{report.business_name}</div>
                       {report.notes && <div className="text-sm text-gray-500 truncate max-w-xs">{report.notes}</div>}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-gray-900 truncate max-w-xs" title={report.address}>{report.address || '-'}</div>
                     </td>
                     <td className="px-6 py-4">
                       {report.contact_name && <div className="text-sm font-medium text-gray-900">{report.contact_name}</div>}
@@ -269,6 +277,21 @@ export default function OnlineCanvassing() {
                     onChange={handleChange}
                     className="w-full border border-gray-300 rounded-md px-3 py-2"
                     placeholder="Nama toko/brand..."
+                  />
+                </div>
+
+                {/* Address */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Alamat <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    name="address"
+                    value={formData.address}
+                    onChange={handleChange}
+                    rows={2}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                    placeholder="Alamat lengkap..."
                   />
                 </div>
 
