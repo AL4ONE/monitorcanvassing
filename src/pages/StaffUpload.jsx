@@ -66,25 +66,36 @@ export default function StaffUpload() {
     if (selectedFile) {
       try {
         setFile(null); // Reset file first
-        // Show temporary message
-        setMessage({ type: 'info', text: '📷 Sedang memproses & kompres gambar...' });
-        
-        // Compress image (max 1500px, 0.8 quality)
-        const compressed = await compressImage(selectedFile, 1500, 0.8);
-        
         const originalSize = (selectedFile.size / 1024).toFixed(0);
-        const compressedSize = (compressed.size / 1024).toFixed(0);
-        
-        setFile(compressed);
-        setMessage({ type: 'success', text: `✅ Siap upload! (Size: ${originalSize}KB ➡️ ${compressedSize}KB)` });
-        setErrors([]);
 
-        // Create preview from compressed file
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setPreview(reader.result);
-        };
-        reader.readAsDataURL(compressed);
+        // Only compress if > 2MB (Server limit is 20MB, but we want to save bandwidth/storage)
+        // Also avoids "black image" bug on some mobile browsers for small files
+        if (selectedFile.size > 2 * 1024 * 1024) {
+             setMessage({ type: 'info', text: '📷 Sedang memproses & kompres gambar...' });
+             
+             // Compress image (max 1500px, 0.8 quality)
+             const compressed = await compressImage(selectedFile, 1500, 0.8);
+             const compressedSize = (compressed.size / 1024).toFixed(0);
+             
+             setFile(compressed);
+             setMessage({ type: 'success', text: `✅ Siap upload! (Size: ${originalSize}KB ➡️ ${compressedSize}KB)` });
+
+             // Preview compressed
+             const reader = new FileReader();
+             reader.onloadend = () => setPreview(reader.result);
+             reader.readAsDataURL(compressed);
+        } else {
+             // Use original file
+             setFile(selectedFile);
+             setMessage({ type: 'success', text: `✅ Siap upload! (Size: ${originalSize}KB)` });
+             setErrors([]);
+             
+             // Preview original
+             const reader = new FileReader();
+             reader.onloadend = () => setPreview(reader.result);
+             reader.readAsDataURL(selectedFile);
+        }
+      } catch (error) {
       } catch (error) {
         console.error('Compression failed:', error);
         // Fallback to original file
