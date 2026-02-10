@@ -10,7 +10,12 @@ export default function StaffDashboard() {
   const [stats, setStats] = useState(null);
   const [recentMessages, setRecentMessages] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  // Use local date (WIB), not UTC - toISOString() returns UTC which is wrong at midnight WIB
+  const getLocalDate = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  };
+  const [selectedDate, setSelectedDate] = useState(getLocalDate());
   const [deleting, setDeleting] = useState(null);
 
   useEffect(() => {

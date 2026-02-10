@@ -8,7 +8,12 @@ export default function SupervisorDashboard() {
   const { showToast } = useToast();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  // Use local date (WIB), not UTC - toISOString() returns UTC which is wrong at midnight WIB
+  const getLocalDate = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  };
+  const [selectedDate, setSelectedDate] = useState(getLocalDate());
   const [viewMode, setViewMode] = useState('daily'); // 'daily' or 'weekly'
   const [statsType, setStatsType] = useState('online'); // 'online' or 'offline'
 
