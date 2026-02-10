@@ -199,8 +199,18 @@ class MessageController extends Controller
                 }
             }
 
-            // Find or create cycle based on OCR result OR manual prospect selection
+            // Find or create cycle based on OCR result OR manual prospect selection OR manual username
             $manualProspectId = $request->input('prospect_id');
+            $manualUsername = $request->input('manual_username');
+
+            // If OCR failed but manual username was provided (Day 0 fallback), use it
+            if (!$ocrResult['instagram_username'] && $manualUsername && $expectedStage === 0) {
+                $ocrResult['instagram_username'] = strtolower(trim($manualUsername));
+                Log::info('Using manual username for Day 0 canvassing', [
+                    'manual_username' => $manualUsername,
+                    'user_id' => $user->id,
+                ]);
+            }
 
             if (!$bypass && !$ocrResult['instagram_username'] && !$manualProspectId) {
                 Storage::disk($disk)->delete($filePath);
@@ -228,7 +238,7 @@ class MessageController extends Controller
                     2. Tidak tertutup notifikasi. 
                     3. Format screenshot jelas.
                     
-                    Atau gunakan dropdown "Pilih Prospect Manual" untuk follow-up.
+                    Atau ketik username manual di kolom yang muncul di bawah, lalu upload lagi.
                     
                     Text terdeteksi (Header): "' . substr($ocrResult['message_snippet'] ?? '', 0, 100) . '..."',
                     'debug' => [
@@ -236,7 +246,7 @@ class MessageController extends Controller
                         'expected_stage' => $expectedStage,
                         'is_followup' => $expectedStage > 0,
                     ],
-                    'show_manual_selection' => true, // Signal frontend to show manual prospect dropdown
+                    'show_manual_selection' => true, // Signal frontend to show manual input/dropdown
                 ], 422);
             }
 
