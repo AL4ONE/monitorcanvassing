@@ -96,7 +96,6 @@ export default function StaffUpload() {
              reader.readAsDataURL(selectedFile);
         }
       } catch (error) {
-      } catch (error) {
         console.error('Compression failed:', error);
         // Fallback to original file
         setFile(selectedFile);
