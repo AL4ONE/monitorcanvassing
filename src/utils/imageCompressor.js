@@ -8,8 +8,8 @@ import imageCompression from 'browser-image-compression';
  */
 export const compressImage = async (file) => {
   const options = {
-    maxSizeMB: 1.0,              // Increased to 1MB for better OCR clarity
-    maxWidthOrHeight: 1920,      // Keep Full HD resolution
+    maxSizeMB: 2.0,              // Increased to 2MB to ensure max detail
+    maxWidthOrHeight: 3840,      // 4K resolution limit (basically keep original size)
     useWebWorker: false,         // Main thread for stability on mobile
     fileType: 'image/jpeg',      // Always output JPEG
     initialQuality: 1.0,         // Max quality to avoid compression artifacts
