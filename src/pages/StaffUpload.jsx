@@ -73,8 +73,8 @@ export default function StaffUpload() {
         if (selectedFile.size > 500 * 1024) {
              setMessage({ type: 'info', text: '📷 Sedang memproses & kompres gambar...' });
              
-             // Compress image (max 1280px, 0.7 quality) -> Target ~100-300KB
-             const compressed = await compressImage(selectedFile, 1280, 0.7);
+             // Compress image (max 1024px, 0.6 quality) -> Target ~140KB
+             const compressed = await compressImage(selectedFile, 1024, 0.6);
              const compressedSize = (compressed.size / 1024).toFixed(0);
              
              setFile(compressed);
