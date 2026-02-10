@@ -69,7 +69,7 @@ export default function StaffUpload() {
         setFile(null); // Reset file first
         const originalSize = (selectedFile.size / 1024).toFixed(0);
 
-        // Compress if > 500KB (Server limit seems to be strict around 500KB-1MB)
+        // Compress if > 500KB to ensure we get a reasonable size (target < 2MB)
         if (selectedFile.size > 500 * 1024) {
              setMessage({ type: 'info', text: '📷 Sedang memproses & kompres gambar...' });
              
