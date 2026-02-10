@@ -11,11 +11,16 @@ export const compressImage = (file, maxWidth = 1280, quality = 0.7) => {
     reader.readAsDataURL(file);
     reader.onload = (event) => {
       const img = new Image();
-      img.src = event.target.result;
+      // Set onload BEFORE src to avoid race conditions
       img.onload = () => {
         const elem = document.createElement('canvas');
         let width = img.width;
         let height = img.height;
+
+        if (width === 0 || height === 0) {
+            reject(new Error("Image has 0 dimensions"));
+            return;
+        }
 
         // Calculate new dimensions
         if (width > maxWidth) {
@@ -47,6 +52,8 @@ export const compressImage = (file, maxWidth = 1280, quality = 0.7) => {
         );
       };
       img.onerror = (error) => reject(error);
+      // Trigger load
+      img.src = event.target.result;
     };
     reader.onerror = (error) => reject(error);
   });
