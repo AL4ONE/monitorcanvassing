@@ -20,6 +20,7 @@ export default function StaffUpload() {
   const [selectedProspect, setSelectedProspect] = useState('');
   const [showManualSelection, setShowManualSelection] = useState(false);
   const [prospectSearchQuery, setProspectSearchQuery] = useState('');
+  const [manualUsername, setManualUsername] = useState('');
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
 
@@ -160,6 +161,7 @@ export default function StaffUpload() {
       if (interactionStatus) formData.append('interaction_status', interactionStatus);
       if (lokasi) formData.append('lokasi', lokasi);
       if (selectedProspect) formData.append('prospect_id', selectedProspect);
+      if (manualUsername) formData.append('manual_username', manualUsername);
 
       const response = await api.post('/messages/upload', formData, {
         headers: {
@@ -194,6 +196,7 @@ export default function StaffUpload() {
       setLokasi('');
       setSelectedProspect('');
       setShowManualSelection(false);
+      setManualUsername('');
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -207,8 +210,8 @@ export default function StaffUpload() {
       if (errorData?.errors) {
         setErrors(errorData.errors);
       } else {
-        // Check if backend signals to show manual selection
-        if (errorData?.show_manual_selection && selectedStage > 0) {
+        // Check if backend signals to show manual selection (all stages)
+        if (errorData?.show_manual_selection) {
           setShowManualSelection(true);
         }
         setMessage({
@@ -248,6 +251,23 @@ export default function StaffUpload() {
               : `Pastikan sudah upload Follow Up ${selectedStage - 1} sebelumnya`}
           </p>
         </div>
+
+        {/* Manual Username Input for Day 0 (shown when OCR fails) */}
+        {selectedStage === 0 && showManualSelection && (
+          <div className="mb-6 p-4 rounded-lg bg-yellow-50 border-2 border-yellow-400">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              ⚠️ OCR Gagal - Ketik Username Instagram Manual *
+            </label>
+            <input
+              type="text"
+              value={manualUsername}
+              onChange={(e) => setManualUsername(e.target.value.replace('@', ''))}
+              placeholder="Contoh: tokokopimaru (tanpa @)"
+              className="block w-full border border-yellow-400 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-yellow-500 focus:border-yellow-500"
+            />
+            <p className="mt-1 text-xs text-gray-500">Ketik username Instagram prospect (tanpa @), lalu klik Upload lagi.</p>
+          </div>
+        )}
 
         {/* Manual Prospect Selection for Follow-up (shown when stage > 0) */}
         {selectedStage > 0 && activeProspects.length > 0 && (
