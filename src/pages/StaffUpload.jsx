@@ -78,7 +78,7 @@ export default function StaffUpload() {
              const compressedSize = (compressed.size / 1024).toFixed(0);
              
              setFile(compressed);
-             setMessage({ type: 'success', text: `✅ Siap upload! (Size: ${originalSize}KB ➡️ ${compressedSize}KB)` });
+             setMessage({ type: 'success', text: `✅ Siap upload! [${selectedFile.type}] (${originalSize}KB ➡️ ${compressedSize}KB)` });
 
              // Preview compressed
              const reader = new FileReader();

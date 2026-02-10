@@ -1,70 +1,56 @@
 /**
- * Compress image file using Browser Canvas API
- * Refactored to use URL.createObjectURL for better mobile stability
+ * Compress image file using createImageBitmap + Canvas
+ * Most robust method - handles HEIC, WebP, etc. natively
  * @param {File} file - The image file to compress
- * @param {number} maxWidth - Maximum width (default 1280px)
- * @param {number} quality - JPEG quality 0-1 (default 0.7)
+ * @param {number} maxWidth - Maximum width (default 1024px)
+ * @param {number} quality - JPEG quality 0-1 (default 0.6)
  * @returns {Promise<File>} - Compressed file
  */
-export const compressImage = (file, maxWidth = 1280, quality = 0.7) => {
+export const compressImage = async (file, maxWidth = 1024, quality = 0.6) => {
+  // createImageBitmap handles decoding ANY image format the browser supports
+  const bitmap = await createImageBitmap(file);
+
+  let width = bitmap.width;
+  let height = bitmap.height;
+
+  if (width === 0 || height === 0) {
+    bitmap.close();
+    throw new Error("Image has 0 dimensions");
+  }
+
+  // Calculate new dimensions (only downscale, never upscale)
+  if (width > maxWidth) {
+    height = Math.round((height * maxWidth) / width);
+    width = maxWidth;
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext('2d');
+  // White background (prevents transparent PNG -> black JPEG)
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(0, 0, width, height);
+  // Draw the decoded bitmap
+  ctx.drawImage(bitmap, 0, 0, width, height);
+  bitmap.close(); // Free memory
+
   return new Promise((resolve, reject) => {
-    const img = new Image();
-    const objectUrl = URL.createObjectURL(file);
-
-    img.onload = () => {
-      // Clean up memory
-      URL.revokeObjectURL(objectUrl);
-
-      const elem = document.createElement('canvas');
-      let width = img.width;
-      let height = img.height;
-
-      // Safety check for 0 dimensions
-      if (width === 0 || height === 0) {
-        reject(new Error("Image has 0 dimensions"));
-        return;
-      }
-
-      // Calculate new dimensions
-      if (width > maxWidth) {
-        height = Math.round((height * maxWidth) / width);
-        width = maxWidth;
-      }
-
-      elem.width = width;
-      elem.height = height;
-
-      const ctx = elem.getContext('2d');
-      // Fill white background to prevent black image for transparent PNGs
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(0, 0, width, height);
-
-      ctx.drawImage(img, 0, 0, width, height);
-
-      // Compress
-      ctx.canvas.toBlob(
-        (blob) => {
-          if (!blob) {
-            reject(new Error("Canvas toBlob failed"));
-            return;
-          }
-          const compressedFile = new File([blob], file.name, {
-            type: 'image/jpeg',
-            lastModified: Date.now(),
-          });
-          resolve(compressedFile);
-        },
-        'image/jpeg',
-        quality
-      );
-    };
-
-    img.onerror = (error) => {
-      URL.revokeObjectURL(objectUrl);
-      reject(error);
-    };
-
-    // Load image
-    img.src = objectUrl;
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          reject(new Error("Canvas toBlob failed"));
+          return;
+        }
+        const compressedFile = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
+          type: 'image/jpeg',
+          lastModified: Date.now(),
+        });
+        resolve(compressedFile);
+      },
+      'image/jpeg',
+      quality
+    );
   });
 };
