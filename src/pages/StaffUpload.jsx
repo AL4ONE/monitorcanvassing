@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { compressImage } from '../utils/imageCompressor';
 import api from '../api';
 
 export default function StaffUpload() {
@@ -60,19 +61,40 @@ export default function StaffUpload() {
     { value: 7, label: 'Follow Up 7 (Day 7)' },
   ];
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
-      setFile(selectedFile);
-      setMessage({ type: '', text: '' });
-      setErrors([]);
+      try {
+        setFile(null); // Reset file first
+        // Show temporary message
+        setMessage({ type: 'info', text: '📷 Sedang memproses & kompres gambar...' });
+        
+        // Compress image (max 1500px, 0.8 quality)
+        const compressed = await compressImage(selectedFile, 1500, 0.8);
+        
+        const originalSize = (selectedFile.size / 1024).toFixed(0);
+        const compressedSize = (compressed.size / 1024).toFixed(0);
+        
+        setFile(compressed);
+        setMessage({ type: 'success', text: `✅ Siap upload! (Size: ${originalSize}KB ➡️ ${compressedSize}KB)` });
+        setErrors([]);
 
-      // Create preview
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreview(reader.result);
-      };
-      reader.readAsDataURL(selectedFile);
+        // Create preview from compressed file
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setPreview(reader.result);
+        };
+        reader.readAsDataURL(compressed);
+      } catch (error) {
+        console.error('Compression failed:', error);
+        // Fallback to original file
+        setFile(selectedFile);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setPreview(reader.result);
+        };
+        reader.readAsDataURL(selectedFile);
+      }
     }
   };
 
