@@ -5,6 +5,8 @@ import api from '../api';
 
 export default function StaffUpload() {
   const [file, setFile] = useState(null);
+  const [headerCrop, setHeaderCrop] = useState(null); // Store cropped header blob
+  const [headerPreview, setHeaderPreview] = useState(null); // Preview for debugging
   const [preview, setPreview] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -125,6 +127,17 @@ export default function StaffUpload() {
         };
         reader.readAsDataURL(selectedFile);
       }
+
+      // Generate Header Crop immediately for debugging/QA
+      try {
+        const headerBlob = await cropImageHeader(selectedFile);
+        setHeaderCrop(headerBlob);
+        setHeaderPreview(URL.createObjectURL(headerBlob));
+      } catch (cropErr) {
+        console.error("Failed to crop header in preview:", cropErr);
+        setHeaderCrop(null);
+        setHeaderPreview(null);
+      }
     }
   };
 
@@ -163,28 +176,13 @@ export default function StaffUpload() {
       if (selectedProspect) formData.append('prospect_id', selectedProspect);
       if (manualUsername) formData.append('manual_username', manualUsername);
 
-      // Generate Header Crop for OCR (Split & Conquer Strategy)
-      // Original/Compressed file -> Storage (Low Res ok)
-      // Header Crop -> OCR (High Res, Top Only)
-      try {
-        setMessage({ type: 'info', text: '📷 Menyiapkan data OCR...' });
-        // Use the original file for cropping to get max detail
-        // If we use 'file' (which might be compressed), we lose detail.
-        // But 'file' state assumes we already processed it.
-        // Ideally we should keep original reference, but for now let's try cropping the current 'file' 
-        // OR better: do it inside handleFileChange and store it? 
-        // Actually, let's just crop the 'file' we are about to upload. 
-        // If 'file' is already compressed, it might be 2.5K width which is fine.
-        // If it's original (huge), even better.
-        
-        // Wait... 'file' is in state. 
-        // Let's create the crop on the fly here.
-        const headerBlob = await cropImageHeader(file);
-        formData.append('header_crop', headerBlob, 'header_crop.jpg');
-        
-      } catch (cropErr) {
-        console.error("Failed to crop header:", cropErr);
-        // Continue without crop (backend will fallback to full image)
+      if (selectedProspect) formData.append('prospect_id', selectedProspect);
+      if (manualUsername) formData.append('manual_username', manualUsername);
+
+      // Append Header Crop if available (generated in handleFileChange)
+      if (headerCrop) {
+         formData.append('header_crop', headerCrop, 'header_crop.jpg');
+         console.log("Adding header_crop to upload:", headerCrop.size);
       }
 
       const response = await api.post('/messages/upload', formData, {
@@ -470,6 +468,22 @@ export default function StaffUpload() {
               src={preview}
               alt="Preview"
               className="max-w-full h-auto rounded-lg border border-gray-300"
+            />
+          </div>
+        )}
+
+        {headerPreview && (
+          <div className="mb-6 bg-blue-50 p-4 rounded-lg border border-blue-200">
+             <label className="block text-sm font-medium text-blue-800 mb-2">
+              🔍 Debug: OCR Header Crop (Top 1500px)
+            </label>
+            <p className="text-xs text-blue-600 mb-2">
+              Ini adalah potongan gambar yang dikirim ke sistem OCR. Pastikan username dan header terlihat jelas di sini.
+            </p>
+            <img
+              src={headerPreview}
+              alt="OCR Header Crop Preview"
+              className="max-w-full h-auto rounded-lg border-2 border-blue-400"
             />
           </div>
         )}
