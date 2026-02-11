@@ -19,7 +19,9 @@ class OcrService
     {
         try {
             // Try OCR.space API first (free tier available)
-            $result = $this->extractWithOcrSpace($imagePath);
+            $apiResult = $this->extractWithOcrSpace($imagePath);
+            $result = $apiResult['success'] ? $apiResult['text'] : null;
+            $apiError = $apiResult['error'] ?? 'Unknown Error';
 
             Log::info('OCR API Response', [
                 'has_result' => !empty($result),
@@ -28,6 +30,7 @@ class OcrService
                 'result_first_200_chars' => $result ? substr($result, 0, 200) : 'null', // First 200 chars (header area)
                 'expected_stage' => $expectedStage,
                 'is_followup' => $expectedStage > 0,
+                'api_error' => $apiError
             ]);
 
             if ($result && trim($result) !== '') {
@@ -62,12 +65,12 @@ class OcrService
             }
 
             // Fallback: return empty result
-            Log::warning('OCR returned empty result');
+            Log::warning('OCR returned empty result: ' . $apiError);
             return [
                 'instagram_username' => null,
                 'message_snippet' => null,
                 'date' => null,
-                'raw_text' => !empty($result) ? $result : 'OCR API returned NULL or EMPTY STRING (Check API Key / Image)',
+                'raw_text' => 'OCR FAILURE: ' . $apiError,
             ];
         } catch (\Exception $e) {
             Log::error('OCR extraction failed: ' . $e->getMessage(), [
@@ -84,8 +87,9 @@ class OcrService
 
     /**
      * Extract using OCR.space API (with retry logic)
+     * Returns ['success' => bool, 'text' => ?string, 'error' => ?string]
      */
-    private function extractWithOcrSpace(string $imagePath): ?string
+    private function extractWithOcrSpace(string $imagePath): array
     {
         $apiKey = config('services.ocr_space.api_key');
 
@@ -96,16 +100,17 @@ class OcrService
 
         if (!$apiKey) {
             Log::warning('OCR API key not found in config');
-            return null;
+            return ['success' => false, 'error' => 'API Key Missing in Config'];
         }
 
         if (!file_exists($imagePath)) {
             Log::error('Image file not found', ['path' => $imagePath]);
-            return null;
+            return ['success' => false, 'error' => 'Image File Not Found: ' . $imagePath];
         }
 
         $maxRetries = 2;
         $lastError = null;
+        $lastStatus = 0;
 
         for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
             try {
@@ -135,27 +140,30 @@ class OcrService
                 ]);
 
                 $status = $response->status();
+                $lastStatus = $status;
                 Log::info('OCR API Response Status', ['status' => $status, 'attempt' => $attempt]);
 
                 if ($status === 200) {
                     $data = $response->json();
-                    Log::info('OCR API Response Data', [
-                        'has_parsed_results' => isset($data['ParsedResults']),
-                        'results_count' => isset($data['ParsedResults']) ? count($data['ParsedResults']) : 0,
-                        'error_message' => $data['ErrorMessage'] ?? null,
-                        'attempt' => $attempt,
-                    ]);
 
                     if (isset($data['ParsedResults'][0]['ParsedText'])) {
                         $text = $data['ParsedResults'][0]['ParsedText'];
                         if (trim($text) !== '') {
                             Log::info('OCR Text Extracted', ['length' => strlen($text), 'preview' => substr($text, 0, 300), 'attempt' => $attempt]);
-                            return $text;
+                            return ['success' => true, 'text' => $text, 'error' => null];
                         }
                         // Empty text - will retry
                         Log::warning('OCR returned empty ParsedText', ['attempt' => $attempt]);
+                        $lastError = 'API returned 200 but ParsedText was Empty';
                     } else {
                         Log::warning('OCR API returned no ParsedText', ['data' => $data, 'attempt' => $attempt]);
+                        $errorMsg = $data['ErrorMessage'] ?? ($data['ParsedResults'][0]['ErrorMessage'] ?? 'Unknown API Error');
+                        $lastError = 'API Error: ' . (is_array($errorMsg) ? json_encode($errorMsg) : $errorMsg);
+
+                        // If it's a specific API error (like invalid key), don't retry, just fail
+                        if (str_contains(strtolower($lastError), 'api key') || str_contains(strtolower($lastError), 'limit')) {
+                            return ['success' => false, 'error' => $lastError];
+                        }
                     }
                 } else {
                     $errorData = $response->json();
@@ -164,13 +172,13 @@ class OcrService
                         'response' => $errorData,
                         'attempt' => $attempt,
                     ]);
+                    $lastError = "HTTP $status: " . json_encode($errorData);
                 }
             } catch (\Exception $e) {
-                $lastError = $e;
-                Log::warning('OCR.space API attempt failed', [
+                $lastError = $e->getMessage();
+                Log::warning('OCR.space API attempt failed: ' . $e->getMessage(), [
                     'attempt' => $attempt,
                     'max_retries' => $maxRetries,
-                    'error' => $e->getMessage(),
                 ]);
             }
 
@@ -182,14 +190,10 @@ class OcrService
         }
 
         if ($lastError) {
-            Log::error('OCR.space API failed after all retries: ' . $lastError->getMessage(), [
-                'file' => $lastError->getFile(),
-                'line' => $lastError->getLine(),
-                'total_attempts' => $maxRetries,
-            ]);
+            Log::error('OCR.space API failed after all retries: ' . $lastError);
         }
 
-        return null;
+        return ['success' => false, 'error' => 'All Retries Failed. Last Error: ' . $lastError];
     }
 
     /**
