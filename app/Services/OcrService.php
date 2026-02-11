@@ -119,15 +119,23 @@ class OcrService
 
                 // FIX: If extension is empty (common for temp files like /tmp/php1234), detect via MIME type
                 if (empty($extension)) {
-                    $mime = mime_content_type($imagePath);
-                    $extension = match ($mime) {
-                        'image/png' => 'png',
-                        'image/webp' => 'webp',
-                        'image/gif' => 'gif',
-                        'image/bmp' => 'bmp',
-                        'application/pdf' => 'pdf',
-                        default => 'jpg', // Default to jpg for jpeg/unknown
-                    };
+                    try {
+                        $mime = @mime_content_type($imagePath); // Supress warnings
+                        Log::info('Detected MIME type for temp file', ['mime' => $mime, 'path' => $imagePath]);
+
+                        $extension = match ($mime) {
+                            'image/png' => 'png',
+                            'image/webp' => 'webp',
+                            'image/gif' => 'gif',
+                            'image/bmp' => 'bmp',
+                            'application/pdf' => 'pdf',
+                            'image/tiff' => 'tif',
+                            default => 'jpg', // Fallback to jpg
+                        };
+                    } catch (\Throwable $e) {
+                        Log::warning('Failed to detect mime type, defaulting to jpg', ['error' => $e->getMessage()]);
+                        $extension = 'jpg';
+                    }
                 }
 
                 $fileType = $extension === 'jpg' ? 'JPG' : strtoupper($extension);
