@@ -127,7 +127,7 @@ class OcrService
                         'language' => 'eng', // English (works well for mixed Indonesian/English text)
                         'OCREngine' => 2, // Use OCR Engine 2 for better accuracy
                         'filetype' => $fileType, // Explicitly set file type to avoid detection errors
-                        'scale' => true, // Upscale image to help detect small text (like usernames)
+                        'scale' => 'true', // Upscale image to help detect small text (like usernames) - MUST BE STRING 'true'
                     ]);
 
                 // LOGGING RAW OCR RESPONSE FOR DEBUGGING
