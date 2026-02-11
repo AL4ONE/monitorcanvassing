@@ -8,7 +8,7 @@ import imageCompression from 'browser-image-compression';
  */
 export const compressImage = async (file) => {
   const options = {
-    maxSizeMB: 1.0,              // Set to 1MB (Safe for OCR.space Free Tier limit)
+    maxSizeMB: 0.5,              // Set to 0.5MB (500KB) to fit strict server limits
     maxWidthOrHeight: 7680,      // 8K resolution limit (support long screenshots)
     useWebWorker: false,         // Main thread for stability on mobile
     fileType: 'image/jpeg',      // Always output JPEG
