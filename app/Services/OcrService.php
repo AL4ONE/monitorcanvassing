@@ -122,6 +122,15 @@ class OcrService
                         'scale' => true, // Upscale image to help detect small text (like usernames)
                     ]);
 
+                // LOGGING RAW OCR RESPONSE FOR DEBUGGING
+                $rawResponseData = $response->json(); // Get the JSON data from the response
+                Log::info('Reviewing OCR Raw Response: ', [
+                    'parsed_text' => $rawResponseData['ParsedResults'][0]['ParsedText'] ?? 'NO TEXT FOUND',
+                    'error_message' => $rawResponseData['ErrorMessage'] ?? null,
+                    'is_errored_on_processing' => $rawResponseData['IsErroredOnProcessing'] ?? false,
+                    'full_response' => $rawResponseData, // Log the full response for complete debugging
+                ]);
+
                 $status = $response->status();
                 Log::info('OCR API Response Status', ['status' => $status, 'attempt' => $attempt]);
 

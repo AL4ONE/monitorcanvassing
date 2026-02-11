@@ -253,18 +253,12 @@ class MessageController extends Controller
                 // This helps debugging OCR issues in production
                 return response()->json([
                     'success' => false,
-                    'message' => 'Gagal mendeteksi username Instagram. Pastikan: 
-                    1. Username terlihat di bagian ATAS screenshot. 
-                    2. Tidak tertutup notifikasi. 
-                    3. Format screenshot jelas.
-                    
-                    Atau ketik username manual di kolom yang muncul di bawah, lalu upload lagi.
-                    
-                    Text terdeteksi (Header): "' . substr($ocrResult['message_snippet'] ?? '', 0, 100) . '..."',
+                    'message' => 'Gagal mendeteksi username Instagram. Pastikan: \n1. Username terlihat di bagian ATAS screenshot. \n2. Tidak tertutup notifikasi. \n3. Format screenshot jelas.\n\nAtau ketik username manual di kolom yang muncul di bawah, lalu upload lagi.\n\nRAW TEXT (DEBUG): \n' . ($ocrResult['message_snippet'] ?? 'KOSONG'),
                     'debug' => [
                         'ocr_date' => $ocrResult['date'],
                         'expected_stage' => $expectedStage,
                         'is_followup' => $expectedStage > 0,
+                        'raw_text_preview' => substr($ocrResult['message_snippet'] ?? '', 0, 500)
                     ],
                     'show_manual_selection' => true, // Signal frontend to show manual input/dropdown
                 ], 422);
