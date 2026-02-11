@@ -69,9 +69,9 @@ export default function StaffUpload() {
         setFile(null); // Reset file first
         const originalSize = (selectedFile.size / 1024).toFixed(0);
 
-        // Compress if > 500KB (Seems server/proxy has strict limit around 1MB or less)
-        // 720KB failed, 100KB works. So we target < 300KB result.
-        if (selectedFile.size > 500 * 1024) {
+        // Compress if > 1MB (OCR API limit is around 1MB)
+        // If file is already < 1MB, upload original to preserve max quality
+        if (selectedFile.size > 1024 * 1024) {
              setMessage({ type: 'info', text: '📷 Sedang memproses & kompres gambar...' });
              
              // Compress with retry (mobile Canvas can fail intermittently)
