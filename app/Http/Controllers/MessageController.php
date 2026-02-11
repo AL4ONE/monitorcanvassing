@@ -170,7 +170,7 @@ class MessageController extends Controller
                     $ocrResult = $this->ocrService->extractData($tempOcrPath, $expectedStage);
                 }
 
-                  // --- ATTEMPT 2: Full Screenshot (Fallback) ---
+                // --- ATTEMPT 2: Full Screenshot (Fallback) ---
                 // Run if: (1) No crop provided OR (2) Crop provided but yielded NO USERNAME
                 if (!$attemptedCrop || empty($ocrResult['instagram_username'])) {
                     try {
@@ -182,11 +182,11 @@ class MessageController extends Controller
                         } else {
                             Log::info('No Header Crop provided - Using Full Screenshot directly.');
                         }
-    
+
                         // Prepare Full Screenshot Path
                         $fullImagePath = null;
                         $isS3Temp = false;
-    
+
                         if ($disk === 's3' || $disk === 'minio') {
                             // FIX: Ensure temp file has valid extension (JPG) so OCR service can detect it
                             // Previously: $fileName . '_full' -> caused "File failed validation" or text/plain mime type
@@ -197,16 +197,16 @@ class MessageController extends Controller
                         } else {
                             $fullImagePath = Storage::disk($disk)->path($filePath);
                         }
-    
+
                         // Run OCR on Full Image
                         $retryResult = $this->ocrService->extractData($fullImagePath, $expectedStage);
 
                         // Cleanup S3 temp file
-                         if ($isS3Temp && file_exists($fullImagePath)) {
+                        if ($isS3Temp && file_exists($fullImagePath)) {
                             unlink($fullImagePath);
                         }
 
-                         // Use retry result if it found something
+                        // Use retry result if it found something
                         if (!empty($retryResult['instagram_username'])) {
                             Log::info('OCR Retry SUCCESS', ['username' => $retryResult['instagram_username']]);
                             $ocrResult = $retryResult;
@@ -221,30 +221,15 @@ class MessageController extends Controller
                         }
 
                     } catch (\Exception $e) {
-                         Log::error('OCR Retry Crashed: ' . $e->getMessage());
-                         // Don't crash the whole request, just log and keep original error
-                         if (isset($ocrResult['raw_text'])) {
-                             $ocrResult['raw_text'] .= "\n[RETRY ERROR]: " . $e->getMessage();
-                         }
+                        Log::error('OCR Retry Crashed: ' . $e->getMessage());
+                        // Don't crash the whole request, just log and keep original error
+                        if (isset($ocrResult['raw_text'])) {
+                            $ocrResult['raw_text'] .= "\n[RETRY ERROR]: " . $e->getMessage();
+                        }
                     }
                 }
 
-                    // Cleanup S3 temp file
-                    if ($isS3Temp && file_exists($fullImagePath)) {
-                        unlink($fullImagePath);
-                    }
 
-                    // DECISION: Use Retry Result IF it found a username OR if we had no previous result
-                    if (!empty($retryResult['instagram_username']) || empty($ocrResult)) {
-                        $ocrResult = $retryResult;
-                        Log::info('OCR Attempt 2 (Full) Results used.', ['found_user' => $retryResult['instagram_username']]);
-                    } else {
-                        // If Retry ALSO failed, we still might prefer to show the error from the Full Image 
-                        // as it might have more "raw text" context than the crop?
-                        // For now, let's keep the Retry Result as the final truth if strict failure.
-                        $ocrResult = $retryResult;
-                    }
-                }
             }
 
             // Optional bypass for testing when no username is detected (e.g., dummy images)
