@@ -117,8 +117,8 @@ class OcrService
                 // Get file extension for filetype parameter
                 $extension = strtolower(pathinfo($imagePath, PATHINFO_EXTENSION));
 
-                // FIX: If extension is empty (common for temp files like /tmp/php1234), detect via MIME type
-                if (empty($extension)) {
+                // FIX: If extension is empty or 'tmp' (common for temp files), detect via MIME type
+                if (empty($extension) || $extension === 'tmp') {
                     try {
                         $mime = @mime_content_type($imagePath); // Supress warnings
                         Log::info('Detected MIME type for temp file', ['mime' => $mime, 'path' => $imagePath]);
@@ -214,11 +214,11 @@ class OcrService
                     ]);
                     $lastError = "HTTP $status: " . json_encode($errorData);
                 }
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 $lastError = $e->getMessage();
-                Log::warning('OCR.space API attempt failed: ' . $e->getMessage(), [
+                Log::error('OCR.space API attempt failed (Critical): ' . $e->getMessage(), [
                     'attempt' => $attempt,
-                    'max_retries' => $maxRetries,
+                    'trace' => $e->getTraceAsString(),
                 ]);
             }
 
