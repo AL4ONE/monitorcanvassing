@@ -110,7 +110,7 @@ class MessageController extends Controller
             }
 
             // Validate category
-            $validCategories = ['umkm_fb', 'coffee_shop', 'restoran'];
+            $validCategories = ['umkm_fb', 'coffee_shop', 'restoran', 'product_digital'];
             if (!in_array($category, $validCategories)) {
                 return response()->json([
                     'success' => false,
