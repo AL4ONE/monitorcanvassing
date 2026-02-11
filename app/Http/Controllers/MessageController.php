@@ -148,42 +148,71 @@ class MessageController extends Controller
                     'date' => now()->toDateString(),
                 ];
             } else {
-                // Split & Conquer Strategy: 
-                // 1. Prefer 'header_crop' for OCR if available (High Quality, Top Only)
-                // 2. Fallback to stored 'screenshot' (Low Quality/Compressed)
+                // Split & Conquer Strategy (Smart Fallback): 
+                // 1. Try 'header_crop' first (High Quality, Top Only)
+                // 2. If valid username found -> Done.
+                // 3. If NOT found -> Fallback to stored 'screenshot' (Full Image)
 
-                $ocrFile = $request->hasFile('header_crop') ? $request->file('header_crop') : null;
-                $tempOcrPath = null;
-                $storedFilePath = null;
+                $ocrResult = null;
+                $attemptedCrop = false;
 
-                if ($ocrFile) {
-                    // Use the cropped header directly from request for OCR
-                    Log::info('Using header_crop for OCR', [
+                // --- ATTEMPT 1: Header Crop ---
+                if ($request->hasFile('header_crop')) {
+                    $attemptedCrop = true;
+                    $ocrFile = $request->file('header_crop');
+                    Log::info('Attempting OCR 1/2: Helper Crop', [
                         'size' => $ocrFile->getSize(),
                         'mime' => $ocrFile->getMimeType()
                     ]);
-                    $tempOcrPath = $ocrFile->getRealPath(); // Temporary path of uploaded file
-                    $storedFilePath = $tempOcrPath;
-                } else {
-                    // Fallback to stored file
-                    // For S3 storage, download file to temp location for OCR
-                    // Storage::path() only works for local disk
-                    if ($disk === 's3' || $disk === 'minio') {
-                        $tempOcrPath = sys_get_temp_dir() . '/' . $fileName;
-                        file_put_contents($tempOcrPath, Storage::disk($disk)->get($filePath));
-                        $storedFilePath = $tempOcrPath;
-                        Log::info('Downloaded S3 file for OCR (Fallback)', ['temp_path' => $tempOcrPath]);
-                    } else {
-                        $storedFilePath = Storage::disk($disk)->path($filePath);
-                    }
+
+                    $tempOcrPath = $ocrFile->getRealPath();
+                    // Extract Date
+                    $ocrResult = $this->ocrService->extractData($tempOcrPath, $expectedStage);
                 }
 
-                $ocrResult = $this->ocrService->extractData($storedFilePath, $expectedStage);
+                // --- ATTEMPT 2: Full Screenshot (Fallback) ---
+                // Run if: (1) No crop provided OR (2) Crop provided but yielded NO USERNAME
+                if (!$attemptedCrop || empty($ocrResult['instagram_username'])) {
+                    if ($attemptedCrop) {
+                        Log::warning('OCR Attempt 1 (Crop) Failed - Retrying with Full Screenshot...', [
+                            'prev_result' => $ocrResult['instagram_username'] ?? 'NULL',
+                            'prev_raw' => substr($ocrResult['raw_text'] ?? '', 0, 100)
+                        ]);
+                    } else {
+                        Log::info('No Header Crop provided - Using Full Screenshot directly.');
+                    }
 
-                // Cleanup temp file ONLY if it was downloaded from S3 (matches logic above)
-                // If it was from $request->file('header_crop'), PHP handles cleanup automatically after request
-                if ($disk === 's3' && isset($tempOcrPath) && file_exists($tempOcrPath) && !$ocrFile) {
-                    unlink($tempOcrPath);
+                    // Prepare Full Screenshot Path
+                    $fullImagePath = null;
+                    $isS3Temp = false;
+
+                    if ($disk === 's3' || $disk === 'minio') {
+                        $fullImagePath = sys_get_temp_dir() . '/' . $fileName . '_full';
+                        file_put_contents($fullImagePath, Storage::disk($disk)->get($filePath));
+                        $isS3Temp = true;
+                        Log::info('Downloaded S3 file for OCR Retry', ['temp_path' => $fullImagePath]);
+                    } else {
+                        $fullImagePath = Storage::disk($disk)->path($filePath);
+                    }
+
+                    // Run OCR on Full Image
+                    $retryResult = $this->ocrService->extractData($fullImagePath, $expectedStage);
+
+                    // Cleanup S3 temp file
+                    if ($isS3Temp && file_exists($fullImagePath)) {
+                        unlink($fullImagePath);
+                    }
+
+                    // DECISION: Use Retry Result IF it found a username OR if we had no previous result
+                    if (!empty($retryResult['instagram_username']) || empty($ocrResult)) {
+                        $ocrResult = $retryResult;
+                        Log::info('OCR Attempt 2 (Full) Results used.', ['found_user' => $retryResult['instagram_username']]);
+                    } else {
+                        // If Retry ALSO failed, we still might prefer to show the error from the Full Image 
+                        // as it might have more "raw text" context than the crop?
+                        // For now, let's keep the Retry Result as the final truth if strict failure.
+                        $ocrResult = $retryResult;
+                    }
                 }
             }
 
@@ -254,7 +283,7 @@ class MessageController extends Controller
 
                 return response()->json([
                     'success' => false,
-                    'message' => '[DEBUG-LIVE] Gagal mendeteksi username Instagram. \n\nRAW TEXT DR OCR: \n' . ($ocrResult['message_snippet'] ?? 'KOSONG (Gak ada teks terbaca)'),
+                    'message' => '[DEBUG-LIVE] Gagal mendeteksi username Instagram. \n\nRAW TEXT DR OCR: \n' . ($ocrResult['raw_text'] ?? $ocrResult['message_snippet'] ?? 'KOSONG (Gak ada teks terbaca)'),
                     'debug' => [
                         'ocr_date' => $ocrResult['date'],
                         'expected_stage' => $expectedStage,

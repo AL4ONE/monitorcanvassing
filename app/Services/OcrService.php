@@ -57,6 +57,7 @@ class OcrService
                     ]);
                 }
 
+                $parsed['raw_text'] = $result; // Add raw text for debugging validation failures
                 return $parsed;
             }
 
