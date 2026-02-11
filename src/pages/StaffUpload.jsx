@@ -274,20 +274,24 @@ export default function StaffUpload() {
           </p>
         </div>
 
-        {/* Manual Username Input for Day 0 (shown when OCR fails) */}
-        {selectedStage === 0 && showManualSelection && (
-          <div className="mb-6 p-4 rounded-lg bg-yellow-50 border-2 border-yellow-400">
+        {/* Manual Username Input for Day 0 (Always allowed for fallback) */}
+        {selectedStage === 0 && (
+          <div className={`mb-6 p-4 rounded-lg ${showManualSelection ? 'bg-yellow-50 border-2 border-yellow-400' : 'bg-gray-50 border border-gray-200'}`}>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              ⚠️ OCR Gagal - Ketik Username Instagram Manual *
+              {showManualSelection ? '⚠️ OCR Gagal - Ketik Username Instagram Manual *' : 'Username Instagram (Isi jika OCR salah/gagal)'}
             </label>
             <input
               type="text"
               value={manualUsername}
               onChange={(e) => setManualUsername(e.target.value.replace('@', ''))}
               placeholder="Contoh: tokokopimaru (tanpa @)"
-              className="block w-full border border-yellow-400 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-yellow-500 focus:border-yellow-500"
+              className={`block w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 ${showManualSelection ? 'border-yellow-400' : 'border-gray-300'}`}
             />
-            <p className="mt-1 text-xs text-gray-500">Ketik username Instagram prospect (tanpa @), lalu klik Upload lagi.</p>
+            <p className="mt-1 text-xs text-gray-500">
+                {showManualSelection 
+                    ? 'Ketik username Instagram prospect (tanpa @), lalu klik Upload lagi.'
+                    : '*OCR akan tetap berjalan otomatis. Isi ini HANYA jika Anda ingin memastikan username benar.'}
+            </p>
           </div>
         )}
 
