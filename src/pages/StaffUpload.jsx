@@ -176,8 +176,7 @@ export default function StaffUpload() {
       if (selectedProspect) formData.append('prospect_id', selectedProspect);
       if (manualUsername) formData.append('manual_username', manualUsername);
 
-      if (selectedProspect) formData.append('prospect_id', selectedProspect);
-      if (manualUsername) formData.append('manual_username', manualUsername);
+
 
       // Append Header Crop if available (generated in handleFileChange)
       if (headerCrop) {
@@ -274,24 +273,39 @@ export default function StaffUpload() {
           </p>
         </div>
 
-        {/* Manual Username Input for Day 0 (Always allowed for fallback) */}
+        {/* Manual Username Input for Day 0 (Checkbox Toggle) */}
         {selectedStage === 0 && (
-          <div className={`mb-6 p-4 rounded-lg ${showManualSelection ? 'bg-yellow-50 border-2 border-yellow-400' : 'bg-gray-50 border border-gray-200'}`}>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              {showManualSelection ? '⚠️ OCR Gagal - Ketik Username Instagram Manual *' : 'Username Instagram (Isi jika OCR salah/gagal)'}
-            </label>
-            <input
-              type="text"
-              value={manualUsername}
-              onChange={(e) => setManualUsername(e.target.value.replace('@', ''))}
-              placeholder="Contoh: tokokopimaru (tanpa @)"
-              className={`block w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 ${showManualSelection ? 'border-yellow-400' : 'border-gray-300'}`}
-            />
-            <p className="mt-1 text-xs text-gray-500">
-                {showManualSelection 
-                    ? 'Ketik username Instagram prospect (tanpa @), lalu klik Upload lagi.'
-                    : '*OCR akan tetap berjalan otomatis. Isi ini HANYA jika Anda ingin memastikan username benar.'}
-            </p>
+          <div className="mb-6">
+            <div className="flex items-center mb-2">
+              <input
+                type="checkbox"
+                id="showManualInput"
+                checked={showManualSelection}
+                onChange={(e) => setShowManualSelection(e.target.checked)}
+                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+              />
+              <label htmlFor="showManualInput" className="ml-2 block text-sm text-gray-900">
+                Input Username Manual (Jika OCR Gagal)
+              </label>
+            </div>
+
+            {showManualSelection && (
+              <div className="p-4 rounded-lg bg-yellow-50 border border-yellow-400">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Username Instagram *
+                </label>
+                <input
+                  type="text"
+                  value={manualUsername}
+                  onChange={(e) => setManualUsername(e.target.value.replace('@', ''))}
+                  placeholder="Contoh: tokokopimaru (tanpa @)"
+                  className="block w-full border border-yellow-400 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Pastikan ejaan username benar sesuai Instagram.
+                </p>
+              </div>
+            )}
           </div>
         )}
 
