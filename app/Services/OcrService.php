@@ -123,15 +123,30 @@ class OcrService
                         $mime = @mime_content_type($imagePath); // Supress warnings
                         Log::info('Detected MIME type for temp file', ['mime' => $mime, 'path' => $imagePath]);
 
-                        $extension = match ($mime) {
-                            'image/png' => 'png',
-                            'image/webp' => 'webp',
-                            'image/gif' => 'gif',
-                            'image/bmp' => 'bmp',
-                            'application/pdf' => 'pdf',
-                            'image/tiff' => 'tif',
-                            default => 'jpg', // Fallback to jpg
-                        };
+                        // Use switch-case instead of match to ensure compatibility and handle unknowns gracefully
+                        switch ($mime) {
+                            case 'image/png':
+                                $extension = 'png';
+                                break;
+                            case 'image/webp':
+                                $extension = 'webp';
+                                break;
+                            case 'image/gif':
+                                $extension = 'gif';
+                                break;
+                            case 'image/bmp':
+                                $extension = 'bmp';
+                                break;
+                            case 'application/pdf':
+                                $extension = 'pdf';
+                                break;
+                            case 'image/tiff':
+                                $extension = 'tif';
+                                break;
+                            default:
+                                $extension = 'jpg'; // Default to jpg for jpeg/unknown
+                                break;
+                        }
                     } catch (\Throwable $e) {
                         Log::warning('Failed to detect mime type, defaulting to jpg', ['error' => $e->getMessage()]);
                         $extension = 'jpg';
