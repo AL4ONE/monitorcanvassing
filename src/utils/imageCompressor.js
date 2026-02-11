@@ -19,3 +19,49 @@ export const compressImage = async (file) => {
   const compressedFile = await imageCompression(file, options);
   return compressedFile;
 };
+
+/**
+ * Crop the top part of the image (header) for OCR accuracy
+ * @param {File} file - Original file
+ * @returns {Promise<Blob>} - Cropped image blob (high quality)
+ */
+export const cropImageHeader = async (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // We only need the top ~1500px (or full height if smaller)
+        const cropHeight = Math.min(img.height, 1500); 
+        const width = img.width;
+
+        canvas.width = width;
+        canvas.height = cropHeight;
+
+        // Draw only the top part
+        ctx.drawImage(img, 0, 0, width, cropHeight, 0, 0, width, cropHeight);
+
+        // Export as High Quality JPEG (0.95)
+        // This is small because it's only the header
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(new Error('Canvas to Blob failed'));
+            }
+          },
+          'image/jpeg',
+          0.95 
+        );
+      };
+      img.onerror = (err) => reject(err);
+      img.src = event.target.result;
+    };
+    reader.onerror = (err) => reject(err);
+    reader.readAsDataURL(file);
+  });
+};
