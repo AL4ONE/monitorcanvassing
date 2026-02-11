@@ -67,6 +67,7 @@ class OcrService
                 'instagram_username' => null,
                 'message_snippet' => null,
                 'date' => null,
+                'raw_text' => !empty($result) ? $result : 'OCR API returned NULL or EMPTY STRING (Check API Key / Image)',
             ];
         } catch (\Exception $e) {
             Log::error('OCR extraction failed: ' . $e->getMessage(), [
@@ -76,6 +77,7 @@ class OcrService
                 'instagram_username' => null,
                 'message_snippet' => null,
                 'date' => null,
+                'raw_text' => 'EXCEPTION: ' . $e->getMessage(),
             ];
         }
     }
