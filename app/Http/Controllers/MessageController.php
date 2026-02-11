@@ -148,21 +148,41 @@ class MessageController extends Controller
                     'date' => now()->toDateString(),
                 ];
             } else {
-                // For S3 storage, download file to temp location for OCR
-                // Storage::path() only works for local disk
-                if ($disk === 's3' || $disk === 'minio') {
-                    $tempOcrPath = sys_get_temp_dir() . '/' . $fileName;
-                    file_put_contents($tempOcrPath, Storage::disk($disk)->get($filePath));
+                // Split & Conquer Strategy: 
+                // 1. Prefer 'header_crop' for OCR if available (High Quality, Top Only)
+                // 2. Fallback to stored 'screenshot' (Low Quality/Compressed)
+
+                $ocrFile = $request->hasFile('header_crop') ? $request->file('header_crop') : null;
+                $tempOcrPath = null;
+                $storedFilePath = null;
+
+                if ($ocrFile) {
+                    // Use the cropped header directly from request for OCR
+                    Log::info('Using header_crop for OCR', [
+                        'size' => $ocrFile->getSize(),
+                        'mime' => $ocrFile->getMimeType()
+                    ]);
+                    $tempOcrPath = $ocrFile->getRealPath(); // Temporary path of uploaded file
                     $storedFilePath = $tempOcrPath;
-                    Log::info('Downloaded S3 file for OCR', ['temp_path' => $tempOcrPath]);
                 } else {
-                    $storedFilePath = Storage::disk($disk)->path($filePath);
+                    // Fallback to stored file
+                    // For S3 storage, download file to temp location for OCR
+                    // Storage::path() only works for local disk
+                    if ($disk === 's3' || $disk === 'minio') {
+                        $tempOcrPath = sys_get_temp_dir() . '/' . $fileName;
+                        file_put_contents($tempOcrPath, Storage::disk($disk)->get($filePath));
+                        $storedFilePath = $tempOcrPath;
+                        Log::info('Downloaded S3 file for OCR (Fallback)', ['temp_path' => $tempOcrPath]);
+                    } else {
+                        $storedFilePath = Storage::disk($disk)->path($filePath);
+                    }
                 }
 
                 $ocrResult = $this->ocrService->extractData($storedFilePath, $expectedStage);
 
-                // Cleanup temp file
-                if (isset($tempOcrPath) && file_exists($tempOcrPath)) {
+                // Cleanup temp file ONLY if it was downloaded from S3 (matches logic above)
+                // If it was from $request->file('header_crop'), PHP handles cleanup automatically after request
+                if ($disk === 's3' && isset($tempOcrPath) && file_exists($tempOcrPath) && !$ocrFile) {
                     unlink($tempOcrPath);
                 }
             }
