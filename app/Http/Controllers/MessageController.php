@@ -170,33 +170,64 @@ class MessageController extends Controller
                     $ocrResult = $this->ocrService->extractData($tempOcrPath, $expectedStage);
                 }
 
-                // --- ATTEMPT 2: Full Screenshot (Fallback) ---
+                  // --- ATTEMPT 2: Full Screenshot (Fallback) ---
                 // Run if: (1) No crop provided OR (2) Crop provided but yielded NO USERNAME
                 if (!$attemptedCrop || empty($ocrResult['instagram_username'])) {
-                    if ($attemptedCrop) {
-                        Log::warning('OCR Attempt 1 (Crop) Failed - Retrying with Full Screenshot...', [
-                            'prev_result' => $ocrResult['instagram_username'] ?? 'NULL',
-                            'prev_raw' => substr($ocrResult['raw_text'] ?? '', 0, 100)
-                        ]);
-                    } else {
-                        Log::info('No Header Crop provided - Using Full Screenshot directly.');
+                    try {
+                        if ($attemptedCrop) {
+                            Log::warning('OCR Attempt 1 (Crop) Failed - Retrying with Full Screenshot...', [
+                                'prev_result' => $ocrResult['instagram_username'] ?? 'NULL',
+                                'prev_raw' => substr($ocrResult['raw_text'] ?? '', 0, 100)
+                            ]);
+                        } else {
+                            Log::info('No Header Crop provided - Using Full Screenshot directly.');
+                        }
+    
+                        // Prepare Full Screenshot Path
+                        $fullImagePath = null;
+                        $isS3Temp = false;
+    
+                        if ($disk === 's3' || $disk === 'minio') {
+                            // FIX: Ensure temp file has valid extension (JPG) so OCR service can detect it
+                            // Previously: $fileName . '_full' -> caused "File failed validation" or text/plain mime type
+                            $fullImagePath = sys_get_temp_dir() . '/' . $fileName . '_full.jpg';
+                            file_put_contents($fullImagePath, Storage::disk($disk)->get($filePath));
+                            $isS3Temp = true;
+                            Log::info('Downloaded S3 file for OCR Retry', ['temp_path' => $fullImagePath]);
+                        } else {
+                            $fullImagePath = Storage::disk($disk)->path($filePath);
+                        }
+    
+                        // Run OCR on Full Image
+                        $retryResult = $this->ocrService->extractData($fullImagePath, $expectedStage);
+
+                        // Cleanup S3 temp file
+                         if ($isS3Temp && file_exists($fullImagePath)) {
+                            unlink($fullImagePath);
+                        }
+
+                         // Use retry result if it found something
+                        if (!empty($retryResult['instagram_username'])) {
+                            Log::info('OCR Retry SUCCESS', ['username' => $retryResult['instagram_username']]);
+                            $ocrResult = $retryResult;
+                        } else {
+                            Log::warning('OCR Retry FAILED', ['raw_text' => substr($retryResult['raw_text'] ?? '', 0, 100)]);
+                            // Append retry raw text to original raw text for debugging
+                            if (isset($ocrResult['raw_text'])) {
+                                $ocrResult['raw_text'] .= "\n[RETRY LOG]: " . ($retryResult['raw_text'] ?? 'NULL');
+                            } else {
+                                $ocrResult = $retryResult; // Use retry result even if empty
+                            }
+                        }
+
+                    } catch (\Exception $e) {
+                         Log::error('OCR Retry Crashed: ' . $e->getMessage());
+                         // Don't crash the whole request, just log and keep original error
+                         if (isset($ocrResult['raw_text'])) {
+                             $ocrResult['raw_text'] .= "\n[RETRY ERROR]: " . $e->getMessage();
+                         }
                     }
-
-                    // Prepare Full Screenshot Path
-                    $fullImagePath = null;
-                    $isS3Temp = false;
-
-                    if ($disk === 's3' || $disk === 'minio') {
-                        $fullImagePath = sys_get_temp_dir() . '/' . $fileName . '_full';
-                        file_put_contents($fullImagePath, Storage::disk($disk)->get($filePath));
-                        $isS3Temp = true;
-                        Log::info('Downloaded S3 file for OCR Retry', ['temp_path' => $fullImagePath]);
-                    } else {
-                        $fullImagePath = Storage::disk($disk)->path($filePath);
-                    }
-
-                    // Run OCR on Full Image
-                    $retryResult = $this->ocrService->extractData($fullImagePath, $expectedStage);
+                }
 
                     // Cleanup S3 temp file
                     if ($isS3Temp && file_exists($fullImagePath)) {
