@@ -515,9 +515,9 @@ class OcrService
             $headerTop = substr($headerText, 0, 300); // First 300 chars = header area (from headerText, not normalizedText)
             // More flexible pattern: match any sequence of capitalized words, then lowercase username
             // Also handle cases where username might be on next line (separated by space/newline)
-            // Updated regex to handle cases like "Kedai Kopi David kedaikopidavid langganan..."
-            // Match capitalized name followed by lowercase username (username can be followed by anything)
-            if (preg_match('/(?:[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+([a-z0-9_]{8,30})(?=\s|$|[A-Z])/i', $headerTop, $matches)) {
+            // Updated regex to handle separators like | (pipe) and dots in username
+            // Match capitalized name (allowing | separator) followed by lowercase username (allowing dots)
+            if (preg_match('/(?:[A-Z][a-z]+(?:[\s|]+[A-Z][a-z]+)*)\s+([a-z0-9_.]{8,30})(?=\s|$|[A-Z])/i', $headerTop, $matches)) {
                 $potentialUsername = strtolower(trim($matches[1]));
                 // Use the same commonWords array defined at the top AND check banned root words
                 if (!in_array($potentialUsername, $commonWords) && strlen($potentialUsername) >= 8 && !$this->containsBannedRootWord($potentialUsername, $bannedRootWords)) {
@@ -540,8 +540,8 @@ class OcrService
             // MUST search ONLY in header area
             if (!$username) {
                 $headerTop250 = substr($headerText, 0, 250);
-                // Try to find any word that looks like a username (8+ chars, alphanumeric + underscore)
-                if (preg_match_all('/\b([a-z0-9_]{8,30})\b/i', $headerTop250, $allMatches, PREG_SET_ORDER)) {
+                // Try to find any word that looks like a username (8+ chars, alphanumeric + underscore + dot)
+                if (preg_match_all('/\b([a-z0-9_.]{8,30})\b/i', $headerTop250, $allMatches, PREG_SET_ORDER)) {
                     foreach ($allMatches as $match) {
                         $potentialUsername = strtolower(trim($match[1]));
                         // Use the same commonWords array defined at the top AND check banned root words
@@ -606,7 +606,7 @@ class OcrService
         // This ensures consistency - same username format between canvassing and follow-up
         if (!$username) {
             // Look for username before "pengikut" in header area (not middle)
-            if (preg_match('/([a-z0-9_]{8,30})\s*(?:pengikut|followers)/i', $headerText, $matches)) {
+            if (preg_match('/([a-z0-9_.]{8,30})\s*(?:pengikut|followers)/i', $headerText, $matches)) {
                 $potentialUsername = strtolower(trim($matches[1]));
                 // Use the same commonWords array defined at the top
                 // For both canvassing and follow-up: be lenient - just check it's not a common word and min 8 chars
@@ -623,9 +623,9 @@ class OcrService
         if (!$username) {
             // Try multiple patterns for "Bergabung" format
             $patterns = [
-                '/([a-z0-9_]{8,30})\s*[•·]\s*(?:Bergabung|Joined)/i',  // "username • Bergabung"
-                '/([a-z0-9_]{8,30})\s+(?:Bergabung|Joined)/i',         // "username Bergabung"
-                '/([a-z0-9_]{8,30})\s*[•·]\s*(?:pengikut|followers)/i', // "username • pengikut"
+                '/([a-z0-9_.]{8,30})\s*[•·]\s*(?:Bergabung|Joined)/i',  // "username • Bergabung"
+                '/([a-z0-9_.]{8,30})\s+(?:Bergabung|Joined)/i',         // "username Bergabung"
+                '/([a-z0-9_.]{8,30})\s*[•·]\s*(?:pengikut|followers)/i', // "username • pengikut"
             ];
 
             foreach ($patterns as $pattern) {
@@ -654,7 +654,7 @@ class OcrService
         // More lenient: accept if it's in header area and not a common word, even without header keywords
         if (!$username) {
             $headerTopOnly = substr($headerText, 0, 500); // Extended to 500 chars for better coverage
-            if (preg_match_all('/\b([a-z0-9_]{8,30})\b/i', $headerTopOnly, $allMatches, PREG_SET_ORDER)) {
+            if (preg_match_all('/\b([a-z0-9_.]{8,30})\b/i', $headerTopOnly, $allMatches, PREG_SET_ORDER)) {
                 foreach ($allMatches as $match) {
                     $potentialUsername = strtolower(trim($match[1]));
 
@@ -709,7 +709,7 @@ class OcrService
         // This is the most aggressive pattern, only used if all others fail
         if (!$username) {
             $headerVeryTop = substr($headerText, 0, 200);
-            if (preg_match_all('/\b([a-z0-9_]{8,30})\b/i', $headerVeryTop, $allMatches, PREG_SET_ORDER)) {
+            if (preg_match_all('/\b([a-z0-9_.]{8,30})\b/i', $headerVeryTop, $allMatches, PREG_SET_ORDER)) {
                 foreach ($allMatches as $match) {
                     $potentialUsername = strtolower(trim($match[1]));
 
@@ -744,8 +744,8 @@ class OcrService
         // This is the most aggressive pattern - accept any valid username format if it's very early in header
         if (!$username) {
             $headerUltraTop = substr($headerText, 0, 150);
-            // Look for username patterns: alphanumeric + underscore, 8-30 chars
-            if (preg_match_all('/([a-z0-9_]{8,30})/i', $headerUltraTop, $allMatches, PREG_SET_ORDER)) {
+            // Look for username patterns: alphanumeric + underscore + dot, 8-30 chars
+            if (preg_match_all('/([a-z0-9_.]{8,30})/i', $headerUltraTop, $allMatches, PREG_SET_ORDER)) {
                 foreach ($allMatches as $match) {
                     $potentialUsername = strtolower(trim($match[1]));
 
