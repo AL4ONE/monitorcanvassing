@@ -140,18 +140,8 @@ class MessageController extends Controller
                 ], 422);
             }
 
-            // Run OCR (or bypass with fake data / manual input)
-            $manualUsernameInput = $request->input('manual_username');
-
-            if ($manualUsernameInput) {
-                $ocrResult = [
-                    'instagram_username' => strtolower(trim($manualUsernameInput)),
-                    'message_snippet' => 'Manual Input - OCR Skipped',
-                    'date' => now()->toDateString(),
-                    'raw_text' => 'MANUAL INPUT'
-                ];
-                Log::info('Skipping OCR because manual username provided', ['username' => $manualUsernameInput]);
-            } elseif ($bypass) {
+            // Run OCR (or bypass with fake data)
+            if ($bypass) {
                 $ocrResult = [
                     'instagram_username' => 'test_user_' . substr($fileHash, 0, 8),
                     'message_snippet' => 'Bypass message for testing',
