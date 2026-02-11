@@ -116,12 +116,29 @@ class OcrService
             try {
                 // Get file extension for filetype parameter
                 $extension = strtolower(pathinfo($imagePath, PATHINFO_EXTENSION));
+
+                // FIX: If extension is empty (common for temp files like /tmp/php1234), detect via MIME type
+                if (empty($extension)) {
+                    $mime = mime_content_type($imagePath);
+                    $extension = match ($mime) {
+                        'image/png' => 'png',
+                        'image/webp' => 'webp',
+                        'image/gif' => 'gif',
+                        'image/bmp' => 'bmp',
+                        'application/pdf' => 'pdf',
+                        default => 'jpg', // Default to jpg for jpeg/unknown
+                    };
+                }
+
                 $fileType = $extension === 'jpg' ? 'JPG' : strtoupper($extension);
+
+                // Ensure filename sent to API has the correct extension
+                $apiFilename = 'image_upload.' . $extension;
 
                 /** @var \Illuminate\Http\Client\Response $response */
                 $response = Http::timeout(30)
                     ->asMultipart()
-                    ->attach('file', file_get_contents($imagePath), basename($imagePath))
+                    ->attach('file', file_get_contents($imagePath), $apiFilename)
                     ->post('https://api.ocr.space/parse/image', [
                         'apikey' => $apiKey,
                         'language' => 'eng', // English (works well for mixed Indonesian/English text)
