@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { compressImage } from '../utils/imageCompressor';
+import { compressImage, cropImageHeader } from '../utils/imageCompressor';
 import api from '../api';
 
 export default function StaffUpload() {
@@ -162,6 +162,30 @@ export default function StaffUpload() {
       if (lokasi) formData.append('lokasi', lokasi);
       if (selectedProspect) formData.append('prospect_id', selectedProspect);
       if (manualUsername) formData.append('manual_username', manualUsername);
+
+      // Generate Header Crop for OCR (Split & Conquer Strategy)
+      // Original/Compressed file -> Storage (Low Res ok)
+      // Header Crop -> OCR (High Res, Top Only)
+      try {
+        setMessage({ type: 'info', text: '📷 Menyiapkan data OCR...' });
+        // Use the original file for cropping to get max detail
+        // If we use 'file' (which might be compressed), we lose detail.
+        // But 'file' state assumes we already processed it.
+        // Ideally we should keep original reference, but for now let's try cropping the current 'file' 
+        // OR better: do it inside handleFileChange and store it? 
+        // Actually, let's just crop the 'file' we are about to upload. 
+        // If 'file' is already compressed, it might be 2.5K width which is fine.
+        // If it's original (huge), even better.
+        
+        // Wait... 'file' is in state. 
+        // Let's create the crop on the fly here.
+        const headerBlob = await cropImageHeader(file);
+        formData.append('header_crop', headerBlob, 'header_crop.jpg');
+        
+      } catch (cropErr) {
+        console.error("Failed to crop header:", cropErr);
+        // Continue without crop (backend will fallback to full image)
+      }
 
       const response = await api.post('/messages/upload', formData, {
         headers: {
