@@ -9,7 +9,7 @@ import imageCompression from 'browser-image-compression';
 export const compressImage = async (file) => {
   const options = {
     maxSizeMB: 0.5,              // Set to 0.5MB (500KB) to fit strict server limits
-    maxWidthOrHeight: 5120,      // 5K resolution (Balance between width & quality for 0.5MB limit)
+    maxWidthOrHeight: 2560,      // 2.5K resolution (Best balance: Clear text + Low file size)
     useWebWorker: false,         // Main thread for stability on mobile
     fileType: 'image/jpeg',      // Always output JPEG
     initialQuality: 1.0,         // Max quality to avoid compression artifacts
