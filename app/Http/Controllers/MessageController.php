@@ -250,17 +250,18 @@ class MessageController extends Controller
                 ]);
 
                 // Always include debug info in response (not just when APP_DEBUG=true)
-                // This helps debugging OCR issues in production
+                Log::warning('OCR Failed to extract username', ['ocr_result' => $ocrResult]);
+
                 return response()->json([
                     'success' => false,
-                    'message' => 'Gagal mendeteksi username Instagram. Pastikan: \n1. Username terlihat di bagian ATAS screenshot. \n2. Tidak tertutup notifikasi. \n3. Format screenshot jelas.\n\nAtau ketik username manual di kolom yang muncul di bawah, lalu upload lagi.\n\nRAW TEXT (DEBUG): \n' . ($ocrResult['message_snippet'] ?? 'KOSONG'),
+                    'message' => '[DEBUG-LIVE] Gagal mendeteksi username Instagram. \n\nRAW TEXT DR OCR: \n' . ($ocrResult['message_snippet'] ?? 'KOSONG (Gak ada teks terbaca)'),
                     'debug' => [
                         'ocr_date' => $ocrResult['date'],
                         'expected_stage' => $expectedStage,
                         'is_followup' => $expectedStage > 0,
                         'raw_text_preview' => substr($ocrResult['message_snippet'] ?? '', 0, 500)
                     ],
-                    'show_manual_selection' => true, // Signal frontend to show manual input/dropdown
+                    'show_manual_selection' => true,
                 ], 422);
             }
 
