@@ -153,7 +153,12 @@ class MessageController extends Controller
                 // 2. If valid username found -> Done.
                 // 3. If NOT found -> Fallback to stored 'screenshot' (Full Image)
 
-                $ocrResult = null;
+                $ocrResult = [
+                    'instagram_username' => null,
+                    'message_snippet' => null,
+                    'date' => null,
+                    'raw_text' => null
+                ];
                 $attemptedCrop = false;
 
                 // --- ATTEMPT 1: Header Crop ---
