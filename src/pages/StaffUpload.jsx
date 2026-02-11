@@ -71,9 +71,9 @@ export default function StaffUpload() {
         setFile(null); // Reset file first
         const originalSize = (selectedFile.size / 1024).toFixed(0);
 
-        // Compress if > 500KB (Strict server/proxy limit)
-        // 720KB failed, 563KB failed. So we target < 500KB result.
-        if (selectedFile.size > 500 * 1024) {
+        // Compress if > 150KB (Force compression for most mobile photos to normalize format to JPEG)
+        // This handles cases where 400KB HEIC/WebP files bypass compression and crash backend
+        if (selectedFile.size > 150 * 1024) {
              setMessage({ type: 'info', text: '📷 Sedang memproses & kompres gambar...' });
              
              // Compress with retry (mobile Canvas can fail intermittently)
@@ -107,7 +107,7 @@ export default function StaffUpload() {
                   reader.readAsDataURL(compressed);
              }
         } else {
-             // Use original file if very small (< 500KB)
+             // Use original file if very small (< 150KB)
              setFile(selectedFile);
              setMessage({ type: 'success', text: `✅ Siap upload! (Size: ${originalSize}KB)` });
              setErrors([]);
