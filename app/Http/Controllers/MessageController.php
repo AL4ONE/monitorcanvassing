@@ -104,18 +104,18 @@ class MessageController extends Controller
             }
             $expectedStage = (int) $expectedStage;
 
-            // Get category from request (required)
+            // Get category from request (required only for Day 0)
             $category = $request->input('category');
-            if (!$category) {
+            if ($expectedStage === 0 && !$category) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Kategori harus diisi',
+                    'message' => 'Kategori harus diisi untuk Canvassing Day 0',
                 ], 422);
             }
 
-            // Validate category
+            // Validate category (if provided)
             $validCategories = ['umkm_fb', 'coffee_shop', 'restoran', 'product_digital'];
-            if (!in_array($category, $validCategories)) {
+            if ($category && !in_array($category, $validCategories)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Kategori tidak valid',
@@ -391,6 +391,28 @@ class MessageController extends Controller
                     'success' => false,
                     'message' => $cycleResult['error'],
                 ], 422);
+            }
+
+            // If follow-up (stage > 0) and fields are missing, inherit from Day 0 message
+            if ($expectedStage > 0) {
+                // Find Day 0 message for this cycle to copy data
+                $day0Message = Message::where('canvassing_cycle_id', $cycleResult['cycle']->id)
+                    ->where('stage', 0)
+                    ->first();
+
+                if ($day0Message) {
+                    if (!$category)
+                        $category = $day0Message->category;
+                    if (!$request->input('channel'))
+                        $request->merge(['channel' => $day0Message->channel]);
+                    if (!$request->input('channel_category'))
+                        $request->merge(['channel_category' => $day0Message->channel_category]);
+
+                    // Also inherit website/payment info if not provided (though checkboxes usually send false if unchecked, strict check logic here)
+                    // Logic: If request doesn't have the field at all. But checkboxes usually present.
+                    // Let's assume frontend sends them as false/null. We can copy if they are "false" in request but true in Day 0? 
+                    // Better to just stick to Category/Channel for now as those are the main grouping keys.
+                }
             }
 
             // Create message record
