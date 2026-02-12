@@ -58,6 +58,10 @@ class MessageController extends Controller
             'interaction_status' => 'nullable|string|in:no_response,menolak,tertarik,menerima',
             'lokasi' => 'nullable|string|max:255',
             'prospect_id' => 'nullable|integer|exists:prospects,id', // Manual prospect selection for follow-up when OCR fails
+            'channel_category' => 'nullable|string|max:255',
+            'has_website' => 'boolean',
+            'website_url' => 'nullable|required_if:has_website,true|url|max:255',
+            'has_payment_gateway' => 'boolean',
         ]);
 
         $user = Auth::user();
@@ -395,6 +399,10 @@ class MessageController extends Controller
                 'stage' => $expectedStage,
                 'category' => $category,
                 'channel' => $request->input('channel'),
+                'channel_category' => $request->input('channel_category'),
+                'has_website' => $request->boolean('has_website'),
+                'website_url' => $request->input('website_url'),
+                'has_payment_gateway' => $request->boolean('has_payment_gateway'),
                 'interaction_status' => $request->input('interaction_status'),
                 'screenshot_path' => $filePath,
                 'screenshot_hash' => $fileHash,

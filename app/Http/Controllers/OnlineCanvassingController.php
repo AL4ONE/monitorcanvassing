@@ -64,11 +64,7 @@ class OnlineCanvassingController extends Controller
             'rejection_reason' => 'nullable|required_if:status,rejected|string|max:1000',
             'photo' => 'nullable|image|mimes:jpeg,png,jpg|max:5120', // 5MB max
             'visit_date' => 'required|date',
-            'channel_category' => 'nullable|string|max:255',
-            'channel' => 'nullable|string|max:255',
-            'has_website' => 'boolean',
-            'website_url' => 'nullable|required_if:has_website,true|url|max:255',
-            'has_payment_gateway' => 'boolean',
+            'category' => 'nullable|string|max:255',
         ]);
 
         try {
@@ -88,6 +84,7 @@ class OnlineCanvassingController extends Controller
             $report = OnlineCanvassingReport::create([
                 'staff_id' => $user->id,
                 'business_name' => $validated['business_name'],
+                'category' => $validated['category'] ?? null,
                 'address' => $validated['address'],
                 'contact_name' => $validated['contact_name'],
                 'contact_number' => $validated['contact_number'],
@@ -96,11 +93,6 @@ class OnlineCanvassingController extends Controller
                 'rejection_reason' => $validated['status'] === 'rejected' ? ($validated['rejection_reason'] ?? null) : null,
                 'photo' => $imagePath,
                 'visit_date' => $validated['visit_date'],
-                'channel_category' => $validated['channel_category'] ?? null,
-                'channel' => $validated['channel'] ?? null,
-                'has_website' => $validated['has_website'] ?? false,
-                'website_url' => $validated['website_url'] ?? null,
-                'has_payment_gateway' => $validated['has_payment_gateway'] ?? false,
             ]);
 
             return response()->json([
