@@ -1,5 +1,5 @@
 # Build Stage
-FROM node:18-alpine as build
+FROM node:22-alpine as build
 
 WORKDIR /app
 
@@ -14,6 +14,10 @@ FROM nginx:alpine
 
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY docker-config/nginx.conf /etc/nginx/conf.d/default.conf
+
+COPY docker-config/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
 
 EXPOSE 80
 
