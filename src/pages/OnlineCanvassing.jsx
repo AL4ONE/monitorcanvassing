@@ -60,17 +60,28 @@ export default function OnlineCanvassing() {
     }
   };
 
+  // Helper to get category
+  const getCategoryByChannel = (channelValue) => {
+    for (const [category, channels] of Object.entries(channelChildren)) {
+      if (channels.includes(channelValue)) return category;
+    }
+    return '';
+  };
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => {
-        // Reset child channel if parent changes
-        if (name === 'channel_category') {
-            return { ...prev, [name]: value, channel: '' };
-        }
-        return { 
+        const newData = { 
             ...prev, 
             [name]: type === 'checkbox' ? checked : value 
         };
+
+        // Auto-set category when channel changes
+        if (name === 'channel') {
+            newData.channel_category = getCategoryByChannel(value);
+        }
+
+        return newData;
     });
   };
 
@@ -341,43 +352,32 @@ export default function OnlineCanvassing() {
                   />
                 </div>
 
-                {/* Channel Selection (Parent) */}
+
+
+
+                {/* Combined Channel Selection */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Kategori Channel
+                    Channel / Platform
                   </label>
                   <select
-                    name="channel_category"
-                    value={formData.channel_category}
+                    name="channel"
+                    value={formData.channel}
                     onChange={handleChange}
                     className="w-full border border-gray-300 rounded-md px-3 py-2"
                   >
-                    <option value="">-- Pilih Kategori --</option>
-                    {channelParents.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
+                    <option value="">-- Pilih Channel --</option>
+                    {channelParents.map((parent) => (
+                      <optgroup key={parent.value} label={parent.label}>
+                        {channelChildren[parent.value]?.map((child) => (
+                          <option key={child} value={child}>
+                            {child}
+                          </option>
+                        ))}
+                      </optgroup>
                     ))}
                   </select>
                 </div>
-
-                {/* Channel Selection (Child) */}
-                {formData.channel_category && (
-                    <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Detail Channel
-                    </label>
-                    <select
-                        name="channel"
-                        value={formData.channel}
-                        onChange={handleChange}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2"
-                    >
-                        <option value="">-- Pilih Channel --</option>
-                        {channelChildren[formData.channel_category]?.map((option) => (
-                        <option key={option} value={option}>{option}</option>
-                        ))}
-                    </select>
-                    </div>
-                )}
 
                 {/* Website Info */}
                 <div className="flex flex-col space-y-3">
