@@ -485,47 +485,56 @@ export default function StaffUpload() {
           </div>
         </div>
 
-        {/* Website & Payment Gateway (New Fields) */}
-        <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-             <div className="flex flex-col space-y-3">
-                <div className="flex items-center">
-                    <input
-                        type="checkbox"
-                        id="has_website"
-                        checked={hasWebsite}
-                        onChange={(e) => setHasWebsite(e.target.checked)}
-                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="has_website" className="ml-2 block text-sm text-gray-900">
-                        Sudah memiliki website?
-                    </label>
-                </div>
-                
-                {hasWebsite && (
-                        <div>
+        {/* Website & Payment Gateway Group */}
+        <div className="mb-6">
+            <div className="flex items-center mb-2">
+                <input
+                    type="checkbox"
+                    id="has_website"
+                    checked={hasWebsite}
+                    onChange={(e) => {
+                        setHasWebsite(e.target.checked);
+                        if (!e.target.checked) setHasPaymentGateway(false);
+                    }}
+                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                />
+                <label htmlFor="has_website" className="ml-2 block text-sm text-gray-900 font-medium">
+                    Sudah memiliki website?
+                </label>
+            </div>
+
+            {hasWebsite && (
+                <div className="p-4 rounded-lg bg-gray-50 border border-gray-200 space-y-4">
+                    {/* Website URL */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Link Website <span className="text-red-500">*</span>
+                        </label>
                         <input
                             type="url"
                             value={websiteUrl}
                             onChange={(e) => setWebsiteUrl(e.target.value)}
-                            placeholder="https://..."
-                            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                            placeholder="https://www.example.com"
+                            className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                            required={hasWebsite}
                         />
                     </div>
-                )}
-            </div>
 
-            <div className="flex items-center">
-                <input
-                    type="checkbox"
-                    id="has_payment_gateway"
-                    checked={hasPaymentGateway}
-                    onChange={(e) => setHasPaymentGateway(e.target.checked)}
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                />
-                <label htmlFor="has_payment_gateway" className="ml-2 block text-sm text-gray-900">
-                    Sudah memiliki payment gateway?
-                </label>
-            </div>
+                    {/* Payment Gateway Checkbox */}
+                    <div className="flex items-center">
+                        <input
+                            type="checkbox"
+                            id="has_payment_gateway"
+                            checked={hasPaymentGateway}
+                            onChange={(e) => setHasPaymentGateway(e.target.checked)}
+                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                        />
+                        <label htmlFor="has_payment_gateway" className="ml-2 block text-sm text-gray-900">
+                            Sudah memiliki payment gateway?
+                        </label>
+                    </div>
+                </div>
+            )}
         </div>
 
         <div className="mb-6">
