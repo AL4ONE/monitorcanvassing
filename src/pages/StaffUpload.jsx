@@ -409,6 +409,7 @@ export default function StaffUpload() {
             <option value="umkm_fb">UMKM F&B</option>
             <option value="coffee_shop">Coffee Shop</option>
             <option value="restoran">Restoran</option>
+            <option value="product_digital">Product Digital</option>
           </select>
         </div>
 
