@@ -395,148 +395,152 @@ export default function StaffUpload() {
           </div>
         )}
 
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Kategori *
-          </label>
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            required
-          >
-            <option value="">Pilih Kategori</option>
-            <option value="umkm_fb">UMKM F&B</option>
-            <option value="coffee_shop">Coffee Shop</option>
-            <option value="restoran">Restoran</option>
-            <option value="product_digital">Product Digital</option>
-          </select>
-        </div>
-
-        <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Kontak (WA/HP)
-            </label>
-            <input
-              type="text"
-              value={contact}
-              onChange={(e) => setContact(e.target.value)}
-              placeholder="Contoh: 08123456789"
-              className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Link Instagram (Opsional)
-            </label>
-            <input
-              type="url"
-              value={instagramLink}
-              onChange={(e) => setInstagramLink(e.target.value)}
-              placeholder="https://instagram.com/username"
-              className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Channel FU
-            </label>
-            <select
-              value={channel}
-              onChange={(e) => setChannel(e.target.value)}
-              className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            >
-              <option value="">Pilih Channel</option>
-              <optgroup label="Social Media">
-                <option value="Instagram">Instagram</option>
-                <option value="TikTok">TikTok</option>
-                <option value="Facebook">Facebook</option>
-                <option value="WhatsApp">WhatsApp</option>
-                <option value="Threads">Threads</option>
-                <option value="Twitter/X">Twitter/X</option>
-                <option value="YouTube">YouTube</option>
-              </optgroup>
-              <optgroup label="Marketplace">
-                <option value="Shopee">Shopee</option>
-                <option value="Tokopedia">Tokopedia</option>
-                <option value="Lazada">Lazada</option>
-                <option value="Blibli">Blibli</option>
-                <option value="TikTok Shop">TikTok Shop</option>
-                <option value="GoFood">GoFood</option>
-                <option value="GrabFood">GrabFood</option>
-                <option value="ShopeeFood">ShopeeFood</option>
-              </optgroup>
-              <optgroup label="Lainnya">
-                <option value="Other">Lainnya</option>
-              </optgroup>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Lokasi (Opsional)
-            </label>
-            <input
-              type="text"
-              value={lokasi}
-              onChange={(e) => setLokasi(e.target.value)}
-              placeholder="Contoh: Jakarta Selatan"
-              className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            />
-          </div>
-        </div>
-
-        {/* Website & Payment Gateway Group */}
-        <div className="mb-6">
-            <div className="flex items-center mb-2">
-                <input
-                    type="checkbox"
-                    id="has_website"
-                    checked={hasWebsite}
-                    onChange={(e) => {
-                        setHasWebsite(e.target.checked);
-                        if (!e.target.checked) setHasPaymentGateway(false);
-                    }}
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                />
-                <label htmlFor="has_website" className="ml-2 block text-sm text-gray-900 font-medium">
-                    Sudah memiliki website?
-                </label>
+        {selectedStage === 0 && (
+          <>
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Kategori *
+              </label>
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                required={selectedStage === 0}
+              >
+                <option value="">Pilih Kategori</option>
+                <option value="umkm_fb">UMKM F&B</option>
+                <option value="coffee_shop">Coffee Shop</option>
+                <option value="restoran">Restoran</option>
+                <option value="product_digital">Product Digital</option>
+              </select>
             </div>
 
-            {hasWebsite && (
-                <div className="p-4 rounded-lg bg-gray-50 border border-gray-200 space-y-4">
-                    {/* Website URL */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Link Website <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                            type="url"
-                            value={websiteUrl}
-                            onChange={(e) => setWebsiteUrl(e.target.value)}
-                            placeholder="https://www.example.com"
-                            className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                            required={hasWebsite}
-                        />
-                    </div>
+            <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Kontak (WA/HP)
+                </label>
+                <input
+                  type="text"
+                  value={contact}
+                  onChange={(e) => setContact(e.target.value)}
+                  placeholder="Contoh: 08123456789"
+                  className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Link Instagram (Opsional)
+                </label>
+                <input
+                  type="url"
+                  value={instagramLink}
+                  onChange={(e) => setInstagramLink(e.target.value)}
+                  placeholder="https://instagram.com/username"
+                  className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Channel FU
+                </label>
+                <select
+                  value={channel}
+                  onChange={(e) => setChannel(e.target.value)}
+                  className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                >
+                  <option value="">Pilih Channel</option>
+                  <optgroup label="Social Media">
+                    <option value="Instagram">Instagram</option>
+                    <option value="TikTok">TikTok</option>
+                    <option value="Facebook">Facebook</option>
+                    <option value="WhatsApp">WhatsApp</option>
+                    <option value="Threads">Threads</option>
+                    <option value="Twitter/X">Twitter/X</option>
+                    <option value="YouTube">YouTube</option>
+                  </optgroup>
+                  <optgroup label="Marketplace">
+                    <option value="Shopee">Shopee</option>
+                    <option value="Tokopedia">Tokopedia</option>
+                    <option value="Lazada">Lazada</option>
+                    <option value="Blibli">Blibli</option>
+                    <option value="TikTok Shop">TikTok Shop</option>
+                    <option value="GoFood">GoFood</option>
+                    <option value="GrabFood">GrabFood</option>
+                    <option value="ShopeeFood">ShopeeFood</option>
+                  </optgroup>
+                  <optgroup label="Lainnya">
+                    <option value="Other">Lainnya</option>
+                  </optgroup>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Lokasi (Opsional)
+                </label>
+                <input
+                  type="text"
+                  value={lokasi}
+                  onChange={(e) => setLokasi(e.target.value)}
+                  placeholder="Contoh: Jakarta Selatan"
+                  className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+            </div>
 
-                    {/* Payment Gateway Checkbox */}
-                    <div className="flex items-center">
-                        <input
-                            type="checkbox"
-                            id="has_payment_gateway"
-                            checked={hasPaymentGateway}
-                            onChange={(e) => setHasPaymentGateway(e.target.checked)}
-                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                        />
-                        <label htmlFor="has_payment_gateway" className="ml-2 block text-sm text-gray-900">
-                            Sudah memiliki payment gateway?
-                        </label>
-                    </div>
+            {/* Website & Payment Gateway Group */}
+            <div className="mb-6">
+                <div className="flex items-center mb-2">
+                    <input
+                        type="checkbox"
+                        id="has_website"
+                        checked={hasWebsite}
+                        onChange={(e) => {
+                            setHasWebsite(e.target.checked);
+                            if (!e.target.checked) setHasPaymentGateway(false);
+                        }}
+                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="has_website" className="ml-2 block text-sm text-gray-900 font-medium">
+                        Sudah memiliki website?
+                    </label>
                 </div>
-            )}
-        </div>
+
+                {hasWebsite && (
+                    <div className="p-4 rounded-lg bg-gray-50 border border-gray-200 space-y-4">
+                        {/* Website URL */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Link Website <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="url"
+                                value={websiteUrl}
+                                onChange={(e) => setWebsiteUrl(e.target.value)}
+                                placeholder="https://www.example.com"
+                                className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                required={hasWebsite}
+                            />
+                        </div>
+
+                        {/* Payment Gateway Checkbox */}
+                        <div className="flex items-center">
+                            <input
+                                type="checkbox"
+                                id="has_payment_gateway"
+                                checked={hasPaymentGateway}
+                                onChange={(e) => setHasPaymentGateway(e.target.checked)}
+                                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                            />
+                            <label htmlFor="has_payment_gateway" className="ml-2 block text-sm text-gray-900">
+                                Sudah memiliki payment gateway?
+                            </label>
+                        </div>
+                    </div>
+                )}
+            </div>
+          </>
+        )}
 
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-2">
