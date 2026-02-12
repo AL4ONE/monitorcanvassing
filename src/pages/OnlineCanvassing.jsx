@@ -18,30 +18,13 @@ export default function OnlineCanvassing() {
     notes: '',
     rejection_reason: '',
     photo: null,
-    channel_category: '',
-    channel: '',
-    has_website: false,
-    website_url: '',
-    has_payment_gateway: false,
+    category: '', // UMKM F&B, Coffee Shop, Restoran
   });
   const [isEditing, setIsEditing] = useState(false);
   const [currentId, setCurrentId] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
   const fileInputRef = useRef(null);
-
-  // Channel Options
-  const channelParents = [
-    { value: 'Sosmed', label: 'Social Media' },
-    { value: 'Market Place', label: 'Marketplace' },
-    { value: 'Other', label: 'Lainnya' },
-  ];
-
-  const channelChildren = {
-    'Sosmed': ['Instagram', 'TikTok', 'Facebook', 'WhatsApp', 'Threads', 'Twitter/X', 'YouTube'],
-    'Market Place': ['Shopee', 'Tokopedia', 'Lazada', 'Blibli', 'TikTok Shop', 'GoFood', 'GrabFood', 'ShopeeFood'],
-    'Other': ['Website Langsung', 'Referral', 'Event', 'Walk-in']
-  };
 
   useEffect(() => {
     fetchReports();
@@ -60,29 +43,12 @@ export default function OnlineCanvassing() {
     }
   };
 
-  // Helper to get category
-  const getCategoryByChannel = (channelValue) => {
-    for (const [category, channels] of Object.entries(channelChildren)) {
-      if (channels.includes(channelValue)) return category;
-    }
-    return '';
-  };
-
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData((prev) => {
-        const newData = { 
-            ...prev, 
-            [name]: type === 'checkbox' ? checked : value 
-        };
-
-        // Auto-set category when channel changes
-        if (name === 'channel') {
-            newData.channel_category = getCategoryByChannel(value);
-        }
-
-        return newData;
-    });
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
   };
 
   const handlePhotoChange = async (e) => {
@@ -166,12 +132,8 @@ export default function OnlineCanvassing() {
       if (formData.contact_number) data.append('contact_number', formData.contact_number);
       data.append('status', formData.status);
       
-      // New Fields
-      if (formData.channel_category) data.append('channel_category', formData.channel_category);
-      if (formData.channel) data.append('channel', formData.channel);
-      data.append('has_website', formData.has_website ? '1' : '0');
-      if (formData.has_website && formData.website_url) data.append('website_url', formData.website_url);
-      data.append('has_payment_gateway', formData.has_payment_gateway ? '1' : '0');
+      // Category
+      if (formData.category) data.append('category', formData.category);
 
       if (formData.status === 'rejected' && formData.rejection_reason) {
         data.append('rejection_reason', formData.rejection_reason);
@@ -355,73 +317,22 @@ export default function OnlineCanvassing() {
 
 
 
-                {/* Combined Channel Selection */}
+                {/* Category */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Channel / Platform
+                    Kategori <span className="text-red-500">*</span>
                   </label>
                   <select
-                    name="channel"
-                    value={formData.channel}
+                    name="category"
+                    value={formData.category}
                     onChange={handleChange}
                     className="w-full border border-gray-300 rounded-md px-3 py-2"
                   >
-                    <option value="">-- Pilih Channel --</option>
-                    {channelParents.map((parent) => (
-                      <optgroup key={parent.value} label={parent.label}>
-                        {channelChildren[parent.value]?.map((child) => (
-                          <option key={child} value={child}>
-                            {child}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
+                    <option value="">-- Pilih Kategori --</option>
+                    <option value="UMKM F&B">UMKM F&B</option>
+                    <option value="Coffee Shop">Coffee Shop</option>
+                    <option value="Restoran">Restoran</option>
                   </select>
-                </div>
-
-                {/* Website Info */}
-                <div className="flex flex-col space-y-3">
-                    <div className="flex items-center">
-                        <input
-                            type="checkbox"
-                            name="has_website"
-                            id="has_website"
-                            checked={formData.has_website}
-                            onChange={handleChange}
-                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                        />
-                        <label htmlFor="has_website" className="ml-2 block text-sm text-gray-900">
-                            Sudah memiliki website?
-                        </label>
-                    </div>
-                    
-                    {formData.has_website && (
-                         <div>
-                            <input
-                                type="url"
-                                name="website_url"
-                                value={formData.website_url}
-                                onChange={handleChange}
-                                placeholder="https://..."
-                                className="w-full border border-gray-300 rounded-md px-3 py-2"
-                            />
-                        </div>
-                    )}
-                </div>
-
-                 {/* Payment Gateway Info */}
-                 <div className="flex items-center">
-                    <input
-                        type="checkbox"
-                        name="has_payment_gateway"
-                        id="has_payment_gateway"
-                        checked={formData.has_payment_gateway}
-                        onChange={handleChange}
-                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="has_payment_gateway" className="ml-2 block text-sm text-gray-900">
-                        Sudah memiliki payment gateway?
-                    </label>
                 </div>
 
                 {/* Contact Name */}

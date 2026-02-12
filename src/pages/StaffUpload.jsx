@@ -23,8 +23,24 @@ export default function StaffUpload() {
   const [showManualSelection, setShowManualSelection] = useState(false);
   const [prospectSearchQuery, setProspectSearchQuery] = useState('');
   const [manualUsername, setManualUsername] = useState('');
+  const [hasWebsite, setHasWebsite] = useState(false);
+  const [websiteUrl, setWebsiteUrl] = useState('');
+  const [hasPaymentGateway, setHasPaymentGateway] = useState(false);
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
+
+  const channelChildren = {
+    'Sosmed': ['Instagram', 'TikTok', 'Facebook', 'WhatsApp', 'Threads', 'Twitter/X', 'YouTube'],
+    'Market Place': ['Shopee', 'Tokopedia', 'Lazada', 'Blibli', 'TikTok Shop', 'GoFood', 'GrabFood', 'ShopeeFood'],
+    'Other': ['Other', 'Website Langsung', 'Referral', 'Event', 'Walk-in']
+  };
+
+  const getCategoryByChannel = (channelValue) => {
+    for (const [category, channels] of Object.entries(channelChildren)) {
+      if (channels.includes(channelValue)) return category;
+    }
+    return '';
+  };
 
   // Filter prospects based on search query
   const filteredProspects = activeProspects.filter((p) =>
@@ -170,7 +186,17 @@ export default function StaffUpload() {
       formData.append('category', selectedCategory);
       if (contact) formData.append('contact_number', contact);
       if (instagramLink) formData.append('instagram_link', instagramLink);
-      if (channel) formData.append('channel', channel);
+      
+      if (channel) {
+        formData.append('channel', channel);
+        const channelCategory = getCategoryByChannel(channel);
+        if (channelCategory) formData.append('channel_category', channelCategory);
+      }
+      
+      formData.append('has_website', hasWebsite ? '1' : '0');
+      if (hasWebsite && websiteUrl) formData.append('website_url', websiteUrl);
+      formData.append('has_payment_gateway', hasPaymentGateway ? '1' : '0');
+
       if (interactionStatus) formData.append('interaction_status', interactionStatus);
       if (lokasi) formData.append('lokasi', lokasi);
       if (selectedProspect) formData.append('prospect_id', selectedProspect);
@@ -421,12 +447,28 @@ export default function StaffUpload() {
               className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
             >
               <option value="">Pilih Channel</option>
-              <option value="instagram">Instagram</option>
-              <option value="tiktok">TikTok</option>
-              <option value="facebook">Facebook</option>
-              <option value="threads">Threads</option>
-              <option value="whatsapp">WhatsApp</option>
-              <option value="other">Lainnya</option>
+              <optgroup label="Social Media">
+                <option value="Instagram">Instagram</option>
+                <option value="TikTok">TikTok</option>
+                <option value="Facebook">Facebook</option>
+                <option value="WhatsApp">WhatsApp</option>
+                <option value="Threads">Threads</option>
+                <option value="Twitter/X">Twitter/X</option>
+                <option value="YouTube">YouTube</option>
+              </optgroup>
+              <optgroup label="Marketplace">
+                <option value="Shopee">Shopee</option>
+                <option value="Tokopedia">Tokopedia</option>
+                <option value="Lazada">Lazada</option>
+                <option value="Blibli">Blibli</option>
+                <option value="TikTok Shop">TikTok Shop</option>
+                <option value="GoFood">GoFood</option>
+                <option value="GrabFood">GrabFood</option>
+                <option value="ShopeeFood">ShopeeFood</option>
+              </optgroup>
+              <optgroup label="Lainnya">
+                <option value="Other">Lainnya</option>
+              </optgroup>
             </select>
           </div>
           <div>
@@ -441,6 +483,49 @@ export default function StaffUpload() {
               className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
             />
           </div>
+        </div>
+
+        {/* Website & Payment Gateway (New Fields) */}
+        <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+             <div className="flex flex-col space-y-3">
+                <div className="flex items-center">
+                    <input
+                        type="checkbox"
+                        id="has_website"
+                        checked={hasWebsite}
+                        onChange={(e) => setHasWebsite(e.target.checked)}
+                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="has_website" className="ml-2 block text-sm text-gray-900">
+                        Sudah memiliki website?
+                    </label>
+                </div>
+                
+                {hasWebsite && (
+                        <div>
+                        <input
+                            type="url"
+                            value={websiteUrl}
+                            onChange={(e) => setWebsiteUrl(e.target.value)}
+                            placeholder="https://..."
+                            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                        />
+                    </div>
+                )}
+            </div>
+
+            <div className="flex items-center">
+                <input
+                    type="checkbox"
+                    id="has_payment_gateway"
+                    checked={hasPaymentGateway}
+                    onChange={(e) => setHasPaymentGateway(e.target.checked)}
+                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                />
+                <label htmlFor="has_payment_gateway" className="ml-2 block text-sm text-gray-900">
+                    Sudah memiliki payment gateway?
+                </label>
+            </div>
         </div>
 
         <div className="mb-6">
