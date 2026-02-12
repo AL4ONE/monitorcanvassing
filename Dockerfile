@@ -10,5 +10,11 @@ RUN npm run build
 FROM nginx:alpine
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY docker-config/nginx.conf /etc/nginx/conf.d/default.conf
+
+# Add frontend entrypoint
+COPY docker-config/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
+
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
