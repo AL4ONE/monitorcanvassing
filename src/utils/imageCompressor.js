@@ -34,8 +34,9 @@ export const cropImageHeader = async (file) => {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
 
-        // We only need the top ~1500px (or full height if smaller)
-        const cropHeight = Math.min(img.height, 1500); 
+        // We only need the top ~2500px (covers almost full screen on most phones)
+        // Previously 1500px was too short for Follow Up messages at the bottom
+        const cropHeight = Math.min(img.height, 2500); 
         const width = img.width;
 
         canvas.width = width;
