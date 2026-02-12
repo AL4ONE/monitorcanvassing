@@ -1,69 +1,114 @@
 # ============================================================
-# 🏗️ TAHAP 1: BUILD STAGE
+# 🏗️ TAHAP 1: BUILD STAGE - Composer Dependencies
 # ------------------------------------------------------------
-# Tujuan: Membangun aplikasi frontend menggunakan Node.js
-# Basis image: Node 22 Alpine (ringan & cepat)
+# Tujuan: Install composer dependencies
 # ============================================================
-FROM node:22-alpine AS img-builder
+FROM composer:2 AS composer-builder
 
-# 🌱 Set environment untuk build
-ENV NODE_ENV=development
-
-# 📁 Tentukan direktori kerja di dalam container
 WORKDIR /app
 
-# 🔒 Pastikan direktori dimiliki oleh user "node" agar aman
-RUN chown node:node /app
+# Copy composer files
+COPY composer.json composer.lock ./
 
-# � Jalankan perintah sebagai user non-root (node)
-USER node
+# Install dependencies respecting composer.lock (deterministic builds)
+# Note: --ignore-platform-reqs is safe here because extensions are installed in production stage
+RUN composer install --no-dev --optimize-autoloader --no-scripts --no-interaction --ignore-platform-reqs
 
-# �📦 Salin file package.json & package-lock.json untuk caching layer dependensi
-# Pastikan ownership untuk user node
-COPY --chown=node:node package*.json ./
 
-# 📥 Install semua dependensi (termasuk devDependencies untuk build)
-# Menggunakan --legacy-peer-deps untuk mengatasi konflik dependency React v19
+# ============================================================
+# 🏗️ TAHAP 2: BUILD STAGE - Node Assets
+# ------------------------------------------------------------
+# Tujuan: Membangun asset frontend Laravel Vite
+# ============================================================
+FROM node:22.21.1-alpine3.23 AS node-builder
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
 RUN npm install --legacy-peer-deps
 
-# 📂 Salin seluruh source code aplikasi ke container
-COPY --chown=node:node . .
+# Copy source code
+COPY . .
 
-# 🔧 Salin .env.docker ke .env untuk build environment variables
-COPY --chown=node:node .env.docker .env
-
-# ⚙️ Jalankan build frontend
+# Build assets
 RUN npm run build
 
-# 🧾 (Opsional) Debug hasil build: tampilkan isi direktori build
-RUN pwd && ls -alsh dist
-
 
 # ============================================================
-# 🚀 TAHAP 2: PRODUCTION STAGE
+# 🚀 TAHAP 3: PRODUCTION STAGE - PHP-FPM + NGINX
 # ------------------------------------------------------------
-# Tujuan: Menjalankan hasil build menggunakan NGINX
-# Basis image: nginx:1.25-alpine (ringan & stabil)
+# Tujuan: Menjalankan aplikasi Laravel dengan PHP-FPM dan NGINX
 # ============================================================
-FROM nginx:1.25-alpine
+FROM php:8.3-fpm-alpine
 
-# 📦 Salin hasil build dari tahap pertama ke direktori web NGINX
-COPY --from=img-builder /app/dist /usr/share/nginx/html
 
-# ⚙️ Ganti konfigurasi default NGINX dengan file custom
-COPY docker-config/nginx.conf /etc/nginx/conf.d/default.conf
+# Install system dependencies, PHP extensions, and phpredis
+RUN apk add --no-cache \
+    nginx \
+    supervisor \
+    curl \
+    gettext \
+    libpng-dev \
+    libjpeg-turbo-dev \
+    freetype-dev \
+    zip \
+    libzip-dev \
+    oniguruma-dev \
+    libxml2-dev \
+    postgresql-dev \
+    autoconf g++ make \
+    && pecl install redis \
+    && docker-php-ext-enable redis \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install pdo pdo_mysql pdo_pgsql mbstring exif pcntl bcmath gd zip xml dom \
+    && echo "upload_max_filesize = 20M" > /usr/local/etc/php/conf.d/uploads.ini \
+    && echo "post_max_size = 20M" >> /usr/local/etc/php/conf.d/uploads.ini
 
-# 🧰 Tambahkan entrypoint script untuk dynamic runtime replacement
+# Set working directory
+WORKDIR /var/www/html
+
+# Copy application files
+COPY --chown=www-data:www-data . .
+
+# Copy composer dependencies dari builder
+COPY --from=composer-builder --chown=www-data:www-data /app/vendor ./vendor
+
+# Install composer for production (needed for autoload regeneration)
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+# Regenerate autoload files in production environment
+RUN composer dump-autoload --optimize --no-dev
+
+# Copy built assets dari node builder
+COPY --from=node-builder --chown=www-data:www-data /app/public/build ./public/build
+
+# Create required directories and set permissions
+RUN mkdir -p storage/framework/{sessions,views,cache} \
+    && mkdir -p storage/logs \
+    && mkdir -p bootstrap/cache \
+    && mkdir -p /var/log/supervisor \
+    && chown -R www-data:www-data storage bootstrap/cache \
+    && chmod -R 775 storage bootstrap/cache
+
+# Copy nginx configuration
+COPY docker-config/nginx.conf /etc/nginx/http.d/default.conf
+
+# Copy supervisor configuration
+RUN mkdir -p /etc/supervisor/conf.d
+COPY docker-config/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Copy entrypoint script
 COPY docker-config/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-# 🔐 Pastikan entrypoint script dapat dieksekusi
-RUN chmod +x /entrypoint.sh && ls -l /
-
-# 🚀 Gunakan entrypoint script sebagai eksekusi awal container
-ENTRYPOINT ["/entrypoint.sh"]
-
-# 🌐 Buka port 80 untuk akses HTTP
+# Expose port 80
 EXPOSE 80
 
-# 🧠 Jalankan NGINX di foreground (agar container tetap hidup)
-CMD ["nginx", "-g", "daemon off;"]
+# Use entrypoint script
+ENTRYPOINT ["/entrypoint.sh"]
+
+# Run supervisor to manage nginx and php-fpm
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

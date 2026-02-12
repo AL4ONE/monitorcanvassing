@@ -26,7 +26,7 @@ before_script:
     done
   - echo "Attempting Docker login..."
   - docker version
-  - cat /etc/*ease   
+  - cat /etc/*ease
   - ps -ef
   - docker ps
   - hostname
@@ -35,7 +35,7 @@ before_script:
   - echo "$CI_REG_SANDY" | docker login -u "$CI_REG_USER" --password-stdin "$CI_REG_URL"
   - echo "Docker login successful."
 
-  
+
 after_script:
   - docker logout
 
@@ -76,7 +76,7 @@ build-app-onstag:
     - echo "Building Docker image..."
     - docker build -t "$IMAGE_TAG_PRE" . -f Dockerfile
     - docker push "$IMAGE_TAG_PRE"
-  only: 
+  only:
     - development
     - main
     - dev
@@ -88,7 +88,7 @@ build-app-ondev:
     - echo "Building Docker image..."
     - docker build -t "$IMAGE_TAG_PRE" . -f Dockerfile
     - docker push "$IMAGE_TAG_PRE"
-  only: 
+  only:
     - on-development
 
 
@@ -99,35 +99,36 @@ build-app-cloud:
     - echo "Building Docker image..."
     - docker build -t "$IMAGE_TAG_PRE" . -f Dockerfile
     - docker push "$IMAGE_TAG_PRE"
-  only: 
+  only:
     - production
     - on-cloud
     - on-production
 
 
-test-curl:
+
+laravel-test:
   stage: test
   script:
     - source variables.env
-    - echo "Testing $CI_REG_PROJECT_NAME connectivity using cURL..."
-    - docker network create net-$CI_REG_PROJECT_NAME
-    - docker run --network=net-$CI_REG_PROJECT_NAME -d --name $CI_REG_PROJECT_NAME -p 80:80 -e DATABASE_URL="${DATABASE_URL}" -e JWT_SECRET="${JWT_SECRET}" -e PORT="${PORT}" $IMAGE_TAG_PRE
-    - docker inspect $CI_REG_PROJECT_NAME
-    - apk add curl
-    - sleep 10
-    - curl -vvv --fail http://127.0.0.1
-    - docker stop $CI_REG_PROJECT_NAME
+    - echo "Testing $CI_REG_PROJECT_NAME with Laravel test..."
+    - cp .env.example .env 
+    - |
+      rm -f docker-compose.override.yml
+      export APP_IMAGE=$IMAGE_TAG_PRE  
+      docker compose up -d
+      sleep 10  # Tunggu sebentar agar container siap
+      docker compose exec backend sh -c "composer require --dev phpunit/phpunit"
+      docker compose exec backend sh -c "php artisan test"
+      docker compose down
+      
   allow_failure: true  # Pipeline tidak akan gagal meskipun job ini gagal
+  only:
+    - development
+    - on-development
+    - staging
+    - fix-build
 
 
-test-direct:
-  stage: test
-  script:
-    - source variables.env
-    - docker pull "$IMAGE_TAG_PRE"
-    - docker run -d --name "$CI_REG_PROJECT_NAME" "$IMAGE_TAG_PRE"
-    - docker commit "$CI_REG_PROJECT_NAME" "$IMAGE_TAG_PRE-direct"
-    - docker push "$IMAGE_TAG_PRE-direct"
 
 release:
   stage: release
@@ -170,7 +171,7 @@ deploy-onstag:
     - cat /tmp/curl-deploy.sh
     - echo "Executing deployment script..."
     - sh /tmp/curl-deploy.sh
-  only: 
+  only:
     - development
     - main
     - dev
@@ -207,7 +208,7 @@ deploy-ondev:
     - cat /tmp/curl-deploy.sh
     - echo "Executing deployment script..."
     - sh /tmp/curl-deploy.sh
-  only: 
+  only:
     - on-development
 
 
@@ -244,7 +245,7 @@ deploy-onprod:
     - cat /tmp/curl-deploy.sh
     - echo "Executing deployment script..."
     - bash -x /tmp/curl-deploy.sh
-  only: 
+  only:
     - on-production
     - on-cloud
     
