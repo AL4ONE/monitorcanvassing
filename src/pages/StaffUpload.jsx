@@ -255,7 +255,9 @@ export default function StaffUpload() {
     } catch (error) {
       const errorData = error.response?.data;
       if (errorData?.errors) {
-        setErrors(errorData.errors);
+        // Flatten Laravel error object { field: [msg] } to array of strings
+        const flatErrors = Object.values(errorData.errors).flat();
+        setErrors(flatErrors);
       } else {
         // Check if backend signals to show manual selection (all stages)
         if (errorData?.show_manual_selection) {
