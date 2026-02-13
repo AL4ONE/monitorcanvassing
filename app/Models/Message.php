@@ -25,6 +25,10 @@ class Message extends Model
         'invalid_reason',
         'channel',
         'interaction_status',
+        'channel_category',
+        'has_website',
+        'website_url',
+        'has_payment_gateway',
     ];
 
     protected $casts = [

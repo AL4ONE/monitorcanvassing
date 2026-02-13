@@ -162,6 +162,7 @@ class CanvassingController extends Controller
                 'messages' => function ($q) {
                     $q->orderBy('stage', 'asc');
                 },
+                'latestMessage',
                 'statusLogs.user' // Eager load logs and user who changed them
             ]);
 
@@ -199,6 +200,28 @@ class CanvassingController extends Controller
                 // Determine category from first message (stage 0) or any message
                 $category = $cycle->messages->first()->category ?? '-';
 
+                // Use latest interaction status if available, fallback to cycle status
+                // If the latest message has interaction_status 'menerima' -> 'converted'
+                // If 'menolak' -> 'rejected'
+                // If 'tertarik' or 'no_response' -> 'ongoing' (or 'active')
+                // Or just return the raw interaction_status to let FE handle it? 
+                // The FE expects 'active', 'ongoing', 'converted', 'rejected', 'failed' 
+                // Let's pass the raw interaction_status as well so FE can display it.
+
+                $latestInteractionStatus = $cycle->latestMessage->interaction_status ?? null;
+                $displayStatus = $cycle->status;
+
+                // Sync display status with latest interaction status
+                if ($latestInteractionStatus === 'menerima') {
+                    $displayStatus = 'converted';
+                } elseif ($latestInteractionStatus === 'menolak') {
+                    $displayStatus = 'rejected';
+                } elseif ($latestInteractionStatus === 'tertarik' || $latestInteractionStatus === 'no_response') {
+                    // Logic to keep it ongoing if not explicitly converted/rejected
+                    if ($displayStatus === 'active')
+                        $displayStatus = 'ongoing';
+                }
+
                 return [
                     'id' => $cycle->id,
                     'staff_name' => $cycle->staff->name,
@@ -207,7 +230,8 @@ class CanvassingController extends Controller
                     'channel' => $cycle->prospect->channel ?? '-',
                     'lokasi' => $cycle->prospect->lokasi ?? '-',
                     'category' => $category,
-                    'status' => $cycle->status, // ongoing / converted / rejected
+                    'status' => $displayStatus,
+                    'interaction_status' => $latestInteractionStatus, // Pass this to FE
                     'current_stage' => $cycle->current_stage,
                     'start_date' => $cycle->start_date->format('Y-m-d'),
                     'last_followup_date' => $cycle->last_followup_date ? $cycle->last_followup_date->format('Y-m-d') : '-',

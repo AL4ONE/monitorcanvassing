@@ -21,6 +21,12 @@ class OnlineCanvassingReport extends Model
         'rejection_reason',
         'photo',
         'visit_date',
+        'category',
+        'channel_category',
+        'channel',
+        'has_website',
+        'website_url',
+        'has_payment_gateway',
     ];
 
     protected $casts = [
