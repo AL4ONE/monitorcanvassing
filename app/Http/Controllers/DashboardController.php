@@ -93,10 +93,37 @@ class DashboardController extends Controller
             ->where('validation_status', 'pending')
             ->count();
 
+        // Overall Stats for Staff
+        $overallStats = [
+            'total_canvassing' => Message::whereHas('canvassingCycle', function ($q) use ($staffId) {
+                $q->where('staff_id', $staffId);
+            })->where('stage', 0)->whereDate('submitted_at', $date)->count(),
+
+            'total_follow_up' => Message::whereHas('canvassingCycle', function ($q) use ($staffId) {
+                $q->where('staff_id', $staffId);
+            })->where('stage', '>', 0)->whereDate('submitted_at', $date)->count(),
+
+            'total_registered' => Message::whereHas('canvassingCycle', function ($q) use ($staffId) {
+                $q->where('staff_id', $staffId);
+            })->where('interaction_status', 'menerima')->whereDate('submitted_at', $date)->count(),
+
+            'total_rejected' => Message::whereHas('canvassingCycle', function ($q) use ($staffId) {
+                $q->where('staff_id', $staffId);
+            })->where('interaction_status', 'menolak')->whereDate('submitted_at', $date)->count(),
+
+            'total_on_progress' => Message::whereHas('canvassingCycle', function ($q) use ($staffId) {
+                $q->where('staff_id', $staffId);
+            })->where(function ($q) {
+                $q->whereIn('interaction_status', ['no_response', 'tertarik'])
+                    ->orWhereNull('interaction_status');
+            })->whereDate('submitted_at', $date)->count(),
+        ];
+
         return response()->json([
             'targets_per_stage' => $targetsPerStage,
             'recent_messages' => $recentMessages,
             'pending_count' => $pendingCount,
+            'overall_stats' => $overallStats,
         ]);
     }
 
@@ -225,6 +252,14 @@ class DashboardController extends Controller
                 'total_active_groups' => CanvassingGroup::where('status', '!=', 'cancelled')->count(),
                 'total_offline_in_group' => CanvassingGroupProspect::whereNotNull('canvassing_group_id')->count(),
                 'total_offline_out_group' => CanvassingGroupProspect::whereNull('canvassing_group_id')->count(),
+
+                // New Online Stats
+                'total_registered' => Message::where('interaction_status', 'menerima')->whereBetween('submitted_at', [$startDate, $endDate])->count(),
+                'total_rejected' => Message::where('interaction_status', 'menolak')->whereBetween('submitted_at', [$startDate, $endDate])->count(),
+                'total_on_progress' => Message::where(function ($q) {
+                    $q->whereIn('interaction_status', ['no_response', 'tertarik'])
+                        ->orWhereNull('interaction_status');
+                })->whereBetween('submitted_at', [$startDate, $endDate])->count(),
             ];
 
             // Chart Data (Last 7 days)
