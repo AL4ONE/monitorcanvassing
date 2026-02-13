@@ -45,6 +45,11 @@ class CanvassingCycle extends Model
         return $this->hasMany(Message::class);
     }
 
+    public function latestMessage()
+    {
+        return $this->hasOne(Message::class)->latestOfMany();
+    }
+
     public function statusLogs(): HasMany
     {
         return $this->hasMany(CycleStatusLog::class)->orderBy('created_at', 'desc');

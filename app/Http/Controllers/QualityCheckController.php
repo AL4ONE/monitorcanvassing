@@ -23,7 +23,7 @@ class QualityCheckController extends Controller
             ], 403);
         }
 
-        $query = Message::with(['canvassingCycle.prospect', 'canvassingCycle.staff', 'qualityCheck'])
+        $query = Message::with(['canvassingCycle.prospect', 'canvassingCycle.staff', 'canvassingCycle.latestMessage', 'qualityCheck'])
             ->where('validation_status', 'pending');
 
         // Filter by staff_id
@@ -205,6 +205,7 @@ class QualityCheckController extends Controller
             'canvassingCycle.messages' => function ($q) {
                 $q->orderBy('stage', 'asc');
             },
+            'canvassingCycle.latestMessage',
             'qualityCheck.supervisor',
         ])->findOrFail($id);
 
