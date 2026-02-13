@@ -273,13 +273,18 @@ export default function QualityCheck() {
                                 {msg.interaction_status && (
                                     <div className="flex gap-2">
                                         <span className="font-medium">Status:</span> 
-                                        <span className={`px-1.5 rounded ${
-                                            msg.interaction_status === 'menerima' ? 'bg-green-100 text-green-700' :
-                                            msg.interaction_status === 'menolak' ? 'bg-red-100 text-red-700' :
-                                            'bg-yellow-100 text-yellow-700'
-                                        }`}>
-                                            {msg.interaction_status}
-                                        </span>
+                                        {(() => {
+                                            const status = msg.canvassing_cycle?.latest_message?.interaction_status || msg.interaction_status;
+                                            return (
+                                                <span className={`px-1.5 rounded ${
+                                                    status === 'menerima' ? 'bg-green-100 text-green-700' :
+                                                    status === 'menolak' ? 'bg-red-100 text-red-700' :
+                                                    'bg-yellow-100 text-yellow-700'
+                                                }`}>
+                                                    {status}
+                                                </span>
+                                            );
+                                        })()}
                                     </div>
                                 )}
                                 {msg.has_website && (
@@ -374,13 +379,18 @@ export default function QualityCheck() {
                     </div>
                      <div>
                         <p className="text-xs text-gray-500">Status Interaksi</p>
-                        <p className={`font-medium inline-block px-2 py-0.5 rounded text-sm ${
-                             selectedMessage.data.interaction_status === 'menerima' ? 'bg-green-100 text-green-700' :
-                             selectedMessage.data.interaction_status === 'menolak' ? 'bg-red-100 text-red-700' :
-                             selectedMessage.data.interaction_status ? 'bg-yellow-100 text-yellow-700' : 'text-gray-500'
-                        }`}>
-                            {selectedMessage.data.interaction_status || '-'}
-                        </p>
+                        {(() => {
+                             const status = selectedMessage.data.canvassing_cycle?.latest_message?.interaction_status || selectedMessage.data.interaction_status;
+                             return (
+                                <p className={`font-medium inline-block px-2 py-0.5 rounded text-sm ${
+                                     status === 'menerima' ? 'bg-green-100 text-green-700' :
+                                     status === 'menolak' ? 'bg-red-100 text-red-700' :
+                                     status ? 'bg-yellow-100 text-yellow-700' : 'text-gray-500'
+                                }`}>
+                                    {status || '-'}
+                                </p>
+                             );
+                        })()}
                     </div>
                   </div>
                   
