@@ -245,27 +245,62 @@ export default function QualityCheck() {
                   className="border rounded-lg p-4 cursor-pointer hover:bg-gray-50"
                   onClick={() => handleViewMessage(msg.id)}
                 >
-                  <div className="flex justify-between items-start">
                     <div>
-                      <p className="font-medium">
-                        {msg.stage === 0 ? 'Canvassing' : `FU-${msg.stage}`}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        @{msg.canvassing_cycle?.prospect?.instagram_username || msg.ocr_instagram_username}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {msg.category === 'umkm_fb' ? 'UMKM F&B' :
-                          msg.category === 'coffee_shop' ? 'Coffee Shop' :
-                            msg.category === 'restoran' ? 'Restoran' : 'N/A'}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {new Date(msg.submitted_at).toLocaleString('id-ID')}
-                      </p>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-medium text-indigo-600">
+                            {msg.stage === 0 ? 'Canvassing' : `FU-${msg.stage}`}
+                          </p>
+                          <p className="text-sm font-semibold text-gray-900">
+                            @{msg.canvassing_cycle?.prospect?.instagram_username || msg.ocr_instagram_username}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {msg.category === 'umkm_fb' ? 'UMKM F&B' :
+                              msg.category === 'coffee_shop' ? 'Coffee Shop' :
+                                msg.category === 'restoran' ? 'Restoran' :
+                                  msg.category === 'product_digital' ? 'Product Digital' : 'N/A'}
+                          </p>
+                          
+                   
+                          {/* New Info Fields in List */}
+                          <div className="mt-2 text-xs text-gray-600 space-y-1">
+                                <div className="flex gap-2">
+                                    <span className="font-medium">Kontak:</span> {msg.contact_number || '-'}
+                                </div>
+                                <div className="flex gap-2">
+                                    <span className="font-medium">Channel:</span> {msg.channel || '-'}
+                                </div>
+                                {msg.interaction_status && (
+                                    <div className="flex gap-2">
+                                        <span className="font-medium">Status:</span> 
+                                        <span className={`px-1.5 rounded ${
+                                            msg.interaction_status === 'menerima' ? 'bg-green-100 text-green-700' :
+                                            msg.interaction_status === 'menolak' ? 'bg-red-100 text-red-700' :
+                                            'bg-yellow-100 text-yellow-700'
+                                        }`}>
+                                            {msg.interaction_status}
+                                        </span>
+                                    </div>
+                                )}
+                                {msg.has_website && (
+                                     <div className="flex gap-2 items-center text-blue-600">
+                                        <span className="font-medium text-gray-600">Web:</span> 
+                                        <a href={msg.website_url} target="_blank" rel="noopener noreferrer" className="hover:underline truncate max-w-[150px]" onClick={e => e.stopPropagation()}>
+                                            {msg.website_url}
+                                        </a>
+                                     </div>
+                                )}
+                          </div>
+                          
+                          <p className="text-xs text-gray-400 mt-2">
+                            {new Date(msg.submitted_at).toLocaleString('id-ID')}
+                          </p>
+                        </div>
+                        <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded shrink-0 ml-2">
+                          Pending
+                        </span>
+                      </div>
                     </div>
-                    <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded">
-                      Pending
-                    </span>
-                  </div>
                 </div>
               ))}
             </div>
@@ -325,7 +360,8 @@ export default function QualityCheck() {
                   <p className="text-sm">
                     {selectedMessage.data.category === 'umkm_fb' ? 'UMKM F&B' :
                       selectedMessage.data.category === 'coffee_shop' ? 'Coffee Shop' :
-                        selectedMessage.data.category === 'restoran' ? 'Restoran' : 'N/A'}
+                        selectedMessage.data.category === 'restoran' ? 'Restoran' :
+                          selectedMessage.data.category === 'product_digital' ? 'Product Digital' : 'N/A'}
                   </p>
                 </div>
 

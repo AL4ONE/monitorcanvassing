@@ -172,6 +172,19 @@ export default function SupervisorDashboard() {
                     <h3 className="text-sm font-medium text-gray-600">Total Follow Up</h3>
                     <p className="text-3xl font-bold mt-2">{data.overall_stats.total_follow_up}</p>
                 </div>
+                {/* New Online Stats */}
+                <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
+                    <h3 className="text-sm font-medium text-gray-600">Total Registered</h3>
+                    <p className="text-3xl font-bold mt-2 text-green-600">{data.overall_stats.total_registered || 0}</p>
+                </div>
+                <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-red-500">
+                    <h3 className="text-sm font-medium text-gray-600">Total Rejected</h3>
+                    <p className="text-3xl font-bold mt-2 text-red-600">{data.overall_stats.total_rejected || 0}</p>
+                </div>
+                <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-yellow-500">
+                    <h3 className="text-sm font-medium text-gray-600">On Progress</h3>
+                    <p className="text-3xl font-bold mt-2 text-yellow-600">{data.overall_stats.total_on_progress || 0}</p>
+                </div>
                 <div className="bg-white rounded-lg shadow-md p-6">
                     <h3 className="text-sm font-medium text-gray-600">Pending QC</h3>
                     <p className="text-3xl font-bold mt-2">{data.overall_stats.pending_quality_checks}</p>
