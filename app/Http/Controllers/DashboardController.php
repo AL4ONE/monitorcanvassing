@@ -93,6 +93,25 @@ class DashboardController extends Controller
             ->where('validation_status', 'pending')
             ->count();
 
+        // New Logic for Staff Stats
+        $latestMessageIds = Message::select(DB::raw('MAX(id) as id'))
+            ->whereHas('canvassingCycle', function ($q) use ($staffId) {
+                $q->where('staff_id', $staffId);
+            })
+            ->whereDate('submitted_at', $date)
+            ->whereNotNull('canvassing_cycle_id')
+            ->groupBy('canvassing_cycle_id')
+            ->pluck('id');
+
+        $statusCounts = Message::whereIn('id', $latestMessageIds)
+            ->select('interaction_status', DB::raw('count(*) as count'))
+            ->groupBy('interaction_status')
+            ->pluck('count', 'interaction_status');
+
+        $totalRegistered = $statusCounts->get('menerima', 0);
+        $totalRejected = $statusCounts->get('menolak', 0);
+        $totalOnProgress = $latestMessageIds->count() - $totalRegistered - $totalRejected;
+
         // Overall Stats for Staff
         $overallStats = [
             'total_canvassing' => Message::whereHas('canvassingCycle', function ($q) use ($staffId) {
@@ -103,20 +122,9 @@ class DashboardController extends Controller
                 $q->where('staff_id', $staffId);
             })->where('stage', '>', 0)->whereDate('submitted_at', $date)->count(),
 
-            'total_registered' => Message::whereHas('canvassingCycle', function ($q) use ($staffId) {
-                $q->where('staff_id', $staffId);
-            })->where('interaction_status', 'menerima')->whereDate('submitted_at', $date)->count(),
-
-            'total_rejected' => Message::whereHas('canvassingCycle', function ($q) use ($staffId) {
-                $q->where('staff_id', $staffId);
-            })->where('interaction_status', 'menolak')->whereDate('submitted_at', $date)->count(),
-
-            'total_on_progress' => Message::whereHas('canvassingCycle', function ($q) use ($staffId) {
-                $q->where('staff_id', $staffId);
-            })->where(function ($q) {
-                $q->whereIn('interaction_status', ['no_response', 'tertarik'])
-                    ->orWhereNull('interaction_status');
-            })->whereDate('submitted_at', $date)->count(),
+            'total_registered' => $totalRegistered,
+            'total_rejected' => $totalRejected,
+            'total_on_progress' => $totalOnProgress,
         ];
 
         return response()->json([
@@ -244,6 +252,23 @@ class DashboardController extends Controller
                 ],
             ]);
 
+            // New Online Stats - Logic updated to pick latest status per cycle in range
+            $latestMessageIds = Message::select(DB::raw('MAX(id) as id'))
+                ->whereBetween('submitted_at', [$startDate, $endDate])
+                ->whereNotNull('canvassing_cycle_id')
+                ->groupBy('canvassing_cycle_id')
+                ->pluck('id');
+
+            $statusCounts = Message::whereIn('id', $latestMessageIds)
+                ->select('interaction_status', DB::raw('count(*) as count'))
+                ->groupBy('interaction_status')
+                ->pluck('count', 'interaction_status');
+
+            $totalRegistered = $statusCounts->get('menerima', 0);
+            $totalRejected = $statusCounts->get('menolak', 0);
+            // On Progress includes no_response, tertarik, and null/empty
+            $totalOnProgress = $latestMessageIds->count() - $totalRegistered - $totalRejected;
+
             $overallStats = [
                 'total_staff' => $staffs->count(),
                 'total_canvassing' => $totalCanvassing,
@@ -254,12 +279,9 @@ class DashboardController extends Controller
                 'total_offline_out_group' => CanvassingGroupProspect::whereNull('canvassing_group_id')->count(),
 
                 // New Online Stats
-                'total_registered' => Message::where('interaction_status', 'menerima')->whereBetween('submitted_at', [$startDate, $endDate])->count(),
-                'total_rejected' => Message::where('interaction_status', 'menolak')->whereBetween('submitted_at', [$startDate, $endDate])->count(),
-                'total_on_progress' => Message::where(function ($q) {
-                    $q->whereIn('interaction_status', ['no_response', 'tertarik'])
-                        ->orWhereNull('interaction_status');
-                })->whereBetween('submitted_at', [$startDate, $endDate])->count(),
+                'total_registered' => $totalRegistered,
+                'total_rejected' => $totalRejected,
+                'total_on_progress' => $totalOnProgress,
             ];
 
             // Chart Data (Last 7 days)
