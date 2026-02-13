@@ -54,7 +54,7 @@ class MessageController extends Controller
             'stage' => 'nullable|integer|min:0|max:7',
             'contact_number' => 'nullable|string|max:50',
             'instagram_link' => 'nullable|url|max:255',
-            'channel' => 'nullable|string|in:instagram,tiktok,facebook,threads,whatsapp,other',
+            'channel' => 'nullable|string|max:255',
             'interaction_status' => 'nullable|string|in:no_response,menolak,tertarik,menerima',
             'lokasi' => 'nullable|string|max:255',
             'prospect_id' => 'nullable|integer|exists:prospects,id', // Manual prospect selection for follow-up when OCR fails
