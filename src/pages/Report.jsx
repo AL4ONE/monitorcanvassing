@@ -293,11 +293,15 @@ export default function Report() {
                                             </div>
                                         ) : (
                                             <div className="flex flex-col gap-1 items-start">
+                                                {/* Prioritize interaction_status if available */}
                                                 <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                                    ${['converted', 'success'].includes(row.status) ? 'bg-green-100 text-green-800' :
-                                                        ['rejected', 'failed', 'invalid'].includes(row.status) ? 'bg-red-100 text-red-800' :
-                                                            'bg-blue-100 text-blue-800'}`}>
-                                                    {row.status}
+                                                    ${row.interaction_status === 'menerima' ? 'bg-green-100 text-green-800' :
+                                                      row.interaction_status === 'menolak' ? 'bg-red-100 text-red-800' :
+                                                      row.interaction_status ? 'bg-yellow-100 text-yellow-800' :
+                                                      ['converted', 'success'].includes(row.status) ? 'bg-green-100 text-green-800' :
+                                                      ['rejected', 'failed', 'invalid'].includes(row.status) ? 'bg-red-100 text-red-800' :
+                                                      'bg-blue-100 text-blue-800'}`}>
+                                                    {row.interaction_status || row.status}
                                                 </span>
                                                 {row.failure_reason && (
                                                     <div className="text-xs text-red-600 font-medium">
