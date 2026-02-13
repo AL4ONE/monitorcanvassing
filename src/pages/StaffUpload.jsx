@@ -170,7 +170,7 @@ export default function StaffUpload() {
       return;
     }
 
-    if (!selectedCategory) {
+    if (selectedStage === 0 && !selectedCategory) {
       setMessage({ type: 'error', text: 'Pilih kategori terlebih dahulu' });
       return;
     }
