@@ -252,9 +252,8 @@ class DashboardController extends Controller
                 ],
             ]);
 
-            // New Online Stats - Logic updated to pick latest status per cycle in range
+            // New Online Stats - Logic updated to pick latest status per cycle (ALL TIME)
             $latestMessageIds = Message::select(DB::raw('MAX(id) as id'))
-                ->whereBetween('submitted_at', [$startDate, $endDate])
                 ->whereNotNull('canvassing_cycle_id')
                 ->groupBy('canvassing_cycle_id')
                 ->pluck('id');
