@@ -1,8 +1,6 @@
 import imageCompression from 'browser-image-compression';
 
 /**
- * Compress image using browser-image-compression library
- * Tuned for OCR readability: higher resolution + quality
  * @param {File} file - The image file to compress
  * @returns {Promise<File>} - Compressed file (~300-500KB)
  */

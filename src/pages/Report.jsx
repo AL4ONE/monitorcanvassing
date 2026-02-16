@@ -251,13 +251,13 @@ export default function Report() {
                                                     onChange={e => setEditForm({ ...editForm, status: e.target.value })}
                                                     className="text-xs border rounded p-1"
                                                 >
-                                                    <option value="active">Active</option>
-                                                    <option value="ongoing">Ongoing</option>
-                                                    <option value="converted">Converted</option>
-                                                    <option value="rejected">Rejected</option>
+                                                    <option value="no_response">No Response (Tidak ada Balasan)</option>
+                                                    <option value="menolak">Menolak</option>
+                                                    <option value="tertarik">Tertarik</option>
+                                                    <option value="menerima">Menerima (Closing)</option>
                                                 </select>
 
-                                                {(editForm.status === 'rejected' || editForm.status === 'failed' || editForm.status === 'invalid') && (
+                                                {(editForm.status === 'rejected' || editForm.status === 'failed' || editForm.status === 'invalid' || editForm.status === 'menolak') && (
                                                     <>
                                                         <select
                                                             value={editForm.failure_reason}

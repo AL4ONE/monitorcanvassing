@@ -137,7 +137,7 @@ export default function QualityCheck() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Message List */}
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-white rounded-lg shadow-md p-6 max-h-[calc(100vh-8rem)] overflow-y-auto">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold">Pending Review</h2>
             {(filters.stage !== '' || filters.username !== '' || filters.dateFrom !== '' || filters.dateTo !== '' || filters.category !== '') && (
@@ -313,7 +313,7 @@ export default function QualityCheck() {
         </div>
 
         {/* Message Detail */}
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-white rounded-lg shadow-md p-6 sticky top-24 self-start max-h-[calc(100vh-8rem)] overflow-y-auto">
           {selectedMessage ? (
             <>
               <h2 className="text-lg font-semibold mb-4">Detail Message</h2>
