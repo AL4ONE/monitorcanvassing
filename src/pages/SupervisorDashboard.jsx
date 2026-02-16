@@ -8,7 +8,12 @@ export default function SupervisorDashboard() {
   const { showToast } = useToast();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  // Use local date (WIB), not UTC - toISOString() returns UTC which is wrong at midnight WIB
+  const getLocalDate = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  };
+  const [selectedDate, setSelectedDate] = useState(getLocalDate());
   const [viewMode, setViewMode] = useState('daily'); // 'daily' or 'weekly'
   const [statsType, setStatsType] = useState('online'); // 'online' or 'offline'
 
@@ -166,6 +171,19 @@ export default function SupervisorDashboard() {
                 <div className="bg-white rounded-lg shadow-md p-6">
                     <h3 className="text-sm font-medium text-gray-600">Total Follow Up</h3>
                     <p className="text-3xl font-bold mt-2">{data.overall_stats.total_follow_up}</p>
+                </div>
+                {/* New Online Stats */}
+                <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
+                    <h3 className="text-sm font-medium text-gray-600">Total Registered</h3>
+                    <p className="text-3xl font-bold mt-2 text-green-600">{data.overall_stats.total_registered || 0}</p>
+                </div>
+                <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-red-500">
+                    <h3 className="text-sm font-medium text-gray-600">Total Rejected</h3>
+                    <p className="text-3xl font-bold mt-2 text-red-600">{data.overall_stats.total_rejected || 0}</p>
+                </div>
+                <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-yellow-500">
+                    <h3 className="text-sm font-medium text-gray-600">On Progress</h3>
+                    <p className="text-3xl font-bold mt-2 text-yellow-600">{data.overall_stats.total_on_progress || 0}</p>
                 </div>
                 <div className="bg-white rounded-lg shadow-md p-6">
                     <h3 className="text-sm font-medium text-gray-600">Pending QC</h3>

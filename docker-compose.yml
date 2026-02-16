@@ -1,85 +1,25 @@
 version: '3.8'
 
 services:
-  backend:
-    # Build context hanya aktif jika APP_BUILD=true, jika tidak gunakan image dari APP_IMAGE
-    image: ${APP_IMAGE:-canvas-backend:latest}
-    container_name: canvas-backend
+  stiqr-canvas-fe:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: stiqr-canvas-fe
     ports:
       - "80:80"
     restart: unless-stopped
     environment:
-      - APP_NAME=${APP_NAME:-StiqrCanvas}
-      - APP_ENV=${APP_ENV:-development}
-      - APP_KEY=${APP_KEY:-base64:N/mdWZCaKxDvqZpYL5DDqq0GJ9MyaffEc+lZrPfEFEo=}
-      - APP_DEBUG=${APP_DEBUG:-true}
-      - APP_URL=${APP_URL:-http://localhost}
-      - LOG_CHANNEL=${LOG_CHANNEL:-stack}
-      - LOG_LEVEL=${LOG_LEVEL:-info}
-      - DB_CONNECTION=${DB_CONNECTION:-pgsql}
-      - DB_HOST=${DB_HOST:-postgres}
-      - DB_PORT=${DB_PORT:-5432}
-      - DB_DATABASE=${DB_DATABASE:-stiqrcanvas}
-      - DB_USERNAME=${DB_USERNAME:-stiqrcanvas}
-      - DB_PASSWORD=${DB_PASSWORD:-secret}
-      - CACHE_DRIVER=${CACHE_STORE:-file}
-      - SESSION_DRIVER=${SESSION_DRIVER:-file}
-      - QUEUE_CONNECTION=${QUEUE_CONNECTION:-sync}
-      - FILESYSTEM_DISK=${FILESYSTEM_DISK:-local}
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
-      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-ap-southeast-1}
-      - AWS_BUCKET=${AWS_BUCKET:-}
-      - AWS_URL=${AWS_URL:-}
-      - AWS_ENDPOINT=${AWS_ENDPOINT:-}
-      - AWS_USE_PATH_STYLE_ENDPOINT=${AWS_USE_PATH_STYLE_ENDPOINT:-false}
-      - ALLOW_FAKE_OCR=${ALLOW_FAKE_OCR:-false}
-      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
-      - CORS_ALLOWED_METHODS=${CORS_ALLOWED_METHODS:-GET,POST,PUT,PATCH,DELETE,OPTIONS}
-      - CORS_ALLOWED_HEADERS=${CORS_ALLOWED_HEADERS:-Content-Type,Authorization,X-Requested-With,Origin,Accept}
-      - CORS_EXPOSED_HEADERS=${CORS_EXPOSED_HEADERS:-}
-      - CORS_MAX_AGE=${CORS_MAX_AGE:-0}
-      - CORS_SUPPORTS_CREDENTIALS=${CORS_SUPPORTS_CREDENTIALS:-true}
-      - NGINX_CORS_ENABLE=${NGINX_CORS_ENABLE:-true}
-    volumes:
-      - ./storage:/var/www/html/storage
+      - NODE_ENV=production
     networks:
-      - stiqrcanvas-network
-    depends_on:
-      postgres:
-        condition: service_healthy
+      - stiqr-canvas-network
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
 
-  postgres:
-    image: postgres:16-alpine
-    container_name: canvas-postgres
-    restart: unless-stopped
-    environment:
-      - POSTGRES_DB=${DB_DATABASE:-stiqrcanvas}
-      - POSTGRES_USER=${DB_USERNAME:-stiqrcanvas}
-      - POSTGRES_PASSWORD=${DB_PASSWORD:-secret}
-      - PGDATA=/var/lib/postgresql/data/pgdata
-    volumes:
-      - stiqrcanvas_postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    networks:
-      - stiqrcanvas-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $DB_USERNAME -d $DB_DATABASE"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
 networks:
-  stiqrcanvas-network:
+  stiqr-canvas-network:
     driver: bridge
-
-volumes:
-  stiqrcanvas_postgres_data:
-    driver: local

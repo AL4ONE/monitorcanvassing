@@ -98,7 +98,6 @@ class DashboardController extends Controller
             ->whereHas('canvassingCycle', function ($q) use ($staffId) {
                 $q->where('staff_id', $staffId);
             })
-            ->whereDate('submitted_at', $date)
             ->whereNotNull('canvassing_cycle_id')
             ->groupBy('canvassing_cycle_id')
             ->pluck('id');

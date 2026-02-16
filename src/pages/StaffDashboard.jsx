@@ -10,7 +10,12 @@ export default function StaffDashboard() {
   const [stats, setStats] = useState(null);
   const [recentMessages, setRecentMessages] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  // Use local date (WIB), not UTC - toISOString() returns UTC which is wrong at midnight WIB
+  const getLocalDate = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  };
+  const [selectedDate, setSelectedDate] = useState(getLocalDate());
   const [deleting, setDeleting] = useState(null);
 
   useEffect(() => {
@@ -99,6 +104,32 @@ export default function StaffDashboard() {
           </Link>
         </div>
       </div>
+
+      {/* Overall Stats Cards */}
+      {stats?.overall_stats && (
+           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6 md:mb-8">
+                <div className="bg-white rounded-lg shadow-md p-4">
+                    <h3 className="text-xs font-medium text-gray-600 mb-1">Total Canvassing</h3>
+                    <p className="text-2xl font-bold text-indigo-600">{stats.overall_stats.total_canvassing}</p>
+                </div>
+                <div className="bg-white rounded-lg shadow-md p-4">
+                    <h3 className="text-xs font-medium text-gray-600 mb-1">Total Follow Up</h3>
+                    <p className="text-2xl font-bold text-blue-600">{stats.overall_stats.total_follow_up}</p>
+                </div>
+                <div className="bg-white rounded-lg shadow-md p-4 bg-green-50 border border-green-100">
+                    <h3 className="text-xs font-medium text-green-800 mb-1">Registered</h3>
+                    <p className="text-2xl font-bold text-green-700">{stats.overall_stats.total_registered}</p>
+                </div>
+                <div className="bg-white rounded-lg shadow-md p-4 bg-red-50 border border-red-100">
+                    <h3 className="text-xs font-medium text-red-800 mb-1">Rejected</h3>
+                    <p className="text-2xl font-bold text-red-700">{stats.overall_stats.total_rejected}</p>
+                </div>
+                <div className="bg-white rounded-lg shadow-md p-4 bg-yellow-50 border border-yellow-100">
+                    <h3 className="text-xs font-medium text-yellow-800 mb-1">On Progress</h3>
+                    <p className="text-2xl font-bold text-yellow-700">{stats.overall_stats.total_on_progress}</p>
+                </div>
+           </div>
+      )}
 
       {/* Target Cards - Dynamic for all stages */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">

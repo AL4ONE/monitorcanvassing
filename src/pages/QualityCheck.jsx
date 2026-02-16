@@ -245,27 +245,62 @@ export default function QualityCheck() {
                   className="border rounded-lg p-4 cursor-pointer hover:bg-gray-50"
                   onClick={() => handleViewMessage(msg.id)}
                 >
-                  <div className="flex justify-between items-start">
                     <div>
-                      <p className="font-medium">
-                        {msg.stage === 0 ? 'Canvassing' : `FU-${msg.stage}`}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        @{msg.canvassing_cycle?.prospect?.instagram_username || msg.ocr_instagram_username}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {msg.category === 'umkm_fb' ? 'UMKM F&B' :
-                          msg.category === 'coffee_shop' ? 'Coffee Shop' :
-                            msg.category === 'restoran' ? 'Restoran' : 'N/A'}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {new Date(msg.submitted_at).toLocaleString('id-ID')}
-                      </p>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-medium text-indigo-600">
+                            {msg.stage === 0 ? 'Canvassing' : `FU-${msg.stage}`}
+                          </p>
+                          <p className="text-sm font-semibold text-gray-900">
+                            @{msg.canvassing_cycle?.prospect?.instagram_username || msg.ocr_instagram_username}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {msg.category === 'umkm_fb' ? 'UMKM F&B' :
+                              msg.category === 'coffee_shop' ? 'Coffee Shop' :
+                                msg.category === 'restoran' ? 'Restoran' :
+                                  msg.category === 'product_digital' ? 'Product Digital' : 'N/A'}
+                          </p>
+                          
+                   
+                          {/* New Info Fields in List */}
+                          <div className="mt-2 text-xs text-gray-600 space-y-1">
+                                <div className="flex gap-2">
+                                    <span className="font-medium">Kontak:</span> {msg.contact_number || '-'}
+                                </div>
+                                <div className="flex gap-2">
+                                    <span className="font-medium">Channel:</span> {msg.channel || '-'}
+                                </div>
+                                {msg.interaction_status && (
+                                    <div className="flex gap-2">
+                                        <span className="font-medium">Status:</span> 
+                                        <span className={`px-1.5 rounded ${
+                                            msg.interaction_status === 'menerima' ? 'bg-green-100 text-green-700' :
+                                            msg.interaction_status === 'menolak' ? 'bg-red-100 text-red-700' :
+                                            'bg-yellow-100 text-yellow-700'
+                                        }`}>
+                                            {msg.interaction_status}
+                                        </span>
+                                    </div>
+                                )}
+                                {msg.has_website && (
+                                     <div className="flex gap-2 items-center text-blue-600">
+                                        <span className="font-medium text-gray-600">Web:</span> 
+                                        <a href={msg.website_url} target="_blank" rel="noopener noreferrer" className="hover:underline truncate max-w-[150px]" onClick={e => e.stopPropagation()}>
+                                            {msg.website_url}
+                                        </a>
+                                     </div>
+                                )}
+                          </div>
+                          
+                          <p className="text-xs text-gray-400 mt-2">
+                            {new Date(msg.submitted_at).toLocaleString('id-ID')}
+                          </p>
+                        </div>
+                        <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded shrink-0 ml-2">
+                          Pending
+                        </span>
+                      </div>
                     </div>
-                    <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded">
-                      Pending
-                    </span>
-                  </div>
                 </div>
               ))}
             </div>
@@ -296,67 +331,94 @@ export default function QualityCheck() {
                 </div>
               </div>
 
-              <div className="space-y-3 mb-6">
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Stage</label>
-                  <p className="text-sm">
-                    {selectedMessage.data.stage === 0
-                      ? 'Canvassing'
-                      : `Follow Up ${selectedMessage.data.stage}`}
-                  </p>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Instagram Username</label>
-                  <p className="text-sm">
-                    @{selectedMessage.data.canvassing_cycle?.prospect?.instagram_username || selectedMessage.data.ocr_instagram_username}
-                  </p>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium text-gray-700">OCR Message</label>
-                  <p className="text-sm text-gray-600">
-                    {selectedMessage.data.ocr_message_snippet || 'Tidak ada'}
-                  </p>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Kategori</label>
-                  <p className="text-sm">
-                    {selectedMessage.data.category === 'umkm_fb' ? 'UMKM F&B' :
-                      selectedMessage.data.category === 'coffee_shop' ? 'Coffee Shop' :
-                        selectedMessage.data.category === 'restoran' ? 'Restoran' : 'N/A'}
-                  </p>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Staff</label>
-                  <p className="text-sm">
-                    {selectedMessage.data.canvassing_cycle?.staff?.name}
-                  </p>
-                </div>
-
-                {/* Timeline */}
-                {selectedMessage.data.canvassing_cycle?.messages && (
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Timeline</label>
-                    <div className="mt-2 space-y-2">
-                      {selectedMessage.data.canvassing_cycle.messages.map((m) => (
-                        <div
-                          key={m.id}
-                          className={`text-xs p-2 rounded ${m.id === selectedMessage.data.id
-                            ? 'bg-indigo-100'
-                            : 'bg-gray-50'
-                            }`}
-                        >
-                          {m.stage === 0 ? 'Canvassing' : `FU-${m.stage}`} -{' '}
-                          {new Date(m.submitted_at).toLocaleDateString('id-ID')}
-                        </div>
-                      ))}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs text-gray-500">Instagram Username</p>
+                      <p className="font-medium">
+                        @{selectedMessage.data.canvassing_cycle?.prospect?.instagram_username || selectedMessage.data.ocr_instagram_username}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Kategori</p>
+                      <p className="font-medium">
+                        {selectedMessage.data.category === 'umkm_fb' ? 'UMKM F&B' :
+                          selectedMessage.data.category === 'coffee_shop' ? 'Coffee Shop' :
+                            selectedMessage.data.category === 'restoran' ? 'Restoran' :
+                              selectedMessage.data.category === 'product_digital' ? 'Product Digital' : 'N/A'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Tanggal Upload</p>
+                      <p className="font-medium">
+                        {new Date(selectedMessage.data.submitted_at).toLocaleString('id-ID')}
+                      </p>
+                    </div>
+                    <div>
+                        <p className="text-xs text-gray-500">Kontak</p>
+                        <p className="font-medium">{selectedMessage.data.contact_number || '-'}</p>
+                    </div>
+                    <div>
+                        <p className="text-xs text-gray-500">Channel</p>
+                        <p className="font-medium">
+                            {selectedMessage.data.channel ? (
+                                <>
+                                    {selectedMessage.data.channel}
+                                    {selectedMessage.data.channel_category && <span className="text-xs text-gray-500 ml-1">({selectedMessage.data.channel_category})</span>}
+                                </>
+                            ) : '-'}
+                        </p>
+                    </div>
+                    <div>
+                        <p className="text-xs text-gray-500">Lokasi</p>
+                        <p className="font-medium truncate" title={selectedMessage.data.lokasi}>{selectedMessage.data.lokasi || '-'}</p>
+                    </div>
+                     <div>
+                        <p className="text-xs text-gray-500">Status Interaksi</p>
+                        <p className={`font-medium inline-block px-2 py-0.5 rounded text-sm ${
+                             selectedMessage.data.interaction_status === 'menerima' ? 'bg-green-100 text-green-700' :
+                             selectedMessage.data.interaction_status === 'menolak' ? 'bg-red-100 text-red-700' :
+                             selectedMessage.data.interaction_status ? 'bg-yellow-100 text-yellow-700' : 'text-gray-500'
+                        }`}>
+                            {selectedMessage.data.interaction_status || '-'}
+                        </p>
                     </div>
                   </div>
-                )}
-              </div>
+                  
+                  {/* Website Info */}
+                  <div className="mt-4 border-t pt-3">
+                     <p className="text-xs text-gray-500 mb-2 font-semibold">Informasi Website</p>
+                     <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <p className="text-xs text-gray-500">Punya Website?</p>
+                            <p className="font-medium">{selectedMessage.data.has_website ? 'Ya' : 'Tidak'}</p>
+                        </div>
+                         {selectedMessage.data.has_website && (
+                            <div className="col-span-2">
+                                <p className="text-xs text-gray-500">URL Website</p>
+                                <a href={selectedMessage.data.website_url} target="_blank" rel="noopener noreferrer" className="font-medium text-blue-600 hover:underline break-all">
+                                    {selectedMessage.data.website_url}
+                                </a>
+                            </div>
+                         )}
+                         <div>
+                            <p className="text-xs text-gray-500">Punya Payment Gateway?</p>
+                            <p className="font-medium">{selectedMessage.data.has_payment_gateway ? 'Ya' : 'Tidak'}</p>
+                        </div>
+                     </div>
+                  </div>
+
+                  {selectedMessage.data.canvassing_cycle?.prospect?.instagram_link && (
+                    <div className="mt-4">
+                      <a
+                        href={selectedMessage.data.canvassing_cycle.prospect.instagram_link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline text-sm flex items-center gap-1"
+                      >
+                        Buka Profil Instagram ↗
+                      </a>
+                    </div>
+                  )}
 
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">

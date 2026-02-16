@@ -1,183 +1,53 @@
 #!/bin/sh
 # ============================================================
-# 🚀 Laravel Application Entrypoint (Production Safe)
+# 🚀 Script Update & Pembersihan URL dan Token Frontend Build
+# ------------------------------------------------------------
+# Fungsi:
+#   1️⃣ Persiapkan direktori log & backup
+#   2️⃣ Ambil nilai environment (VITE_API_URL, VITE_API_BASE_URL,
+#       VITE_IMAGE_TOKEN, VITE_OSS_URL)
+#   3️⃣ Ganti semua placeholder di hasil build frontend
+#   4️⃣ Bersihkan port number dari domain target
 # ============================================================
 
-
-set -e
 # ============================================================
-# 🚦 Dynamic NGINX CORS (env-driven include rules)
+# 📁 Step 1: Lokasi file & inisialisasi direktori
 # ============================================================
-if [ "$NGINX_CORS_ENABLE" = "true" ]; then
-  CORS_INC="/etc/nginx/http.d/cors-allow.inc"
-  CORS_HEADERS_INC="/etc/nginx/http.d/cors-headers.inc"
-  CORS_OPTIONS_INC="/etc/nginx/http.d/cors-options.inc"
-  echo "🔄 Generating CORS allow rules into $CORS_INC"
-  : > "$CORS_INC"
+TARGET_FILES="/usr/share/nginx/html/assets/*.js"
+LOG_FILE="/var/log/script/update_api_url.log"
+BACKUP_DIR="/usr/share/nginx/html/assets_backup_$(date '+%Y%m%d_%H%M%S')"
+LOG_DIR=$(dirname "$LOG_FILE")
 
-  if [ -n "$CORS_ALLOWED_ORIGINS" ]; then
-    IFS=, ; for ORG in $CORS_ALLOWED_ORIGINS; do
-      ORG_TRIM=$(printf '%s' "$ORG" | awk '{ $1=$1; print }')
-      if [ -n "$ORG_TRIM" ]; then
-        printf 'if ($http_origin = "%s") { set $cors_allow_origin $http_origin; }\n' "$ORG_TRIM" >> "$CORS_INC"
-      fi
-    done
-    unset IFS
-    echo "✅ CORS rules generated for origins: $CORS_ALLOWED_ORIGINS"
-  else
-    echo "ℹ️ CORS_ALLOWED_ORIGINS empty; leaving $CORS_INC blank (no origins allowed)."
-  fi
-
-  # Generate headers/include only when CORS is enabled
-  cat >"$CORS_HEADERS_INC" <<'NGINX'
-add_header Access-Control-Allow-Origin $cors_allow_origin always;
-add_header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS" always;
-add_header Access-Control-Allow-Headers "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization" always;
-add_header Access-Control-Expose-Headers "Content-Length,Content-Range" always;
-add_header Access-Control-Allow-Credentials "true" always;
-NGINX
-
-  cat >"$CORS_OPTIONS_INC" <<'NGINX'
-if ($request_method = OPTIONS) {
-    return 204;
-}
-NGINX
-
-  # Reload nginx only if it's already running; ignore errors (first boot)
-  if pidof nginx >/dev/null 2>&1; then
-    nginx -s reload || true
-  fi
-else
-  echo "ℹ️ NGINX_CORS_ENABLE is not true; skipping dynamic CORS rules generation."
-  # Ensure includes are blank so Nginx does not emit CORS headers or short-circuit OPTIONS
-  : > "/etc/nginx/http.d/cors-allow.inc" || true
-  : > "/etc/nginx/http.d/cors-headers.inc" || true
-  : > "/etc/nginx/http.d/cors-options.inc" || true
-fi
-
-# Ensure LOG_FILE and BACKUP_DIR are set and directories exist
-LOG_FILE="/var/log/entrypoint.log"
-BACKUP_DIR="/tmp/backup_assets"
-mkdir -p "$(dirname "$LOG_FILE")"
+# Pastikan direktori log dan backup ada
+[ ! -d "$LOG_DIR" ] && mkdir -p "$LOG_DIR"
 mkdir -p "$BACKUP_DIR"
 
-echo "============================================================"
-echo "🚀 Starting Laravel application"
-echo "APP_ENV        : ${APP_ENV:-undefined}"
-echo "RUN_MIGRATION  : ${RUN_MIGRATION:-false}"
-echo "============================================================"
-
-APP_DIR="/var/www/html"
-
-cd "$APP_DIR"
+echo "============================================================" >> "$LOG_FILE"
+echo "$(date '+%Y-%m-%d %H:%M:%S') 🚀 Memulai proses update konfigurasi frontend" >> "$LOG_FILE"
 
 # ============================================================
-# 🔐 Fix Permissions
+# 🧩 Step 2: Ambil environment variable (dari Kubernetes/Docker)
 # ============================================================
-echo "🔐 Ensuring storage subfolders and fixing permissions..."
-# Laravel storage subfolders
-for dir in storage/app storage/framework storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache; do
-  mkdir -p "$dir"
-  chown -R www-data:www-data "$dir"
-  chmod -R 775 "$dir"
-done
+# Environment variables akan di-inject oleh Kubernetes/Docker saat runtime
+# Tidak perlu baca dari file .env karena file tersebut hanya untuk build-time
 
-# Create/repair public/storage symlink to storage/app/public
-LINK_PATH="${APP_DIR}/public/storage"
-TARGET_PATH="${APP_DIR}/storage/app/public"
-echo "🔗 Ensuring storage symlink: $LINK_PATH -> $TARGET_PATH"
-mkdir -p "$TARGET_PATH"
-if [ -L "$LINK_PATH" ]; then
-  CURRENT_TARGET=$(readlink "$LINK_PATH" || true)
-  if [ "$CURRENT_TARGET" != "$TARGET_PATH" ]; then
-    echo "↪️ Updating existing symlink (was: $CURRENT_TARGET)"
-    rm -f "$LINK_PATH"
-    ln -sfn "$TARGET_PATH" "$LINK_PATH"
-  else
-    echo "✅ Symlink already correct"
-  fi
-elif [ -e "$LINK_PATH" ]; then
-  echo "🧹 Removing non-symlink path at $LINK_PATH"
-  rm -rf "$LINK_PATH"
-  ln -sfn "$TARGET_PATH" "$LINK_PATH"
-else
-  ln -sfn "$TARGET_PATH" "$LINK_PATH"
-  echo "✅ Symlink created"
+echo "$(date '+%Y-%m-%d %H:%M:%S') 📋 Environment Variables:" >> "$LOG_FILE"
+echo "  VITE_API_URL: ${VITE_API_URL:-<not set>}" >> "$LOG_FILE"
+echo "  VITE_API_BASE_URL: ${VITE_API_BASE_URL:-<not set>}" >> "$LOG_FILE"
+echo "  VITE_IMAGE_TOKEN: ${VITE_IMAGE_TOKEN:-<not set>}" >> "$LOG_FILE"
+echo "  VITE_OSS_URL: ${VITE_OSS_URL:-<not set>}" >> "$LOG_FILE"
+
+# Jika tidak ada environment variable yang di-set, skip replacement dan langsung jalankan nginx
+if [ -z "$VITE_API_URL" ] && [ -z "$VITE_API_BASE_URL" ] && [ -z "$VITE_IMAGE_TOKEN" ] && [ -z "$VITE_OSS_URL" ]; then
+  echo "$(date '+%Y-%m-%d %H:%M:%S') ⚠️  Tidak ada environment variable yang di-set — skip update, lanjut ke nginx" >> "$LOG_FILE"
+  echo "$(date '+%Y-%m-%d %H:%M:%S') 🚀 Menjalankan nginx..." >> "$LOG_FILE"
+  exec "$@"
 fi
 
-# ============================================================
-# 🔑 Generate APP_KEY (jika APP_KEY di .env kosong)
-# ============================================================
-echo "🔍 Checking APP_KEY..."
-
-# ============================================================
-# 1️⃣ Cek APP_KEY di environment (harus ada & valid)
-# ============================================================
-
-if [ -n "$APP_KEY" ] && echo "$APP_KEY" | grep -q "^base64:"; then
-  echo "🔐 APP_KEY found in environment and valid, skipping generation"
-
-else
-  echo "ℹ️ APP_KEY not found or invalid in environment"
-
-  # ============================================================
-  # 2️⃣ Pastikan file .env ada
-  # ============================================================
-  if [ ! -f ".env" ]; then
-    if [ -f ".env.example" ]; then
-      echo "📄 .env not found, creating from .env.example"
-      cp .env.example .env
-    else
-      echo "📄 .env.example not found, creating empty .env"
-      touch .env
-    fi
-  fi
-
-  # ============================================================
-  # 3️⃣ Cek APP_KEY di .env
-  # ============================================================
-  if grep -q "^APP_KEY=base64:" .env; then
-    echo "🔐 APP_KEY already exists in .env, skipping generation"
-  else
-    echo "🔑 APP_KEY not found in .env, generating..."
-    php artisan key:generate --force
-    echo "✅ APP_KEY generated and saved to .env"
-  fi
-fi
-
-# ============================================================
-# 🧠 Laravel Cache
-# ============================================================
-ARTISAN_CLEAR="${ARTISAN_CLEAR:-true}"
-if [ "$ARTISAN_CLEAR" = "true" ]; then
-  echo "🧠 Caching Laravel configuration..."
-  php artisan config:clear || true
-  php artisan config:cache || true
-  php artisan route:cache || true
-  php artisan view:cache || true
-  php artisan optimize:clear || true
-fi
-
-# ============================================================
-# 🔄 Controlled Database Migration
-# ============================================================
-echo "🔄 Checking migration conditions..."
-
-if [ "$RUN_MIGRATION" = "true" ]; then
-  if [ "$APP_ENV" != "production" ]; then
-    echo "⚠️ Running database migration (APP_ENV=$APP_ENV)"
-    php artisan migrate --force || echo "⚠️ Migration failed, continuing"
-  else
-    echo "🚫 Migration skipped (production environment)"
-  fi
-else
-  echo "ℹ️ RUN_MIGRATION disabled"
-fi
-
-echo "✅ Laravel initialization completed"
-echo "============================================================"
-
-
+echo "$(date '+%Y-%m-%d %H:%M:%S') 🌐 Environment untuk replacement:" >> "$LOG_FILE"
+[ -n "$VITE_API_URL" ] && echo "  VITE_API_URL: $VITE_API_URL" >> "$LOG_FILE"
+[ -n "$VITE_API_BASE_URL" ] && echo "  VITE_API_BASE_URL: $VITE_API_BASE_URL" >> "$LOG_FILE"
+[ -n "$VITE_IMAGE_TOKEN" ] && echo "  VITE_IMAGE_TOKEN: $VITE_IMAGE_TOKEN" >> "$LOG_FILE"
 [ -n "$VITE_OSS_URL" ] && echo "  VITE_OSS_URL: $VITE_OSS_URL" >> "$LOG_FILE"
 
 # ============================================================
@@ -238,9 +108,4 @@ echo "============================================================" >> "$LOG_FIL
 # ============================================================
 # 🚀 Jalankan perintah lanjutan (CMD/ARG docker)
 # ============================================================
-
-# ============================================================
-# 🚀 Start main container process (php-fpm / nginx / supervisord)
-# ============================================================
-
 exec "$@"
