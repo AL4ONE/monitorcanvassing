@@ -251,6 +251,7 @@ export default function Report() {
                                                     onChange={e => setEditForm({ ...editForm, status: e.target.value })}
                                                     className="text-xs border rounded p-1"
                                                 >
+                                                    <option value="">Pilih Status Interaksi (Opsional)</option>
                                                     <option value="no_response">No Response (Tidak ada Balasan)</option>
                                                     <option value="menolak">Menolak</option>
                                                     <option value="tertarik">Tertarik</option>
