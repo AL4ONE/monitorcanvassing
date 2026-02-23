@@ -107,7 +107,7 @@ export default function StaffDashboard() {
 
       {/* Overall Stats Cards */}
       {stats?.overall_stats && (
-           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6 md:mb-8">
+           <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6 md:mb-8">
                 <div className="bg-white rounded-lg shadow-md p-4">
                     <h3 className="text-xs font-medium text-gray-600 mb-1">Total Canvassing</h3>
                     <p className="text-2xl font-bold text-indigo-600">{stats.overall_stats.total_canvassing}</p>
@@ -115,6 +115,10 @@ export default function StaffDashboard() {
                 <div className="bg-white rounded-lg shadow-md p-4">
                     <h3 className="text-xs font-medium text-gray-600 mb-1">Total Follow Up</h3>
                     <p className="text-2xl font-bold text-blue-600">{stats.overall_stats.total_follow_up}</p>
+                </div>
+                <div className="bg-white rounded-lg shadow-md p-4 bg-cyan-50 border border-cyan-100">
+                    <h3 className="text-xs font-medium text-cyan-800 mb-1">Tertarik</h3>
+                    <p className="text-2xl font-bold text-cyan-700">{stats.overall_stats.total_tertarik}</p>
                 </div>
                 <div className="bg-white rounded-lg shadow-md p-4 bg-green-50 border border-green-100">
                     <h3 className="text-xs font-medium text-green-800 mb-1">Registered</h3>
