@@ -186,6 +186,9 @@ export default function Report() {
                             <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50 z-10">Merchant</th>
                             <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Kontak</th>
                             <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Link IG</th>
+                            <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Has Web</th>
+                            <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Link Web</th>
+                            <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Has Payment</th>
                             <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Channel</th>
                             <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Lokasi</th>
                             <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Staff / Kategori</th>
@@ -201,9 +204,9 @@ export default function Report() {
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                         {loading ? (
-                            <tr><td colSpan="15" className="text-center py-4">Memuat data...</td></tr>
+                            <tr><td colSpan="18" className="text-center py-4">Memuat data...</td></tr>
                         ) : reportData.length === 0 ? (
-                            <tr><td colSpan="15" className="text-center py-4">Tidak ada data</td></tr>
+                            <tr><td colSpan="18" className="text-center py-4">Tidak ada data</td></tr>
                         ) : (
                             reportData.map((row) => (
                                 <tr key={row.id} className="hover:bg-gray-50">
@@ -233,10 +236,38 @@ export default function Report() {
                                             <span className="text-gray-400">-</span>
                                         )}
                                     </td>
+                                    <td className="px-4 py-4 whitespace-nowrap text-center">
+                                        {row.has_website ? (
+                                            <span className="text-green-600 font-semibold">✓</span>
+                                        ) : (
+                                            <span className="text-gray-400">-</span>
+                                        )}
+                                    </td>
+                                    <td className="px-4 py-4 whitespace-nowrap text-gray-500">
+                                        {row.website_url ? (
+                                            <a
+                                                href={row.website_url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-blue-600 hover:underline flex items-center gap-1"
+                                            >
+                                                Lihat Web →
+                                            </a>
+                                        ) : (
+                                            <span className="text-gray-400">-</span>
+                                        )}
+                                    </td>
+                                    <td className="px-4 py-4 whitespace-nowrap text-center">
+                                        {row.has_payment_gateway ? (
+                                            <span className="text-green-600 font-semibold">✓</span>
+                                        ) : (
+                                            <span className="text-gray-400">-</span>
+                                        )}
+                                    </td>
                                     <td className="px-4 py-4 whitespace-nowrap text-gray-500">
                                         {row.channel || '-'}
                                     </td>
-                                    <td className="px-4 py-4 whitespace-nowrap text-gray-500">
+                                    <td className="px-4 py-4 text-gray-500 max-w-[200px] break-words whitespace-normal">
                                         {row.lokasi || '-'}
                                     </td>
                                     <td className="px-4 py-4 whitespace-nowrap text-gray-500">
