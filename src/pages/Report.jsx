@@ -329,6 +329,7 @@ export default function Report() {
                                                 <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
                                                     ${row.interaction_status === 'menerima' ? 'bg-green-100 text-green-800' :
                                                       row.interaction_status === 'menolak' ? 'bg-red-100 text-red-800' :
+                                                      row.interaction_status === 'tertarik' ? 'bg-cyan-100 text-cyan-800' :
                                                       row.interaction_status ? 'bg-yellow-100 text-yellow-800' :
                                                       ['converted', 'success'].includes(row.status) ? 'bg-green-100 text-green-800' :
                                                       ['rejected', 'failed', 'invalid'].includes(row.status) ? 'bg-red-100 text-red-800' :
