@@ -48,44 +48,48 @@ export default function SupervisorDashboard() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Dashboard Supervisor</h1>
-        <div className="flex gap-4">
-            <div className="bg-gray-100 p-1 rounded-lg flex">
-                <button
-                    onClick={() => setStatsType('online')}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                    statsType === 'online' 
-                        ? 'bg-white text-indigo-600 shadow-sm' 
-                        : 'text-gray-500 hover:text-gray-700'
-                    }`}
-                >
-                    Online Canvassing
-                </button>
-                <button
-                    onClick={() => setStatsType('offline')}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                    statsType === 'offline' 
-                        ? 'bg-white text-indigo-600 shadow-sm' 
-                        : 'text-gray-500 hover:text-gray-700'
-                    }`}
-                >
-                    Offline Visits
-                </button>
-            </div>
+    <div className="max-w-7xl mx-auto p-4 md:p-6">
+      <div className="flex flex-col gap-3 mb-6">
+        {/* Row 1: Title + Tab Toggle */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <h1 className="text-xl md:text-2xl font-bold whitespace-nowrap">Dashboard Supervisor</h1>
+          <div className="bg-gray-100 p-1 rounded-lg flex">
+              <button
+                  onClick={() => setStatsType('online')}
+                  className={`px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors ${
+                  statsType === 'online' 
+                      ? 'bg-white text-indigo-600 shadow-sm' 
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+              >
+                  Online Canvassing
+              </button>
+              <button
+                  onClick={() => setStatsType('offline')}
+                  className={`px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors ${
+                  statsType === 'offline' 
+                      ? 'bg-white text-indigo-600 shadow-sm' 
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+              >
+                  Offline Visits
+              </button>
+          </div>
+        </div>
 
+        {/* Row 2: Date, ViewMode, Action Buttons */}
+        <div className="flex flex-wrap items-center gap-2">
           <input
             type="date"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
-            className="border border-gray-300 rounded-md px-3 py-2"
+            className="border border-gray-300 rounded-md px-3 py-2 text-sm"
           />
 
           <select
             value={viewMode}
             onChange={(e) => setViewMode(e.target.value)}
-            className="border border-gray-300 rounded-md px-3 py-2"
+            className="border border-gray-300 rounded-md px-3 py-2 text-sm"
           >
             <option value="daily">Harian</option>
             <option value="weekly">Mingguan</option>
@@ -93,13 +97,13 @@ export default function SupervisorDashboard() {
 
           <Link
              to="/report"
-             className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+             className="bg-blue-600 text-white px-3 py-2 rounded-md hover:bg-blue-700 text-sm"
           >
             Laporan
           </Link>
-           <Link
+          <Link
              to="/quality-check"
-             className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
+             className="bg-indigo-600 text-white px-3 py-2 rounded-md hover:bg-indigo-700 text-sm"
            >
              Quality Check
            </Link>
