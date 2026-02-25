@@ -11,6 +11,7 @@ export default function QualityCheck() {
   const [loading, setLoading] = useState(true);
   const [reviewing, setReviewing] = useState(false);
   const [notes, setNotes] = useState('');
+  const [total, setTotal] = useState(0);
 
   // Filter states
   const [filters, setFilters] = useState({
@@ -50,6 +51,7 @@ export default function QualityCheck() {
       const url = `/quality-checks${queryString ? '?' + queryString : ''}`;
       const response = await api.get(url);
       setMessages(response.data.data || []);
+      setTotal(response.data.pagination?.total || 0);
     } catch (error) {
       console.error('Error fetching messages:', error);
     } finally {
@@ -116,7 +118,15 @@ export default function QualityCheck() {
 
     try {
       setLoading(true);
-      const response = await api.post('/quality-checks/approve-all');
+      const params = new URLSearchParams();
+      if (filters.stage !== '') params.append('stage', filters.stage);
+      if (filters.username !== '') params.append('username', filters.username);
+      if (filters.dateFrom !== '') params.append('date_from', filters.dateFrom);
+      if (filters.dateTo !== '') params.append('date_to', filters.dateTo);
+      if (filters.category !== '') params.append('category', filters.category);
+
+      const queryString = params.toString();
+      const response = await api.post(`/quality-checks/approve-all${queryString ? '?' + queryString : ''}`);
       showToast(response.data.message, 'success');
       fetchMessages();
     } catch (error) {
@@ -139,7 +149,14 @@ export default function QualityCheck() {
         {/* Message List */}
         <div className="bg-white rounded-lg shadow-md p-6 max-h-[calc(100vh-8rem)] overflow-y-auto">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold">Pending Review</h2>
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              Pending Review
+              {total > 0 && (
+                <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-sm font-normal">
+                  {total}
+                </span>
+              )}
+            </h2>
             {(filters.stage !== '' || filters.username !== '' || filters.dateFrom !== '' || filters.dateTo !== '' || filters.category !== '') && (
               <button
                 onClick={clearFilters}
