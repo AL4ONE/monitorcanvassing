@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../api';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
+import * as XLSX from 'xlsx';
 
 export default function Report() {
     const { showToast } = useToast();
@@ -129,16 +130,87 @@ export default function Report() {
         setHistoryModal(cycle.id);
     };
 
+    const handleExport = () => {
+        if (reportData.length === 0) {
+            showToast('Tidak ada data untuk di-export', 'error');
+            return;
+        }
+
+        const rows = reportData.map((row, idx) => {
+            const base = {
+                'No': idx + 1,
+                'Merchant': row.merchant_name,
+                'Kontak': row.contact_number,
+                'Link IG': row.instagram_link || '-',
+                'Has Web': row.has_website ? 'Ya' : 'Tidak',
+                'Link Web': row.website_url || '-',
+                'Has Payment': row.has_payment_gateway ? 'Ya' : 'Tidak',
+                'Channel': row.channel || '-',
+                'Lokasi': row.lokasi || '-',
+                'Staff': row.staff_name,
+                'Kategori': row.category,
+                'Status': row.interaction_status || row.status,
+                'Alasan Gagal': row.failure_reason || '-',
+                'Notes Gagal': row.failure_notes || '-',
+                'Next Action': row.next_action || '-',
+                'Start Date': row.start_date,
+                'Next Followup': row.next_followup_date,
+                'Last Followup': row.last_followup_date,
+            };
+
+            // Add stage columns
+            for (let i = 0; i < 8; i++) {
+                const label = i === 0 ? 'Canvassing' : `FU ${i}`;
+                const stage = row.stages[i];
+                base[`${label} - Tanggal`] = stage ? stage.date : '-';
+                base[`${label} - Status`] = stage ? stage.status : '-';
+            }
+
+            return base;
+        });
+
+        const ws = XLSX.utils.json_to_sheet(rows);
+
+        // Auto-size columns
+        const colWidths = Object.keys(rows[0]).map(key => {
+            const maxLen = Math.max(
+                key.length,
+                ...rows.map(r => String(r[key] || '').length)
+            );
+            return { wch: Math.min(maxLen + 2, 40) };
+        });
+        ws['!cols'] = colWidths;
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Laporan Canvassing');
+
+        const today = new Date().toISOString().split('T')[0];
+        XLSX.writeFile(wb, `Laporan_Canvassing_${today}.xlsx`);
+        showToast('File berhasil di-download', 'success');
+    };
+
     return (
         <div className="max-w-full mx-auto p-3 md:p-4">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 md:mb-6">
                 <h1 className="text-xl md:text-2xl font-bold">Laporan Canvassing</h1>
-                <button
-                    onClick={handleCleanupValid}
-                    className="bg-red-600 text-white px-3 py-1.5 md:px-4 md:py-2 rounded hover:bg-red-700 text-xs md:text-sm font-medium whitespace-nowrap"
-                >
-                    Hapus Data Valid
-                </button>
+                <div className="flex gap-2">
+                    <button
+                        onClick={handleExport}
+                        disabled={loading || reportData.length === 0}
+                        className="bg-green-600 text-white px-3 py-1.5 md:px-4 md:py-2 rounded hover:bg-green-700 text-xs md:text-sm font-medium whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                        Export Excel
+                    </button>
+                    <button
+                        onClick={handleCleanupValid}
+                        className="bg-red-600 text-white px-3 py-1.5 md:px-4 md:py-2 rounded hover:bg-red-700 text-xs md:text-sm font-medium whitespace-nowrap"
+                    >
+                        Hapus Data Valid
+                    </button>
+                </div>
             </div>
 
             {/* Filters */}
